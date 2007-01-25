@@ -1,0 +1,161 @@
+=head1 NAME
+
+JE::Types - JavaScript types and objects
+
+This is just documentation, not a real module.
+
+=head1 DESCRIPTION
+
+The various JavaScript types and objects are represented by
+classes in JE. Each class provides the methods listed
+below. In some cases, a class may throw an exception when the
+method is called.
+
+If you are creating your own object classes in Perl for
+JavaScript to use, you can subclass JE::Object, but you don't
+have to. Just make sure that you provide all the methods listed
+below.
+
+=head1 WHICH CLASSES ARE WHICH
+
+Each built-in JavaScript class is a Perl class underneath. Here 
+is the (not
+yet)
+complete list of objects:
+
+  JavaScript  Perl
+  ----------------
+  Object      JE::Object
+  Function    JE::Object::Function
+  String      JE::Object::String
+  Array       JE::Object::Array
+  Boolean     JE::Object::Boolean
+  Number      JE::Object::Number
+  Date        JE::Object::Date
+  
+And here are the primitive types:
+
+  string      JE::String
+  number      JE::Number
+  boolean     JE::Boolean
+  null        JE::Null
+  undefined   JE::Undefined
+
+
+
+=head1 METHODS
+
+=over 4
+
+=item prop($name)
+
+=item prop($name, $new_value)
+
+Gets or sets a property. Setting a property returns the new
+value. The new value will be converted to a JS value
+automatically if it is not one already. (See
+L<UPGRADING VALUES|JE::Object/UPGRADING VALUES>, on the JE::Object man page.)
+
+=item props
+
+Returns a list of the names of enumerable properties
+
+=item delete($name)
+
+Deletes the property named $name, if it is deletable. Does
+nothing otherwise.
+
+=item method($name, $arg1, $arg2, ...)
+
+Invokes the specified method through the object. The arguments
+are automatically upgraded.
+
+=item value
+
+This returns a value that is supposed to be useful in Perl.
+C<< JE::Object::Array->value >>,
+for instance, produces an array ref.
+
+=item typeof
+
+Returns a JE::String containing the type of the object. Used
+by the JS C<typeof> operator.
+
+=item id
+
+This returns a unique id for the object or primitive, used by 
+the JavaScript C<===>
+operator. This id is unique as a I<string,> but not as a number 
+(even
+though all JE::Object:: classes return a number).
+
+=item call($arg1, $arg2)
+
+Runs the code associated with the object if it is a function.
+The arguments
+are automatically upgraded.
+
+=item primitive
+
+Returns true or false.
+
+=item def_value
+
+Returns the default value by calling either toString or valueOf.
+
+=item prototype
+
+=item prototype ( $obj )
+
+This method returns the prototype of the object. If C<$obj> is specified,
+the prototype is set to that object first. The C<prop> method uses this
+method. You should not normally need
+to call it yourself, unless you are subclassing JE::Object. 
+
+=item to_primitive
+
+=item to_string
+
+=item to_number
+
+These each return a JS primitive type.
+
+=back
+
+=head1 VARIABLES
+
+=over 4
+
+=item $JE::undef
+
+The JavaScript undefined value.
+
+=item $JE::null
+
+The JavaScript null value.
+
+
+=back
+
+=head1 FUNCTIONS
+
+=over 4
+
+=item JE::Object::upgrade
+
+See L<JE::Object>.
+
+=back
+
+
+=head1 SEE ALSO
+
+L<JE> and all the modules listed above.
+
+L<UPGRADING VALUES|JE::Object/UPGRADING VALUES>, on the JE::Object man page
+
+=cut
+
+
+
+
