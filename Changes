@@ -1,6 +1,14 @@
 Revision history for JE
 
-0.001   28 January, 2007
+0.002   7 Feburary, 2007
+        Still a pre-alpha version with almost no features and lots of
+        bugs. A lot of work has been done on the object classes.  The
+        parser is half-written,  but the code that actually  executes
+        the parse tree is far from complete.  The only really noticea-
+        ble new features are that array and object literals and  iden-
+        tifiers are now parsed and interpreted.
+
+0.001   24 January, 2007
         Pre-alpha version,  with almost no features and lots of  bugs.
         The man pages describe many features that have not been imple-
         mented, so it's all just talk.

@@ -1,22 +1,26 @@
 package JE::Null;
 
-
-=begin stuff for MakeMaker
-
-use JE; our $VERSION = $JE::VERSION;
-
-=end
-
-=cut
+our $VERSION = '0.002';
 
 
 use strict;
 use warnings;
 
+use overload fallback => 1,
+	'""' => 'id',
+	 cmp =>  sub { "$_[0]" cmp $_[1] },
+	bool =>  sub { undef };
+
 require JE::String;
+require JE::Boolean;
 
 
-our $_string = new JE::String 'null';
+# A JE::Null object is just a reference to a global object, which itself
+# is a reference to a reference to a hash, i.e.:
+#   bless \(bless \\%thing, JE), JE::Null
+#
+# so $$$$self{keys} is a list of enumerable global property names.
+# Hmm... What does ££££self{keys} mean?
 
 
 =head1 NAME
@@ -25,39 +29,44 @@ JE::Null - JavaScript null value
 
 =head1 SYNOPSIS
 
-  use JE::Object;
+  use JE;
 
-  $js_undefined = $JE::null;
+  $j = new JE;
 
-  # You could use JE::Null->new, but that would be pointless.
+  $js_null = $j->null;
 
-  $js->value; # undef
+  $js_null->value; # undef
 
 =head1 DESCRIPTION
 
-This class implements the JavaScript "undefined" type. There really
+This class implements the JavaScript "null" type. There really
 isn't much to it.
+
+Null stringifies to 'null', and is false as a boolean.
 
 =cut
 
-sub new    { bless \\undef, $_[0] }
+sub new    { bless \$_[1], $_[0] }
 sub prop   { die }
+sub props  { die } # ~~~ implement exception-handling later
+sub delete { die } #     These four need to throw a ReferenceError
 sub method { die }
 sub value  { undef }
-sub typeof { $_string }
+sub call   { die }
+sub apply  { die }
+sub construct { die }
+sub typeof { 'object' }
 sub id     { 'null' }
 sub primitive { 1 }
 sub to_primitive { $_[0] }
-sub to_string { $_string }
-#sub to_number # ~~~ what do this meant to?
+sub to_boolean { JE::String->new(${+shift}, '') };
+sub to_string { JE::String->new(${+shift}, 'null') };
+sub to_number { JE::Number->new(${+shift}, 0) }
+sub to_object { die } # ~~~ TypeError
 
 
 "Do you really expect a module called 'null' to return a true value?!";
 
-
-=head1 AUTHOR
-
-Father Chrysostomos <sprout [at] cpan [dot] org>
 
 =head1 SEE ALSO
 
@@ -65,9 +74,9 @@ Father Chrysostomos <sprout [at] cpan [dot] org>
 
 =item JE
 
-=item JE::Object
+=item JE::Types
 
-=item JE::Object::undef
+=item JE::Undefined
 
 =cut
 

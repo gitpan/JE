@@ -1,21 +1,17 @@
 package JE::Undefined;
 
-
-=begin stuff for MakeMaker
-
-use JE; our $VERSION = $JE::VERSION;
-
-=end
-
-=cut
-
+our $VERSION = '0.002';
 
 use strict;
 use warnings;
 
-require JE::String;
+use overload fallback => 1,
+	'""' => 'typeof',
+	 cmp =>  sub { "$_[0]" cmp $_[1] },
+	bool =>  sub { undef };
 
-our $_string = new JE::String 'undefined';
+require JE::String;
+require JE::Boolean;
 
 
 =head1 NAME
@@ -26,10 +22,9 @@ JE::Undefined - JavaScript undefined value
 
   use JE;
 
-  $js_undefined = $JE::undef;
+  $j = new JE;
 
-  # You could use JE::Undefined->new, but, really, why would you
-  # want to create another instance of undefined?
+  $js_undefined = $j->undef;
 
   $js_undefined->value; # undef
 
@@ -38,32 +33,41 @@ JE::Undefined - JavaScript undefined value
 This class implements the JavaScript "undefined" type. There really
 isn't much to it.
 
+Undefined stringifies to 'undefined', and is false as a boolean.
+
 =cut
 
-sub new    { bless \do{my $doodaa}, $_[0] }
+# A JE::Undefined object is a reference to a global object.
+
+sub new    { bless \$_[1], $_[0] }
 sub prop   { die }
+sub props  { die } # ~~~ implement exception-handling later
+sub delete { die } #     All exceptions that die throw a TypeError
 sub method { die }
 sub value  { undef }
-sub typeof { $_string }
+sub call   { die }
+sub apply  { die }
+sub construct { die }
+sub typeof { 'undefined' }
 sub id     { 'undef' }
 sub primitive { 1 }
 sub to_primitive { $_[0] }
-sub to_string { $_string }
-#sub to_number # ~~~ what do this meant to?
+sub to_boolean   { JE::Boolean->new(${+shift}, 0) }
+sub to_string { JE::String->new(${+shift}, 'undefined') };
+sub to_number { JE::Number->new(${+shift}, 'NaN') }
+sub to_object { die }
 
 
 return "undef";
 __END__
 
-=head1 AUTHOR
-
-Father Chrysostomos <sprout [at] cpan [dot] org>
-
 =head1 SEE ALSO
 
 =over 4
 
-=item JE
+=item JE::Types
 
 =item JE::Null
+
+=item JE
 

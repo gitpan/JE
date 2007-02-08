@@ -1,0 +1,583 @@
+#!/usr/bin/perl
+
+=for notes
+
+This program is what I  use for modifying the regular expressions con-
+tained in lib/JE/Code.pm. If you are just going to install the JE mod-
+ule and use it, ignore this file. If you want to play with the module
+and modify it, then you may find this interesting.
+
+Warning: This is not portable code. It works on Mac OS X, and should
+work on any Unix, but not on any weird OS like Windows.
+
+
+
+The 'build_regex' function below replaces <str: with code that records the beginning of a 'str' (or whatever is between '<' and ':') in @^A, and 
+replaces :> (a birdie) or :token> with code that records the ending posi-
+tion of a given token.
+<:token:> is used for fixed-length tokens, such as 'new'. In records the
+ending position of the token.
+'<ident>' is replaced with (??{$_re_ident})
+$blahblahblah is replaced with $_re_blahblahblah
+
+
+$h takes care of horizontal white space and /* comments */ that do not
+contain line breaks. This can occur where the spec says 
+"NoLineTerminatorHere."
+
+$s is for all white space and comments.
+
+$S is for mandatory white space or comments (e.g., between 'var' and the
+following identifier).
+
+$ss is a single whitespace char
+
+I'm calling a 'term' what the spec calls a PrimaryExpression. It includes
+parenthesised expressions, as well as terms.
+
+The special literals null, true and false are slumped by these regexen
+into the same category as identifiers. They get sorted out afterwards.
+
+Though 'a || b = c' is a syntax error according to the spec., parsing is
+easier if I allow it. This could be construed as a feature if I make ||
+return an lvalue:
+	a || b = c   would mean   a ? a = c : b = c
+Not bad, is it?
+And likewise,
+	a && b = c   would mean   a ? b = c : a = c
+Errors like '3 < 4 = 5' will be caught at run time, which is still acc. to
+spec., since the spec. says explicitly that the reporting of a syntax error
+may be deferred until execution of the statement in question.
+
+
+=cut
+
+$SQUASH_WHITE_SPACE = 1; # I change this to zero for debugging.
+
+$data = <<'--END--';
+
+
+$h = qr(
+	(?> [ \t\x0b\f\xa0\p{Zs}]* ) 
+	(?> (?>/\*[^\cm\cj\x{2028}\x{2029}]*?\*/) [ \t\x0b\f\xa0\p{Zs}]* )?
+)x;
+
+$n = qr((?>[\cm\cj\x{2028}\x{2029}]));
+
+$ss = qr([ \t\x0b\f\xa0\p{Zs}\cm\cj\x{2028}\x{2029}]);
+
+$s = qr(
+	(?> <ss>* )
+	(?> (?> //[^\cm\cj\x{2028}\x{2029}]* | /\*.*?\*/ )
+	    (?> <ss>* )
+	) ?
+)sx;
+
+$S = qr(
+	(?>
+	  <ss>
+	    |
+	  //[^\cm\cj\x{2028}\x{2029}]*
+	    |
+	  /\*.*?\*/
+	)
+	<s>
+)xs;
+
+$id_cont = qr(
+	(?>
+	  \\u([\dA-Fa-f]{4})
+	    |
+	  [\p{ID_Continue}\$_]
+	)
+)x;
+$ident = qr(
+	<ident:
+	  (?:
+	    \\u([\dA-Fa-f]{4})
+	      |
+	    [\p{ID_Start}\$_]
+	  )
+	  (?> <id_cont>* )
+	:ident>
+)x;
+
+$str = qr( (?>
+	'<str:(?>(?s:[^'\\] | \\.)*):>'
+	  |
+	"<str:(?>(?s:[^"\\] | \\.)*):>"
+) )x;
+
+$num = qr((?>
+	 <num: (?> (?=\d|\.\d)(?:0|[1-9]\d*)?
+	      (?:\.\d*)?
+	      (?:[Ee][+-]?\d+)?   ) :num>
+	  |
+	0(?>[Xx]) <hex: (?>[A-Fa-f\d]+) :>
+))x;
+
+$params = qr{ <params:
+	\(
+	  <s> (?> (?:
+	    <ident> <s>
+	    (?> (?:
+	      , <s> <ident> <s>
+	    )* )
+	  )? )
+	\) :params>
+}x;
+
+$term = qr` (?>
+	function(?!<id_cont>) <func: <s> (?>(?:<ident> <s>)?) 
+	  <params> <s> \{
+		<statements>
+	\} :>
+	  |
+	<ident>
+	  |
+	<str>
+	  |
+	<num>
+	  |
+	/ <re: (?:[^/*\\] | \\.) (?>(?:[^/\\] | \\.)*) /
+	  (?> <id_cont>*)
+	 :>
+	  |
+	\[ <array:
+	  <s> (?><assign>?) (?>(?: ,<:comma:> <s> (?>(?:<assign> <s>)?) )*)
+	:> \]
+	  |
+	\{ <hash:
+	  <s> (?> (?:
+	    (?> <ident> | <str> | <num>) <s> :
+	    <assign> <s>
+	    (?> (?:
+	      , <s> (?> <ident> | <str> | <num>) <s> :
+	      <assign> <s>
+	    )* )
+	  )? )
+	:> \}
+	  |
+	\(  <expr>  \)
+) `x;
+
+$subscript = qr(
+	(?>
+	  \[   <subscript:
+	    <s>
+	    <expr>
+	    <s>
+	  :> ]
+	    |
+	  \. <prop: <s> <ident> :>
+	)
+)x; 
+
+$args = qr#
+	\( <args:
+	  <s> (?> (?:
+	    <assign> <s>
+	    (?> (?:
+	      , <s> <assign> <s>
+	    )* )
+	  )? )
+	\) :>
+#x;
+
+$left_expr = qr(
+	<leftexpr:
+	(?>(?:new(?!<id_cont>) <:new:> <s>)*)
+	<term>
+	(?> (?: <s> (?>
+	  <subscript>
+	    |
+	  <args>
+	) )* )
+	:leftexpr>
+)x;
+
+$postfix = qr/
+	<postfix:
+	<left_expr>
+	(?> (?:
+		<h> <post: (?> \+\+ | \-\-) :post>
+	)? )
+	:>
+/x;
+
+$unary = qr(
+	<prefix:
+	(?> (?: <pre: 
+	  (?>
+	    (?: delete | void | typeof )(?!<id_cont>)
+	      |
+	    \+\+? | --? | ~ | !
+	  ) :>
+	  <s>
+	)* )
+	<postfix>
+	:>
+)x;
+
+$multi = qr(
+	<lassoc:
+	<unary>
+	(?> (?:
+	  <s> <in: (?>[*/%])(?!=) :in>
+	  <s> <unary>
+	)* )
+	:>
+)x;
+
+$add = qr(
+	<lassoc:
+	<multi>
+	(?> (?:
+	  <s> <in: (?>[+-])(?!=) :in>
+	  <s> <multi>
+	)* )
+	:>
+
+)x;
+
+$bitshift = qr(
+	<lassoc:
+	<add>
+	(?> (?:
+	  <s> <in: (?>>>>? | <<)(?!=) :in>
+	  <s> <add>
+	)* )
+	:>
+
+)x;
+
+$rel = qr(
+	<lassoc:
+	<bitshift>
+	(?> (?:
+	  <s> <in: (?> [<>]=? | in(?:stanceof)? ) :in>
+	  <s> <bitshift>
+	)* )
+	:>
+
+)x;
+
+$rel_noin = qr(
+	<lassoc:
+	<bitshift>
+	(?> (?:
+	  <s> <in: (?> [<>]=? | instanceof ) :in>
+	  <s> <bitshift>
+	)* )
+	:>
+
+)x;
+
+$equal = qr(
+	<lassoc:
+	<rel>
+	(?> (?:
+	  <s> <in: (?> [!=]==? ) :in>
+	  <s> <rel>
+	)* )
+	:>
+
+)x;
+
+$equal_noin = qr(
+	<lassoc:
+	<rel_noin>
+	(?> (?:
+	  <s> <in: (?> [!=]==? ) :in>
+	  <s> <rel_noin>
+	)* )
+	:>
+
+)x;
+
+$bit_and = qr(
+	<lassoc:
+	<equal>
+	(?> (?:
+	  <s> <in: &(?!=) :in>
+	  <s> <equal>
+	)* )
+	:>
+
+)x;
+
+$bit_and_noin = qr(
+	<lassoc:
+	<equal_noin>
+	(?> (?:
+	  <s> <in: &(?!=) :in>
+	  <s> <equal_noin>
+	)* )
+	:>
+
+)x;
+
+$bit_or = qr(
+	<lassoc:
+	<bit_and>
+	(?> (?:
+	  <s> <in: \^(?!=) :in>
+	  <s> <bit_and>
+	)* )
+	:>
+
+)x;
+
+$bit_or_noin = qr(
+	<lassoc:
+	<bit_and_noin>
+	(?> (?:
+	  <s> <in: \^(?!=) :in>
+	  <s> <bit_and_noin>
+	)* )
+	:>
+
+)x;
+
+$bit_xor = qr(
+	<lassoc:
+	<bit_or>
+	(?> (?:
+	  <s> <in: \|(?!=) :in>
+	  <s> <bit_or>
+	)* )
+	:>
+
+)x;
+
+$bit_xor_noin = qr(
+	<lassoc:
+	<bit_or_noin>
+	(?> (?:
+	  <s> <in: \|(?!=) :in>
+	  <s> <bit_or_noin>
+	)* )
+	:>
+
+)x;
+
+$and = qr(
+	<lassoc:
+	<bit_xor>
+	(?> (?:
+	  <s> <in: && :in>
+	  <s> <bit_xor>
+	)* )
+	:>
+
+)x;
+
+$and_noin = qr(
+	<lassoc:
+	<bit_xor_noin>
+	(?> (?:
+	  <s> <in: && :in>
+	  <s> <bit_xor_noin>
+	)* )
+	:>
+
+)x;
+
+$or = qr(
+	<lassoc:
+	<and>
+	(?> (?:
+	  <s> <in: \|\| :in>
+	  <s> <and>
+	)* )
+	:>
+
+)x;
+
+$or_noin = qr(
+	<lassoc:
+	<and_noin>
+	(?> (?:
+	  <s> <in: \|\| :in>
+	  <s> <and_noin>
+	)* )
+	:>
+
+)x;
+
+$assign = qr(
+	<assign:
+	<or>
+	(?>(?:
+	  <s> <in: (?>(?: [-*/%+&^|] | << | >>>? )?) =  :in>
+	  <s> <or>
+	)*)
+	(?> (?:
+	  <s> \?
+	  <s> <assign>
+	  <s> :
+	  <s> <assign>
+	)? )
+	:>
+)x;
+
+$assign_noin = qr(
+	<assign:
+	<or_noin>
+	(?>(?:
+	  <s> <in: (?>(?: [-*/%+&^|] | << | >>>? )?) =  :in>
+	  <s> <or_noin>
+	)*)
+	(?> (?:
+	  <s> \?
+	  <s> <assign>
+	  <s> :
+	  <s> <assign_noin>
+	)? )
+	:>
+
+)x;
+
+$expr = qr(
+	<expr:
+	<assign>
+	(?> (?:
+	  <s> ,
+	  <s> <assign>
+	)* )
+	:>
+
+)x;
+
+$expr_noin = qr(
+	<expr:
+	<assign_noin>
+	(?> (?:
+	  <s> ,
+	  <s> <assign_noin>
+	)* )
+	:>
+
+)x;
+
+$var_decl_list = qr(
+	<vardecl: <ident> (?>(?: <s> = <assign> )?) :vardecl>
+	(?>(?: <s> , <s>
+	  <vardecl: <ident> (?>(?: <s> = <assign> )?) :vardecl>
+	)?) 
+)x;
+
+$statement    = qr/ <s> (?>
+	(?# Statements that do not have an optional semicolon: )
+	(?:
+	  ; <:empty:>
+	    |
+	  function <S>  <function: <ident> <s> <params> <s> \{
+	    <statements>
+	  \} :>
+	    |
+	  for <s> \( <for: <s> (?>
+	    (?>
+	      var <S> <var:
+	      <vardecl: <ident> (?>(?: <s> = <assign_noin> )?) :vardecl>
+	      :>
+	       |
+	      <left_expr>
+	    )
+	    <s> in <:in:> <s> <expr>
+	      |
+	    (?>
+	      ; <:empty:>
+	        |
+	      var <S> <var: <var_decl_list> :> <s> ;
+	        |
+	      <expr> <s> ;
+	    )
+	    (?> ; <:empty:> | <expr> <s> ; )
+	    (?> (?= <s> \) ) <:empty:> | <expr> )
+	  ) <s> \) <s> <statement>
+	  :>
+	)
+
+	  |
+
+	(?# Statements that do have an optional semicolon: )
+	(?:
+	  <expr>
+	    |
+	  var <S> <var: <var_decl_list> :>
+	)
+	(?:
+	  <s> (?: \z | ; | (?=\}) ) 
+	    |
+	  <h> <n>
+	)
+)/x;
+
+$statements = qr/<statements: $statement* :>/x;
+
+--END--
+
+
+sub build_regex {
+	local $_ = shift;
+	s/\$([a-zA-Z])/\$_re_$1/g;
+
+	s/<([a-z_]+)>/(??{\$_re_$1})/g;
+
+	s/<([a-z]+):/(?{push \@A, [begin=>$1=>pos]})/g;
+	s/<:([a-z]+):>/(?{push \@A, [$1 => pos]})/g;
+	s/:([a-z]+)>/(?{push \@A, [end => $1 => pos]})/g;
+	s/:>/(?{push \@A, [end => '', pos]})/g;
+
+#	s/ # ([a-z]+)(?:-([a-z]+))?(\s)/
+#		"(?{_re_$1(\$^N," . ($2 ? "'$2'" : '') . ")})$3"
+#	/ge;
+# I can't get this workaround to work:
+#	# Workaround for a bug that stops capturing
+#	# parentheses from working in $regex2 if
+#	# $regex1 has (?> (??{$regex2}) )
+#	s/qr(.)/qr$1()/g;
+#	s/\(\?>/()(?>()/g;
+
+
+
+#	s/ # (?:(begin)-)?([a-z]+)(\s)/   '(?{' . (
+#		$1 ?
+#			"push\@\$A,[$2=>\$^N,pos,[]];push\@_A,\$A;\$A=\$\$A[-1][-1]"
+#		: $2 eq 'end' ?
+#			'$A=pop@_A;push@{$$A[-1]},$^N,pos'
+#		:	"push\@\$A,[$2=>\$^N,pos]"		
+#	) . "})$3"
+#	/ge;
+
+
+	s/(?<!\[)\s+//g if $SQUASH_WHITE_SPACE;
+	"\n\n$_\n\n";
+}
+
+
+$data = build_regex $data;
+
+use File::Basename;
+$} = dirname($0) . '/../lib/JE/Code.pm';
+($file = `cat \Q$}`) =~ s<#--BEGIN--(.*?)#--END-->
+                         <#--BEGIN--$data#--END-->s;
+system cp => $}, "$}~";
+open F, ">$}" or die $!;
+print F $file;
+
+__END__
+
+
+Old stuff (ignore this):
+
+This   becomes	this
+-------		-----
+ # str		(?{ push @$A, [ str => $^N, pos ] })
+ # begin-post	(?{ push @$A, [ post=> $^N, pos, [] ];
+                    push @_A, $A;
+                    $A = $$A[-1][-1]; })
+ # end          (?{ $A = pop @_A;
+                    push @{$$A[-1]}, $^N, pos })
+

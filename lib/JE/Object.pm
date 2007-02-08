@@ -1,53 +1,25 @@
 package JE::Object;
 
-
-=begin stuff for MakeMaker
-
-use JE; our $VERSION = $JE::VERSION;
-
-=end
-
-=cut
+our $VERSION = '0.002';
 
 
 use strict;
 use warnings;
-use subs 'upgrade';
 
+use overload fallback => 1,
+	'%{}'=>  \&value, # a method call won't work here
+	'""' => 'to_string',
+	 cmp =>  sub { "$_[0]" cmp $_[1] },
+	bool =>  sub { 1 };
+
+use Scalar::Util 'refaddr';
 use List::Util 'first';
 use Data::Dumper;
 
-require Exporter;
-our @ISA='Exporter';
-
-
-# I  can't  create  $prototype  with  new(),  because  new()  requires
-# $prototype to be defined. And we have to set up the prototype before
-# any JE::Object::  classes are loaded,  since they use  it  when they
-# initialise their constructor functions.
-
-our $prototype = bless { props => {}, keys => [] }, __PACKAGE__;
-
 
 require JE::Object::Function;
-require JE::Object::Array;
+require JE::Boolean;
 require JE::String;
-require JE;
-
-
-# Finish setting up the prototype and the constructor function
-
-$prototype->prop(toString =>
-	new_method JE::Object::Function \&to_string
-  );
-
-# ~~~ Problem: toString is enumerable if I put it in this way. I need a
-#     way to add unenumerable properties without gutting the objects.
-
-our $constructor = __PACKAGE__->make_constructor;
-$constructor->prop(prototype => $prototype);
-
-
 
 
 
@@ -57,9 +29,12 @@ JE::Object - Base class for all JavaScript objects
 
 =head1 SYNOPSIS
 
+  use JE;
   use JE::Object;
 
-  $obj = new JE::Object
+  $j = new JE;
+
+  $obj = new JE::Object $j,
           property1 => $obj1,
           property2 => $obj2;
 
@@ -78,322 +53,382 @@ JE::Object - Base class for all JavaScript objects
   "$obj"; # "[object Object]"
           # same as $obj->to_string->value
 
-
-  # The rest are mostly for internal use:
-
-  $obj->typeof;      # returns 'object'
-  $obj->class ;      # returns 'Object'
-  $obj->id    ;      # returns a unique id
-  $obj->call  ;      # dies
-  $obj->primitive;   # returns false
-  $obj->def_value;   # default value, either toString or valueOf
-                     # (see ECMAScript spec, clause 8.6.2.6)
-  $obj->prototype;   # get/set the prototype object
-
-  $obj->to_primitive;
-  $obj->to_string;
-  $obj->to_number;
-
-
 =head1 DESCRIPTION
 
-Prepare to get bored. This will put you to sleep.
+This module implements JavaScript objects for JE. It serves as a base class
+for all other JavaScript objects.
 
-A JavaScript object is an associative array, the keys of which are I<ordered,>
-unlike hashes in Perl. A method is a property that happens to be an instance
+A JavaScript object is an associative array, the elements of which are
+its properties. A method is a property that happens to be an instance
 of the
 C<Function> class (C<JE::Object::Function>).
 
 This class overrides the stringification operator by calling
-C<< $obj->method('toString') >>.
+C<< $obj->method('toString') >>. The C<%{}> (hashref) operator is also
+overloaded and returns a hash of enumerable properties.
 
-If you try to invoke a method that does not exist, it will
-return the value of the JavaScript property with the same name; i.e.,
-C<< $obj->toString >> is the same as C<< $obj->method('toString') >>,
-I<unless> there is a Perl method called C<toString> (which there isn't by
-default). This is not implemented yet, and I am having second
-thoughts about it.
+See also L<JE::Types> for descriptions of most of the methods. Only what
+is specific to JE::Object is explained here.
 
 =head1 METHODS
 
 =over 4
 
-=item new ( LIST )
+=item $obj = JE::Object->new( $global_obj, LIST )
 
 This class method constructs and returns a new object. LIST is a hash-style
 list of keys and values. If the values are not blessed references, they
-will be upgraded. (See L<UPGRADING VALUES>, below.)
+will be upgraded. (See L<JE::Types/'UPGRADING VALUES'>.)
 
 =cut
 
 sub new {
-	my($class, $self, %hash, @keys) = shift;
+	my($class, $global, %hash, @keys) = (shift, shift);
 	my $key;
 	while (@_) { # I have to loop through them to keep the order.
 		$key = shift;
 		push @keys, $key
 			unless exists $hash{$key};
-		$hash{$key} = upgrade shift;
+		$hash{$key} = $global->upgrade(shift);
 	}
 
-	bless { prototype => $prototype,
-	        props     => \%hash,
-	        keys      => \@keys  }, $class;
+	my $p = $global->prop("Object")->prop("prototype");
+
+	bless \{ prototype => $p,
+	         global    => $global,
+	         props     => \%hash,
+	         keys      => \@keys  }, $class;
 }
 
 
 
-
-=item prop ( $name, $value )
-
-=item prop ( $name )
-
-If $value is given, C<prop> sets the value of the property named $name to 
-$value. The
-value may be upgraded.  (See L<UPGRADING VALUES>, below.) Whether $value
-is given or not, it returns the value of the property. (Hmm, this is
-beginning to sound like
-real estate.)
-
-=cut
 
 sub prop {
-	my ($self, $name) = (shift, shift);
-	if (@_) { # we is doing a assignment
-# ~~~ we need to make sure this does not obscure a read-only property
-#     of a prototype (and just ignore the assignment)
-		$$self{props}{$name} = upgrade shift;
-		push @{ $$self{keys} }, $name
-			unless first {$_ eq $name} @{ $$self{keys} }; 
-		return $$self{$name};
+	my ($self, $opts) = (shift, shift);
+	my $guts = $$self;
+
+	if(ref $opts eq 'HASH') { # special use
+		my $name = $$opts{name};
+		for (qw< dontdel readonly >) {
+			exists $$opts{$_}
+				and $$guts{"prop_$_"}{$name} = $$opts{$_};
+		}
+		my $dontenum;
+		if(exists $$opts{dontenum}) {
+			if($$opts{dontenum}) {
+				$$guts{keys} = [
+					grep $_ ne $name, @{$$guts{keys}}
+				];
+			}
+			else {
+				push @{ $$guts{keys} }, $name
+			    	unless first {$_ eq $name} @{$$guts{keys}};
+			}
+		}
+		if(exists $$opts{value}) {
+			return $$guts{props}{$name} =
+				$$guts{global}->upgrade($$opts{value});
+		}
+		return exists $$guts{value} ? $$guts{value} : undef;
 	}
-	else {
-		my $props = $$self{props};
-		return exists $$props{$name} ? $$props{$name} :
-			$self->prototype ? $self->prototype->prop($name) :
-			undef;
-	}	
+
+	else { # normal use
+		my $name = $opts;
+		if (@_) { # we is doing a assignment
+			my($new_val) =
+				$$guts{global}->upgrade(shift);
+
+			return $new_val unless $self->is_readonly($name);
+
+			$$guts{props}{$name} = 
+			push @{ $$guts{keys} }, $name
+			    unless first {$_ eq $name} @{ $$guts{keys} }; 
+			return $new_val;
+		}
+		else {
+			my $props = $$guts{props};
+			my $proto;
+			return exists $$props{$name} ? $$props{$name} :
+				($proto = $self->prototype) ?
+				$proto->prop($name) :
+				undef;
+		}	
+	}
+
 }
 
 
 
 
-=item props
+sub is_readonly { # See JE::Types for a description of this.
+	my ($self,$name) = (shift,@_);  # leave $name in @_
 
-Returns a list of property names. This is used for C<for...in>
-loops in JavaScript. This does not include all values accessible via
-C<prop>. C<toString>, for instance is not in this list.
+	my $guts = $$self;
 
-=cut
+	my $props = $$guts{props};
+	if( exists $$props{$name}) {
+		my $read_only_list = $$guts{prop_readonly};
+		return exists $$read_only_list{$name} ?
+			$$read_only_list{$name} : 1;
+	}
 
-sub props {
-	@{ shift->{keys} };
+	if(my $proto = $self->prototype) {
+		return $proto->is_readonly(@_);
+	}
+
+	return 1;
 }
 
 
 
 
-=item method ( $name, @args )
+sub props {# ~~~ This needs to list enumerable properties of
+            #     the object's prototypes
+	@{ ${+shift}->{keys} };
+}
 
-This calls a method with the specified name and arguments.
 
-=item typeof
 
-This returns the string that the C<typeof> JavaScript operator produces,
-as a JE::String.
 
-=item class
+sub delete {
+	my ($self, $name) = @_;
+	my $guts = $$self;
 
-This returns the name of the class to which the object belongs. This is
-currently used only by the default JavaScript C<toString> method.
+	my $dontdel_list = $$guts{prop_dontdel};
+	exists $$dontdel_list{$name} and $$dontdel_list{$name}
+		and return !1;
 
-=item value
+	delete $$guts{prop_dontenum}{$name};
+	delete $$guts{prop_readonly}{$name};
+	delete $$guts{props}{$name};
+	$$guts{keys} = [ grep $_ ne $name, @{$$guts{keys}} ];
+	return 1;
+}
 
-This returns a value that is supposed to be useful in Perl. For the base
-class, it returns a hash ref. Derived classes should override this such
-that it produces whatever makes sense. C<< JE::Object::Array->value >>,
-for instance, produces an array ref.
 
-=item id
 
-This returns a unique id for the object, used by the JavaScript C<===>
-operator. This id is unique as a I<string,> but not as a number (even
-though the base class returns a number). You should not have to override
-this in a subclass.
 
-=item prototype
+sub method {
+	my($self,$method) = (shift,shift);
 
-=item prototype ( $obj )
+	$self->prop($method)->apply($self, @_);
+}
 
-This method returns the prototype of the object. If C<$obj> is specified,
-the prototype is set to that object first. The C<prop> method uses this
-method. You should not normally need
-to call it yourself, unless you are subclassing JE::Object. 
+=item $obj->typeof
+
+This returns the string 'object'.
+
+=item $obj->class
+
+Returns the string 'Object'.
 
 =cut
+
+sub class { 'Object' }
+
+
+
+
+=item $obj->value
+
+This returns a hash ref of the object's enumerable properties.
+
+=cut
+
+sub value {
+	my $self = shift;
+	+{ map +($_ => $self->prop($_)), $self->props };
+}
+
+
+
+
+sub id {
+	refaddr shift;
+}
+
+sub primitive { 0 };
 
 sub prototype {
-	@_ > 1 ? (shift->{prototype} = $_[1]) : shift->{prototype};
+	@_ > 1 ? (${+shift}->{prototype} = $_[1]) : ${+shift}->{prototype};
 }
 
 
 
 
-=item to_string
+sub to_primitive {
+	my($self, $hint) = @_;
 
-Returns a string equivalent of the object ("[object Object]").
+	my @methods = ('valueOf','toString');
+	$hint eq 'string' and @methods = reverse @methods;
 
-=cut
+	for (@methods) {
+		return +($self->prop($_) || next)->apply($self)
+	}
+
+	die; # ~~~ throw a TypeError exception later
+}
+
+
+
+
+sub to_boolean { 
+	JE::Boolean->new( $${+shift}{global}, 1 );
+}
 
 sub to_string {
-	JE::String->new('[object ' . shift->class . ']');
+	shift->to_primitive('string')->to_string;
 }
 
 
-=item JE::Object->make_constructor
+sub to_number {
+	shift->to_primitive('number')->to_number;
+}
 
-=item JE::Object->make_constructor( sub { ... } )
+
+=item I<Class>->new_constructor( $global, \&function, \&prototype_init );
 
 You should not call this method--or read its description--unless you are 
 subclassing JE::Object. 
 
-This class method creates and returns a function (JE::Object::Function) 
-that is thought by JavaScript to have created all objects of this class.
-The new
-function will, when its C<construct> method is invoked, call C<new> in the 
+This class method creates and returns a constructor function 
+(JE::Object::Function object), which when its C<construct> method is
+invoked, call C<new> in the 
 package through which
-C<make_constructor> is invoked, using the same arguments, but with the 
+C<new_constructor> is invoked, using the same arguments, but with the 
 package name prepended to the argument list (as though
 C<<< I<< <package name> >>->new >>> had been called.
 
-If you provide a coderef as the sole argument, it will be used
-as the body of the function when it is invoked normally (i.e., without
+C<\&function>, if present, will be the subroutine called when the
+constructor function is called as a regular function (i.e., without
 C<new> in JavaScript; using the C<call> method from Perl). If this is
 omitted, the function will simply return undefined.
 
-The prototype of the function's C<prototype> JS property will be set to
-$JE::Object::prototype (known as C<Object.prototype> in JS). The
-I<constructor> property of the C<prototype> property will be set to the
-function itself.
+C<\&prototype_init> (prototype initialiser), if present, will be called by
+the C<new_constructor> with a prototype object as its only argument. It is
+expected to add the default properties to the prototype (except for the
+C<constructor> property, which will be there already).
+
+For both coderefs, the scope will be passed as the first argument.
 
 Here is an example of how you might set up the
-constructor function and add methods to the prototype (to be run just 
-once--when the module is loaded):
+constructor function and add methods to the prototype:
 
+  package MyObject;
+
+  require JE::Object;
   our @ISA = 'JE::Object';
 
-  our $constructor = __PACKAGE__->make_constructor;
-  our $prototype = $constructor->prop('prototype');
-  for($prototype) {
-          $_->prop(toString => new_method JE::Object::Function sub {
-                  ...
-          };
-          # etc
+  sub new_constructor {
+      shift->SUPER::new_constructor(shift,
+          sub {
+              __PACKAGE__->new(@_);
+          },
+          sub {
+              my $proto = shift;
+              my $global = $$proto->{global};
+              $proto->prop({
+                  name  => 'toString',
+                  value => JE::Object::Function->new({
+                      scope  => $global,
+                      name   => 'toString',
+                      length => 1,
+                      function_args => ['this'],
+                      function => sub {
+                          # ...
+                      }
+                  }),
+                  dontenum => 1,
+              });
+              # ...
+              # put other properties here
+          },
+      );
   }
+
+And then you can add it to a global object like this:
+
+  $j->prop({
+          name => 'MyObject',
+          value => MyObject->new_constructor,
+          readonly => 1,
+          dontenum => 1,
+          dontdel  => 1,
+  });
+
 
 You can, of course, 
 create your
-own constructor function with C<new JE::Object::Function> if this does not 
+own constructor function with C<new JE::Object::Function> if 
+C<new_constructor> does not 
 do what you want.
+
+B<To do:> Make this exportable, for classes that don't feel like inheriting
+from JE::Object (maybe this is not necessary, since one can say
+S<< C<<< __PACKAGE__->JE::Object::new_constructor >>> >>).
 
 =cut
 
-sub make_constructor {
-	my $package = shift;
+sub new_constructor {
+	my($package,$global,$function,$init_proto) = @_;
+	
 	my $f = JE::Object::Function->new({
-		function         => shift,
-		function_args    => ['args'],
+		scope            => $global,
+		function         => $function,
+		function_args    => ['scope','args'],
 		constructor      => sub {
 			no strict 'refs';
 			&{"$package\::new"}($package, @_);
 		},
-		constructor_args => ['args'],
+		constructor_args => ['scope','args'],
 	});
-	(my $p = $f->prop('prototype'))->prop(constructor => $f);
-	$p->prototype($JE::Object::prototype)
-		unless __PACKAGE__ eq $package; # We don't want
-		                                # circular prototype
-		                                # chains, do we?
+
+	$init_proto and &$init_proto($f->prop('prototype'));
+
 	$f;
 }
 
 
 
 
-=back
-
-=head1 VARIABLES
-
-=over 4
-
-=item $JE::Object::constructor
-
-The C<Object> constructor function. This is the same as the
-C<Object> property of the global object.
 
 =back
-
-=head1 FUNCTIONS
-
-=over 4
-
-=item JE::Object::upgrade
-
-This function upgrades the value or values given to it. Read the next 
-section for more detail. You may import this function if you like.
-
-
-If you pass it more
-than one
-argument in scalar context, it returns the number of arguments--but that 
-is subject to change, so don't do that.
-
-
-=back
-
-=head1 UPGRADING VALUES
-
-Values are upgraded as follows: If the value is a blessed reference, it is
-left alone (we assume you know what you are doing). Otherwise the
-conversion is as follows:
-
-  From            To
-  -------------------------
-  undef           undefined
-  array ref       Array
-  hash ref        Object
-  code ref        Function (using the "simple" method)
-  other scalar    string
 
 =cut
 
-sub upgrade { # ~~~ I need to make '0' into a number,  so that, when
-              #     used as a bool in JS, it will still be false, as
-              #     in Perl
-	my @__;
-	for (@_) {
-		push @__,
-		  UNIVERSAL::isa($_, 'UNIVERSAL')
-		?	$_
-		: !defined()
-		?	$JE::undef
-		: ref($_) eq 'ARRAY'
-		?	JE::Object::Array->new(@$_)
-		: ref($_) eq 'HASH'
-		?	JE::Object->new(%$_)
-		:	JE::String->new($_)
-		;
-	}
-	@__ > 1 ? @__ : $__[0];
+
+
+
+#----------- PRIIVATE ROUTIES ---------------#
+
+# _init_proto takes the Object prototype (Object.prototype) as its sole
+# arg and adds all the default properties thereto.
+
+sub _init_proto {
+	my $proto = shift;
+	my $scope = $$proto->{global};
+
+	# E 15.2.4
+	# ~~~ $proto->prop({ ... })
+
+	$proto->prop({
+		name      => 'toString',
+		value     => JE::Object::Function->new({
+			scope    => $scope,
+			name     => 'toString',
+			length   => 0, # ~~~ check this
+			function_args => ['this'],
+			function => sub {
+				my $self = shift;
+				JE::String->new($$$self{global},
+					'[object ' . $self->class . ']');
+			},
+		}),
+		dontenum  => 1, # ~~~ any other attrs?
+	});
+
 }
 
-
-
-
-#sub AUTOLOAD {
-	# ~~~ I plan to use this for accesing JS properties, but per-
-	#     haps it's a  bad idea.
-#}
 
 
 #----------- THE REST OF THE DOCUMENTATION ---------------#
@@ -402,27 +437,32 @@ sub upgrade { # ~~~ I need to make '0' into a number,  so that, when
 
 =head1 INNARDS
 
-Each C<JE::Object> instance is a blessed hash ref. The contents of the hash
+Each C<JE::Object> instance is a blessed reference to a hash ref. The 
+contents of the hash
 are as follows:
 
-  $self->{props}        a hash ref of properties, the values being
-                        JavaScript objects
-  $self->{keys}         an array of the names of enumerable properties
-  $self->{constructor}  the constructor function for this object (used
-                        by _constructor)
+  $$self->{global}         a reference to the global object
+  $$self->{props}          a hash ref of properties, the values being
+                           JavaScript objects
+  $$self->{prop_readonly}  a hash ref with property names for the keys
+                           and booleans  (that indicate  whether  prop-
+                           erties are read-only) for the values
+  $$self->{prop_dontdel}   a hash ref in the same format as
+                           prop_readonly that indicates whether proper-
+                           ties are undeletable
+  $$self->{keys}           an array of the names of enumerable
+                           properties
+  $$self->{prototype}      a reference to this object's prototype
 
-In derived classes, if you need to store extra information, you may safely
-begin the hash keys with an underscore. Such keys will never be used by the
+In derived classes, if you need to store extra information, begin the hash 
+keys with an underscore or use at least one capital letter in each key. 
+Such keys 
+will never be used by the
 classes that come with the JE distribution.
-
-=head1 AUTHOR
-
-Father Chrysostomos <sprout [at] cpan [dot] org>
 
 =head1 SEE ALSO
 
-L<JE> and all the modules listed in the L<WHICH CLASSES ARE WHICH> section
-above.
+L<JE>
 
 L<JE::Types>
 

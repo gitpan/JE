@@ -1,320 +1,509 @@
 package JE::Code;
 
-
-=begin stuff for MakeMaker
-
-use JE; our $VERSION = $JE::VERSION;
-
-=end
-
-=cut
-
+our $VERSION = '0.002';
 
 use strict;
 use warnings;
-use re 'eval'; # Why on earth do I need this? Oh, I see why.
+
+no warnings 'regexp';
+
+# There is a bug in perl 5.8.8 that causes erroneous regexp warnings to
+# appear. When I run
+#         perl -lwe '$_ = "aoeu"; /(??{"."})+/ and print "$&"'
+# it produces
+#         (??{"."})+ matches null string many times in regex; marked by <-- HERE in m/(??{"."})+ <-- HERE / at -e line 1.
+#         aoeu
+
 
 use Data::Dumper;
 
+require JE::Object::Array;
+require JE::Boolean;
+require JE::Object;
 require JE::String;
 require JE::Number;
 require JE::LValue;
 require JE::Scope;
 
-our(@A,@_A,$A);  # accumulators
-our($s, $term, $prefix, $postfix, $infix, $term_with_op, $expression,
-    $statement); # regexps
 
 
-#  Oh boy, Hairy Regular Expressions!
+our @A;  # accumulator (named after $^A)
 
+ # regexps
+our($_re_h,     $_re_n,          $_re_ss,        $_re_s,     $_re_S,        
+   $_re_id_cont, $_re_ident,      $_re_str,       $_re_num,
+  $_re_params,    $_re_term,       $_re_subscript, $_re_args,    
+ $_re_left_expr,   $_re_postfix,    $_re_unary,     $_re_multi,
+$_re_add,           $_re_bitshift,   $_re_rel,       $_re_rel_noin,
+ $_re_equal,         $_re_equal_noin, $_re_bit_and,   $_re_bit_and_noin,
+  $_re_bit_or,      $_re_bit_or_noin,  $_re_bit_xor,   $_re_bit_xor_noin,
+   $_re_and,       $_re_and_noin,       $_re_or,        $_re_or_noin,
+    $_re_cond,    $_re_cond_noin,        $_re_assign,    $_re_assign_noin,
+     $_re_expr,  $_re_expr_noin,          $_re_statement, $_re_statements,
+      $_re_var_decl_list);
+
+
+# To edit these Hairy Regular Expressions, look at the file called 
+# 'regexps' included in this distribution.
+{ use re qw'eval taint';
 #--BEGIN--
 
-$s = qr((?>\s*));
-
-$term = qr[ (?>
-	([A-Za-z\$_](?>[\w\$]+))  (?{push@$A,[ident=>$^N,pos]})
-	  |
-	('(?>(?:[^'\\] | \\.)*)') (?{push@$A,[str=>$^N,pos]})
-	  |
-	("(?>(?:[^"\\] | \\.)*)") (?{push@$A,[str=>$^N,pos]})
-	  |
-	(/(?>(?:[^/\\] | \\.)*/(?:ig?|gi?|))) (?{push@$A,[re=>$^N,pos]})
-) ]x;
-$prefix = qr((-) (?{push@$A,[pre=>$^N,pos]}) )x;
-
-$postfix = qr/
-	(\()      (?{push@$A,[post=>$^N,pos,[]];push@_A,$A;$A=$$A[-1][-1]})
-	  $s
-	(??{ $expression })
-	  $s
-	(\))      (?{$A=pop@_A;push@{$$A[-1]},$^N,pos})
-/x;
-
-$infix        = qr/([-+.*\/]) (?{push@$A,[in=>$^N,pos]}) /x;
-$term_with_op = qr/ (?>(?:$prefix $s)?)
-	(?> $term | 
-		(\() (?{push@$A,[paren=>$^N,pos,[]];push@_A,$A;$A=$$A[-1][-1]})
-		(??{ $expression })
-		(\)) (?{$A=pop@_A;push@{$$A[-1]},$^N,pos})
-	) (?>(?:$s $postfix)?)
-/x;
-$expression   = qr/ $term_with_op
-			(?>(?: $s $infix $s $term_with_op)*)/x;
-$statement    = qr/$s$expression$s(\z|;)/;
+$_re_h=qr((?>[ \t\x0b\f\xa0\p{Zs}]*)(?>(?>/\*[^\cm\cj\x{2028}\x{2029}]*?\*/)[ \t\x0b\f\xa0\p{Zs}]*)?)x;$_re_n=qr((?>[\cm\cj\x{2028}\x{2029}]));$_re_ss=qr([ \t\x0b\f\xa0\p{Zs}\cm\cj\x{2028}\x{2029}]);$_re_s=qr((?>(??{$_re_ss})*)(?>(?>//[^\cm\cj\x{2028}\x{2029}]*|/\*.*?\*/)(?>(??{$_re_ss})*))?)sx;$_re_S=qr((?>(??{$_re_ss})|//[^\cm\cj\x{2028}\x{2029}]*|/\*.*?\*/)(??{$_re_s}))xs;$_re_id_cont=qr((?>\\u([\dA-Fa-f]{4})|[\p{ID_Continue}\$_]))x;$_re_ident=qr((?{push@A,[begin=>ident=>pos]})(?:\\u([\dA-Fa-f]{4})|[\p{ID_Start}\$_])(?>(??{$_re_id_cont})*)(?{push@A,[end=>ident=>pos]}))x;$_re_str=qr((?>'(?{push@A,[begin=>str=>pos]})(?>(?s:[^'\\]|\\.)*)(?{push@A,[end=>'',pos]})'|"(?{push@A,[begin=>str=>pos]})(?>(?s:[^"\\]|\\.)*)(?{push@A,[end=>'',pos]})"))x;$_re_num=qr((?>(?{push@A,[begin=>num=>pos]})(?>(?=\d|\.\d)(?:0|[1-9]\d*)?(?:\.\d*)?(?:[Ee][+-]?\d+)?)(?{push@A,[end=>num=>pos]})|0(?>[Xx])(?{push@A,[begin=>hex=>pos]})(?>[A-Fa-f\d]+)(?{push@A,[end=>'',pos]})))x;$_re_params=qr{(?{push@A,[begin=>params=>pos]})\((??{$_re_s})(?>(?:(??{$_re_ident})(??{$_re_s})(?>(?:,(??{$_re_s})(??{$_re_ident})(??{$_re_s}))*))?)\)(?{push@A,[end=>params=>pos]})}x;$_re_term=qr`(?>function(?!(??{$_re_id_cont}))(?{push@A,[begin=>func=>pos]})(??{$_re_s})(?>(?:(??{$_re_ident})(??{$_re_s}))?)(??{$_re_params})(??{$_re_s})\{(??{$_re_statements})\}(?{push@A,[end=>'',pos]})|(??{$_re_ident})|(??{$_re_str})|(??{$_re_num})|/(?{push@A,[begin=>re=>pos]})(?:[^/*\\]|\\.)(?>(?:[^/\\]|\\.)*)/(?>(??{$_re_id_cont})*)(?{push@A,[end=>'',pos]})|\[ (?{push@A,[begin=>array=>pos]})(??{$_re_s})(?>(??{$_re_assign})?)(?>(?:,(?{push@A,[comma=>pos]})(??{$_re_s})(?>(?:(??{$_re_assign})(??{$_re_s}))?))*)(?{push@A,[end=>'',pos]})\]|\{(?{push@A,[begin=>hash=>pos]})(??{$_re_s})(?>(?:(?>(??{$_re_ident})|(??{$_re_str})|(??{$_re_num}))(??{$_re_s}):(??{$_re_assign})(??{$_re_s})(?>(?:,(??{$_re_s})(?>(??{$_re_ident})|(??{$_re_str})|(??{$_re_num}))(??{$_re_s}):(??{$_re_assign})(??{$_re_s}))*))?)(?{push@A,[end=>'',pos]})\}|\((??{$_re_expr})\))`x;$_re_subscript=qr((?>\[ (?{push@A,[begin=>subscript=>pos]})(??{$_re_s})(??{$_re_expr})(??{$_re_s})(?{push@A,[end=>'',pos]})]|\.(?{push@A,[begin=>prop=>pos]})(??{$_re_s})(??{$_re_ident})(?{push@A,[end=>'',pos]})))x;$_re_args=qr#\((?{push@A,[begin=>args=>pos]})(??{$_re_s})(?>(?:(??{$_re_assign})(??{$_re_s})(?>(?:,(??{$_re_s})(??{$_re_assign})(??{$_re_s}))*))?)\)(?{push@A,[end=>'',pos]})#x;$_re_left_expr=qr((?{push@A,[begin=>leftexpr=>pos]})(?>(?:new(?!(??{$_re_id_cont}))(?{push@A,[new=>pos]})(??{$_re_s}))*)(??{$_re_term})(?>(?:(??{$_re_s})(?>(??{$_re_subscript})|(??{$_re_args})))*)(?{push@A,[end=>leftexpr=>pos]}))x;$_re_postfix=qr/(?{push@A,[begin=>postfix=>pos]})(??{$_re_left_expr})(?>(?:(??{$_re_h})(?{push@A,[begin=>post=>pos]})(?>\+\+|\-\-)(?{push@A,[end=>post=>pos]}))?)(?{push@A,[end=>'',pos]})/x;$_re_unary=qr((?{push@A,[begin=>prefix=>pos]})(?>(?:(?{push@A,[begin=>pre=>pos]})(?>(?:delete|void|typeof)(?!(??{$_re_id_cont}))|\+\+?|--?|~|!)(?{push@A,[end=>'',pos]})(??{$_re_s}))*)(??{$_re_postfix})(?{push@A,[end=>'',pos]}))x;$_re_multi=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_unary})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})(?>[*/%])(?!=)(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_unary}))*)(?{push@A,[end=>'',pos]}))x;$_re_add=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_multi})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})(?>[+-])(?!=)(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_multi}))*)(?{push@A,[end=>'',pos]}))x;$_re_bitshift=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_add})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})(?>>>>?|<<)(?!=)(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_add}))*)(?{push@A,[end=>'',pos]}))x;$_re_rel=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_bitshift})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})(?>[<>]=?|in(?:stanceof)?)(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_bitshift}))*)(?{push@A,[end=>'',pos]}))x;$_re_rel_noin=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_bitshift})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})(?>[<>]=?|instanceof)(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_bitshift}))*)(?{push@A,[end=>'',pos]}))x;$_re_equal=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_rel})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})(?>[!=]==?)(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_rel}))*)(?{push@A,[end=>'',pos]}))x;$_re_equal_noin=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_rel_noin})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})(?>[!=]==?)(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_rel_noin}))*)(?{push@A,[end=>'',pos]}))x;$_re_bit_and=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_equal})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})&(?!=)(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_equal}))*)(?{push@A,[end=>'',pos]}))x;$_re_bit_and_noin=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_equal_noin})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})&(?!=)(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_equal_noin}))*)(?{push@A,[end=>'',pos]}))x;$_re_bit_or=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_bit_and})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})\^(?!=)(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_bit_and}))*)(?{push@A,[end=>'',pos]}))x;$_re_bit_or_noin=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_bit_and_noin})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})\^(?!=)(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_bit_and_noin}))*)(?{push@A,[end=>'',pos]}))x;$_re_bit_xor=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_bit_or})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})\|(?!=)(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_bit_or}))*)(?{push@A,[end=>'',pos]}))x;$_re_bit_xor_noin=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_bit_or_noin})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})\|(?!=)(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_bit_or_noin}))*)(?{push@A,[end=>'',pos]}))x;$_re_and=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_bit_xor})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})&&(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_bit_xor}))*)(?{push@A,[end=>'',pos]}))x;$_re_and_noin=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_bit_xor_noin})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})&&(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_bit_xor_noin}))*)(?{push@A,[end=>'',pos]}))x;$_re_or=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_and})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})\|\|(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_and}))*)(?{push@A,[end=>'',pos]}))x;$_re_or_noin=qr((?{push@A,[begin=>lassoc=>pos]})(??{$_re_and_noin})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})\|\|(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_and_noin}))*)(?{push@A,[end=>'',pos]}))x;$_re_assign=qr((?{push@A,[begin=>assign=>pos]})(??{$_re_or})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})(?>(?:[-*/%+&^|]|<<|>>>?)?)=(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_or}))*)(?>(?:(??{$_re_s})\?(??{$_re_s})(??{$_re_assign})(??{$_re_s}):(??{$_re_s})(??{$_re_assign}))?)(?{push@A,[end=>'',pos]}))x;$_re_assign_noin=qr((?{push@A,[begin=>assign=>pos]})(??{$_re_or_noin})(?>(?:(??{$_re_s})(?{push@A,[begin=>in=>pos]})(?>(?:[-*/%+&^|]|<<|>>>?)?)=(?{push@A,[end=>in=>pos]})(??{$_re_s})(??{$_re_or_noin}))*)(?>(?:(??{$_re_s})\?(??{$_re_s})(??{$_re_assign})(??{$_re_s}):(??{$_re_s})(??{$_re_assign_noin}))?)(?{push@A,[end=>'',pos]}))x;$_re_expr=qr((?{push@A,[begin=>expr=>pos]})(??{$_re_assign})(?>(?:(??{$_re_s}),(??{$_re_s})(??{$_re_assign}))*)(?{push@A,[end=>'',pos]}))x;$_re_expr_noin=qr((?{push@A,[begin=>expr=>pos]})(??{$_re_assign_noin})(?>(?:(??{$_re_s}),(??{$_re_s})(??{$_re_assign_noin}))*)(?{push@A,[end=>'',pos]}))x;$_re_var_decl_list=qr((?{push@A,[begin=>vardecl=>pos]})(??{$_re_ident})(?>(?:(??{$_re_s})=(??{$_re_assign}))?)(?{push@A,[end=>vardecl=>pos]})(?>(?:(??{$_re_s}),(??{$_re_s})(?{push@A,[begin=>vardecl=>pos]})(??{$_re_ident})(?>(?:(??{$_re_s})=(??{$_re_assign}))?)(?{push@A,[end=>vardecl=>pos]}))?))x;$_re_statement=qr/(??{$_re_s})(?>(?#Statementsthatdonothaveanoptionalsemicolon:)(?:;(?{push@A,[empty=>pos]})|function<S>(?{push@A,[begin=>function=>pos]})(??{$_re_ident})(??{$_re_s})(??{$_re_params})(??{$_re_s})\{(??{$_re_statements})\}(?{push@A,[end=>'',pos]})|for(??{$_re_s})\((?{push@A,[begin=>for=>pos]})(??{$_re_s})(?>(?>var<S>(?{push@A,[begin=>var=>pos]})(?{push@A,[begin=>vardecl=>pos]})(??{$_re_ident})(?>(?:(??{$_re_s})=(??{$_re_assign_noin}))?)(?{push@A,[end=>vardecl=>pos]})(?{push@A,[end=>'',pos]})|(??{$_re_left_expr}))(??{$_re_s})in(?{push@A,[in=>pos]})(??{$_re_s})(??{$_re_expr})|(?>;(?{push@A,[empty=>pos]})|var<S>(?{push@A,[begin=>var=>pos]})(??{$_re_var_decl_list})(?{push@A,[end=>'',pos]})(??{$_re_s});|(??{$_re_expr})(??{$_re_s});)(?>;(?{push@A,[empty=>pos]})|(??{$_re_expr})(??{$_re_s});)(?>(?=(??{$_re_s})\))(?{push@A,[empty=>pos]})|(??{$_re_expr})))(??{$_re_s})\)(??{$_re_s})(??{$_re_statement})(?{push@A,[end=>'',pos]}))|(?#Statementsthatdohaveanoptionalsemicolon:)(?:(??{$_re_expr})|var<S>(?{push@A,[begin=>var=>pos]})(??{$_re_var_decl_list})(?{push@A,[end=>'',pos]}))(?:(??{$_re_s})(?:\z|;|(?=\}))|(??{$_re_h})(??{$_re_n})))/x;$_re_statements=qr/(?{push@A,[begin=>statements=>pos]})$_re_statement*(?{push@A,[end=>'',pos]})/x;
 
 #--END--
+}
+
+
+
+
+
+
+#sub _to_int {  # ~~~ when is this used?
+	# call to_number first
+	# then...
+	# NaN becomes 0
+	# 0 and Infinity remain as they are
+	# other nums are rounded towards zero ($_ <=> 0) * floor(abs)
+#}
+
+# Note that abs in ECMA-262
+#sub _to_uint32 {  # ~~~ when is this used?
+	# call to_number, then ...
+
+	# return 0 for Nan, -?inf and 0
+	# (round toward zero) % 2 ** 32
+#}
+
+#sub _to_int32 {
+	# calculate _to_uint32 but subtract 2**31 if the result >= 2**31
+#}
+
+#sub _to_uint16 {  # ~~~ when is this used?
+	# just like _to_uint32, except that 2**16 is used instead.
+#}
+
+
 
 
 sub parse {
-	my($scope) = shift;
+	my($global) = shift;
 
 	my $src = shift; $src =~ s/\p{Cf}//g;
-	my @statements;
-	while(do { @A = (); $A = \@A; $src =~ /\G$statement/gc }) {
-		push @statements, [@A];
-	}
 
-	if (pos($src) < length $src) { # Uh-oh, we have a syntax error
-		$@ = "Syntax error at char ". pos($src);
+	local @A; # so I don't have to erase it afterwards
+
+	unless ($src =~ /^$_re_statements\z/ ) {
+		$@ = "Syntax error at char ".
+			(@A ? $A[-1][2] : 0);
 		# ~~~ I'll improve the diagnostics later.
+		#     and use the line number and perhaps some surrounding
+		#     code or the offending token.
 		return;
 	}
 
-	# now we deal with op precedence
-	for(@statements){
-		_parenthesise(bless $_, 'JE::Code::Expression');
+	# Now that the fancy regular expressions have marked all the posi-
+	# tions of the tokens in the source code, we need to build a tree.
+
+# print Dumper \@A;  # uncomment this line to see the structure
+
+	my @tree;
+	my $a = \@tree;
+	my @_a;
+	# $a holds a reference to the current (possibly nested) array.
+	# @_a holds references to arrays previously referenced by $a.
+
+	for (my $n = 0; $n<$#A;++$n) {
+		local $_ = $A[$n];
+		if ( $$_[0] eq 'begin' ) {
+			next if $$_[2] == length $src;
+				# We've reached the end of the
+				# source code.
+
+			my $type = $$_[1]; # type of 'token'
+
+			if ($type =~ /^(?:statements|f(?:unc(?:tion)?|or)|
+				expr|
+				var|a(?:ssign|rray)|
+				l(?:assoc|eftexpr)|
+				p(?:re|ost)fix)|hash\z/x
+			) {
+				push @$a, bless [[$$_[2]], $type],
+					'JE::Code::Expression';
+				push @_a, $a;
+				$a = $$a[-1];
+				next;
+			}
+			if ($type eq 'params' || $type eq 'vardecl') {
+				push @$a, [];
+				push @_a, $a;
+				$a = $$a[-1];
+				next;
+			}
+			if ($type eq 'subscript'
+			 or $type eq 'prop') {
+				push @$a, bless [[$$_[2]]],
+					'JE::Code::Subscript';
+				push @_a, $a;
+				$a = $$a[-1];
+				next;
+			}
+			if ($type eq 'args') {
+				push @$a, bless [[$$_[2]]],
+					'JE::Code::Arguments';
+				push @_a, $a;
+				$a = $$a[-1];
+				next;
+			}
+			if ( $type =~ /^(?:i(?:dent|n)|num|p(?:ost|re))\z/
+			    and $n == $#A || do { my $next = $A[$n+1];
+			                          $$next[0] ne 'end' ||
+			                          $$next[1] ne $type }
+			) {
+				# this was a failed attempt to match a 
+				# particular type of token that wasn't 
+				# there
+				next;
+			}
+			if ($type =~ /^(?:in|p(?:re|ost))\z/) {
+				push @$a, substr $src, $$_[2],
+					$A[$n+1][2] - $$_[2];
+				++$n; next;
+			}
+			if ($type eq 'ident') {
+				my $ident = substr $src, $$_[2],
+					$A[$n+1][2] - $$_[2];
+				$ident =~ s/u([\da-fA-F]{4})/chr hex $1/ge;
+				push @$a, $ident;
+				++$n; next;
+			}
+			if ($type eq 'str') {
+				my $yarn = substr $src, $$_[2],
+					$A[$n+1][2] - $$_[2];
+				$yarn =~ s/\\(?:
+					u([\da-fA-F]{4})
+					 |
+					x([\da-fA-F]{2})
+					 |
+					([bfnrt])
+					 |
+					(v)
+					 |
+					(.)
+				)/
+					$1 ? chr(hex $1) :
+					$2 ? chr(hex $2) :
+					$3 ? eval "qq-\\$3-" :
+					$4 ? "\cK" :
+					$5
+				/sge; 
+				push @$a, new JE::String $global, $yarn;
+				++$n; next;
+			}
+			if ($type eq 'num') {
+				push @$a, new JE::Number $global,
+					substr $src, $$_[2],
+					$A[$n+1][2] - $$_[2];;
+				++$n; next;
+			}
+			if ($type eq 'hex') {
+				push @$a, new JE::Number $global, hex
+					substr $src, $$_[2],
+					$A[$n+1][2] - $$_[2];;
+				++$n; next;
+			}
+			if ($type eq 're') {
+				my $re = substr $src, $$_[2],
+					$A[$n+1][2] - $$_[2];
+				$re =~ s-([^/]*)\z--;
+				push @$a, new JE::Object::RegExp $global,
+					substr($re, 0, -1), $1;
+					# the original slash has already
+					# been removed, or rather, it
+					# wasn't captured by the first
+					# substr in this block to begin
+					# with
+				++$n; next;
+			}
+		}
+		elsif ($$_[0] eq 'end') {
+			my $type = $$_[1]; # type of 'token'
+
+			push @{$$a[0]}, $$_[2]
+				unless ref $$a[0] ne 'ARRAY'
+				    or $type eq 'params'
+				    or $type eq 'vardecl';
+
+			if ($type eq 'leftexpr') {
+# A left-hand expr is like this:
+#         'new'*  term  ( subscript | args )*
+# If there are more arg lists than "new"s, then count(new) arg
+# lists belong to those "new" operators, and the rest are function
+# calls. Otherwise those arg lists belong to the same number of
+# 'new' ops, the leftmost 'new' ops possibly not getting any arg
+# lists.
+
+				my $new_count = 0;
+
+				for (@$a[1..$#$a]) {
+					$_ eq 'new' ? ++$new_count :
+						last;
+				}
+				for my $n (reverse 1..$new_count) {
+					# Look ahead for the next
+					# arg list
+					for ($n + 1 .. $#$a) {
+if(ref $$a[$_] eq 'JE::Code::Arguments') {
+	# put the tokens from the current "new"
+	# up to the arg list into their own array
+	my $new_array = bless [[]], "JE::Code::Expression";
+	push @$new_array,
+		splice @$a, $n, $_ - $n + 1,
+		$new_array;  
+	# ~~~ This new Expr obj has no str pos's in its first elem. I
+	#     will probably need to figure out a away to get them in
+	#     there for error reporting.
+	last;
+}
+					}
+					last; # if we get here,
+					      # there are no more 
+					      # arg lists left
+				}
+			
+				# now we either have
+				#    new* term subscript*
+				# or
+				#    term ( subscript | args )*
+			}
+
+			if ($$a[1] =~ /^assign|
+				l(?:assoc|eftexpr)|
+				p(?:re|ost)fix\z/x) {
+
+				# If we find ourselves with an
+				# expression that has only one term in
+				#  it, let's eliminate it.
+
+		 		@$a == 3 and
+
+				# remove the reference to the
+				# current array ($a) from the
+				# parent array (the last elem
+				# of @_a) and replace it with
+				# the third elem of $a.
+				$_a[-1][-1] = $$a[2];
+			}
+
+			$a = pop @_a;
+		}
+		elsif ($$_[0] eq 'comma') {
+			push @$a, bless \do{my $x}, 'comma';
+		}
 	}
 
-
-
+#	print Dumper $tree[0];
 
 	$@ = '';
-	return bless { scope      => $scope,
+	return bless { global     => $global,
 	               source     => $src,
-	               statements => \@statements };
+	               tree       => $tree[0] };
 	# ~~~ I need to add support for a name for the code--to be
 	#     used in error messages.
+	#     -- and a starting line number
 }
-
-
-our %prec = # op precedence
-qw`	post.	15
-	post[	15
-	post(	15
-	prenew	15
-	pre++	14
-	pre--	14
-	post++	14
-	post--	14
-	pre-	14
-	pre+	14
-	pre~	14
-	pre!	14
-	in*	13
-	in/	13
-	in+	12
-	in-	12
-`; #that'll do for now :-)
-
-our %assoc = # op associativity
-qw`	post.	l
-	post[	l
-	post(	l
-	prenew	r
-	pre++	r
-	pre--	r
-	post++	r
-	post--	r
-	pre-	r
-	pre+	r
-	pre~	r
-	pre!	r
-	in*	l
-	in/	l
-	in+	l
-	in-	l
-`;
-
-sub _parenthesise { # replace literals  with  the  equivalent objects,
-                    # and  resolve precedence by  creating dozens  of
-                    # little JE::Code::Expression objects (a bit like
-                    # parenthesised groups)
-	my($tokens,$start,$end) = @_;
-	my($token, $next_op, $op_key, $next_op_key);
-
-	$end = defined $end ? $#$tokens - $end : 0;
-	for(my $i = $start||0; $i <= $#$tokens - $end; ++$i) {
-	$token = $$tokens[$i];
-	for ($$token[0]) {
-		next if !ref $token or ref $token ne 'ARRAY';
-		if($_ eq 'str') {
-			$$tokens[$i] = new JE::String
-				substr $$token[1], 1, -1;
-			# ~~~ still need to deal with escapes
-		}
-		if($_ eq 'ident') {
-			$$tokens[$i] = $$token[1];
-		}
-		elsif($_ eq 'in') { # infix
-			# if the next op has a higher precedence than
-			# this one,  call _parenthesise,  indicating  a
-			# starting position based  on  what  type  of
-			# op it is
-
-			# if it has the same precedence as this op and
-			# and it is right-associative, do the same
-
-			# otherwise wrap this op up in parentheses
-			# together with its operands.
-			
-			$op_key = join '', @{$$tokens[$i]}[0,1];
-			FIND_NEXT_OP: {
-			for ($i..$#$tokens) {
-				next unless $$tokens[$_][0] =~
-					/^(?:p(?:ost|re)|in)\z/;
-				$next_op_key = join '',
-					@{$$tokens[$_]}[0,1];
-
-				if($$tokens[$_][0] eq 'in'
-				and $prec{$next_op_key} > $prec{$op_key}
-				||  $prec{$next_op_key} == $prec{$op_key}
-				&&  $assoc{$op_key} eq 'r'
-				) {
-					_parenthesise($tokens,
-						$$tokens[$_][0] eq 'in'
-						? $_ - 1 :
-						$$tokens[$_][0] eq 'pre'
-						? $_ :
-						  $_ - 1 
-					);
-					redo FIND_NEXT_OP;
-				}
-				
-				splice @$tokens, $i - 1, 3, bless
-					[ @$tokens[$i-1..$i+1] ],
-					 'JE::Code::Expression';
-				
-				# deal with the second operand
-				_parenthesise($$tokens[$i-1], 2);
-
-				$i--; last;
-			}}
-		}
-		elsif($_ eq 'pre') { # prefix
-			# We need to group this with the token that
-			# follows
-
-			splice @$tokens, $i, 2, bless
-				[ @$tokens[$i,$i+1] ],
-				'JE::Code::Expression';
-
-			_parenthesise($$tokens[$i], 1);
-
-			$i--; last;
-		}
-		elsif($_ eq 'post') { # postfix
-			# We need to group this with the token that
-			# precedes it
-
-			splice @$tokens, $i-1, 2, bless
-				[ @$tokens[$i - 1, $i] ],
-				 'JE::Code::Expression';
-
-			$i--; last;
-		}
-	}}
-}
-
 
 
 
 
 sub execute {
 	my $code = shift;
-	my $scope = $$code{scope};
+
+	my $this = defined $_[0] ? $_[0] : $$code{global};
+	shift; # Oh for the // op!
+	#my $this = shift // $$code{global};
+
+	my $scope = shift || bless [$$code{global}], 'JE::Scope';
+
 	my $rv = eval {
-		for(@{$$code{statements}}) {
-			if(ref eq 'JE::Code::Expression') {
-				return $_->eval($scope);
-			}
-			# ~~~ put elsif's here to deal with other
-			#     kinds of statements
-			else {
-				die "Oh no! Something is terrible wrong. ",
-				 "I have no idea what kind of statement"
-				." this is: ", Dumper $_;
-			}
-		}
+		# passing these values around is too
+		# cumbersome
+		local $JE::Code::Expression::_this  = $this;
+		local $JE::Code::Expression::_scope = $scope;
+		local $JE::Code::Expression::_eval  = shift;
+		local $JE::Code::Expression::_created_vars = 0 ;
+		$$code{tree}->eval;
 	};
-# ~~~ This needs to provide the 'return_obj' option. Right now it's
-#     always on.
+# ~~~ We need to make it so that lvalues can be returned if asked for
+#      Or perhaps this should be an option of JE::eval called
+#     'lvalue' or 'return_lvalue' or 'allow_lvalue'.
+#    .
+
+	if(ref $rv eq 'JE::LValue') {
+		$rv = get $rv;
+	}
 	$rv;
 }
 
 
 
 
-package JE::Code::Expression;
+package JE::Code::Expression; # Perhaps not aptly named. It was orig-
+                              # inally just for (sub)expressions, but
+                              # ended up being for statements as well.
 
-use subs '_eval_token';
+our $VERSION = '0.002';
 
-sub eval {  # evalate expression
-	my ($tokens, $scope) = @_;
+use subs '_eval_term';
 
-	if (! $#$tokens) {
-		return _eval_token $$tokens[0]; # only one token here
-	}
-	my $first = $$tokens[0];
+our($_scope,$_this,$_created_vars);
 
-	#-------------PREFIX OPS----------------#
-	if(ref $first eq 'ARRAY' && $$first[0] eq 'pre') {for($$first[1]) {
-		if($_ eq '+') { # no-op
-			return $$tokens[1];
-		};
-		if($_ eq '-') {
-			return; # ~~~ unary negation
-		};
-		# ~~~ add the rest of the prefix ops
-	}}
-
-	my $second = $$tokens[1];
-
-	#-------------INFIX OPS----------------#
-	if($$second[0] eq 'in') { for($$second[1]) {
-		$first = _eval_token $first;
-		my $third = _eval_token $$tokens[2];
-		if($_ eq '+') {
-			# Boy, look at all those arrows!
-			# This is really OOey.
-			$first = $first->to_primitive;
-			$third = $third->to_primitive;
-			if($first->typeof eq 'string' or
-			   $third->typeof eq 'string') {
-				return $first->to_string->method(concat =>
-					$third);
-			}
-			return new JE::Number $first->to_number->value +
-			                      $third->to_number->value;
-		};
-		if($_ eq '-') {
-			return; # ~~~ unary negation
-		};
-		# ~~~ add the rest of the prefix ops
-	}}
-
-	#-------------POSTFIX OPS----------------#
-
-	for($$second[1]) {
-		if ($_ eq '++') {
-			# ~~~ etc
+{ # JavaScript operators
+	no strict 'refs';
+	*{'in+'} = sub {
+		my($x, $y) = @_;
+		$x = $x->to_primitive;
+		$y = $y->to_primitive;
+		if($x->typeof eq 'string' or
+		   $y->typeof eq 'string') {
+			return bless [
+				$x->to_string->[0] .
+				$y->to_string->[0],
+				$_scope
+			], 'JE::String';
 		}
-		# ~~~ if ($_ .....
-	}
+		return new JE::Number $_scope,
+		                      $x->to_number->value +
+		                      $y->to_number->value;
+	};
+	# ~~~ add subs for all the other ops
 }
 
-sub _eval_token {
-	my($token, $context, $scope,) = @_;
+=begin for me
+
+Types of expressions:
+
+'leftexpr' 'new' term subscript* args
+
+'leftexpr' 'new'* term subscript*
+
+'leftexpr' term ( subscript | args) *  
+
+'postfix' term op
+
+'hash' term*
+
+'array' term? (comma term?)*
+
+'prefix' op term
+
+'lassoc' term (op term)*
+
+'assign' term (op term)* (term term)?
+	(the last two terms are the 2nd and 3rd terms of ? :
+
+'expr' term*
+	(commas are omitted from the array)
+
+'function' ident? params statements
+
+=end for me
+
+=cut
+
+
+# Note: each expression object is an array ref. The elems are:
+# [0] - an array ref containing
+#       [0] - the starting position in the source code and
+#       [1] - the ending position
+# [1] - the type of expression
+# [2..$#] - the various terms/tokens that make up the expr
+
+sub eval {  # evalate (sub)expression/statement
+	my $expr = shift;
+
+	my $type = $$expr[1];
+
+	if ($type eq 'statements') {
+
+		# Search for function and var declarations and create vars
+		# -- unless we've already done it.
+		unless ($_created_vars++) {
+		for (@$expr[2..$#$expr]) {
+			if ($$_[1] eq 'var' ) {
+				for (@$_[2..$#$_]) {
+					$_scope->new_var($$_[0]);
+				}
+			} # ~~~ add extra elsif's that look for 'var'
+			  #     declarations in for loops
+			  #     and in blocks and all other compound
+			  #     statements
+			elsif ($$_[1] eq 'function') {
+				# format: [[...], function=> 'name',
+				#          [ (params) ], $statements_obj] 
+				$_scope->new_var($$_[2], new JE::Function {
+					scope    => $_scope,
+					name     => $$_[2],
+					argnames => $$_[3],
+					function => bless {
+						scope => $_scope,
+						# ~~~ source => how do I get it? Do we need it? (for error reporting)
+						tree => $$_[4],
+					}, 'JE::Code'
+				});
+			}
+		}}
+
+		# ~~~ This dies on empty statements right now.
+		$_->eval for @$expr[2..$#$expr-1];
+		return $$expr[-1]->eval;
+	}
+
+	if ($type eq 'expr') {
+		_eval_term $_ for @$expr[2..$#$expr-1];
+		return _eval_term $$expr[-1];
+	}
+	if ($type eq 'assign') {
+		# ~~~
+	}
+	if($type eq 'lassoc') { # left-associative
+		my @copy = @$expr[2..$#$expr];
+		my $result = _eval_term shift @copy;
+		while(@copy) {
+			no strict 'refs';
+			$result = &{'in' . $copy[0]}(
+				$result, _eval_term $copy[1]
+			);
+			splice @copy, 0, 2; # double shift
+			# ~~~ These 'eval_term's should probobly be moved
+			#     to sub in+
+		}
+		return $result;
+	}
+	if($type eq 'array') {
+		my @ary;
+		my $undef = $_scope->undefined;
+		for (2..$#$expr) {
+			if(ref $$expr[$_] eq 'comma') {
+				ref $$expr[$_-1] eq 'comma' || $_ == 2
+				and push @ary, $undef
+			}
+			else {
+				push @ary, _eval_term $$expr[$_];
+			}
+		}
+
+		return new JE::Object::Array $_scope, @ary;
+	}
+	if($type eq 'hash') {
+		return new JE::Object $_scope,
+			@$expr[2..$#$expr];
+	}
+	# ~~~ other types of ebxpressionssonoaau
+
+}
+
+sub _eval_term { # ~~~ This needs to take care of 'this'
+	my($term, $context, ) = @_;
 
 	# context can be one of:
 	#    undef  no context (or a context that just wants the obj)
@@ -325,8 +514,8 @@ sub _eval_token {
 	#    primitive  ???
 	# ~~~ I need to complete this list
 
-	while (ref $token eq 'JE::Code::Expression') {
-		$token = $token->eval;
+	while (ref $term eq 'JE::Code::Expression') {
+		$term = $term->eval;
 	}
 
 # in no context
@@ -339,36 +528,56 @@ sub _eval_token {
 
 	for ($context) {
 		if (!defined) {
-			return ref $token ? $token : $scope->var($token);
+			return ref $term ? $term : $term eq 'this' ?
+				$_this : $_scope->var($term);
 		}
 		if ($_ eq 'lvalue') {
-			!ref $token  # identifier
-				and $token = $scope->lvalue($token);
+			die "'this' is not an lvalue"
+			if !ref $term  # evade overloading
+			    and $term eq 'this';
 
-			ref $token ne 'JE::Code::LValue'
+			!ref $term  # identifier
+				and $term = $_scope->var($term);
+
+			ref $term ne 'JE::Code::LValue'
 				and die "not an lvalue";
 			# ~~~ improve the error message
 
-			return $token;
+			return $term;
 		}
 
-		ref $token or $token = $scope->var($token);
-		ref $token eq 'lvalue' and $token = $token->get;
+		ref $term or $term eq 'this' ? return($_this) :
+			($term = $_scope->var($term));
+		ref $term eq 'JE::LValue' and $term = $term->get;
 #		if ($_ eq 'primitive') {
 #			Er ,. b..e ydco?
 #		}
 		if ($_ eq 'string') {
-			return $token->to_string;
+			return $term->to_string;
 		}
 		if ($_ eq 'num') {
-			return $token->to_num;
+			return $term->to_number;
 		}
 
 		# ~~~ etc
 
-		die "How did we get here??? context: $context; token $token";
+		die "How did we get here??? context: $context; term $term";
 	}
 }
+
+
+
+
+package JE::Code::Subscript;
+
+our $VERSION = '0.002';
+
+
+
+
+package JE::Code::Arguments;
+
+our $VERSION = '0.002';
 
 
 
@@ -393,19 +602,41 @@ JE::Code - ECMAScript parser and code executor for JE
 
 =head1 DESCRIPTION
 
-This parser is a bit of a joke, since it supports so few features of JS
-syntax. For now I'm only implementing enough to test the object classes
-(and I'm not doing it precisely).
-
-It will need a complete rewrite when the time cometh.
+This parser is still in the process of being written. Right now it only
+supports a few features of the syntax.
 
 =head1 THE FUNCTION
 
-C<JE::Code::parse($scope)> parses JS code and returns a parse tree.
+C<JE::Code::parse($global, $src)> parses JS code and returns a parse tree.
+
+C<$global> is a global object. C<$src> is the source code.
 
 =head1 THE METHOD
 
-The C<execute> method of a parse tree executes it.
+=over 4
+
+=item $code->execute($this, $scope, $eval);
+
+The C<execute> method of a parse tree executes it. All the arguments are
+optional.
+
+The first argument
+will be the 'this' value of the execution context. The global object will
+be used if it is omitted or undef.
+
+The second argument is a scope chain.
+A scope chain containing just the global object will be used if it is
+omitted or undef.
+
+The third arg is a boolean indicating whether this is
+eval code (code called by I<JavaScript's> C<eval> function, which has
+nothing to do with JE's C<eval> method, which runs global code). The 
+difference is that variables created with C<var> and function declarations 
+inside
+eval code can be deleted, whereas such variables in global or function
+code cannot.
+
+=back
 
 =head1 SEE ALSO
 
@@ -415,81 +646,4 @@ L<JE>
 
 =cut
 
-
-To modify the parser's regexps, change what's below, then run this
-file through perl -x.
-
-#!perl
-
-$data = <<'--END--';
-
-
-$s = qr((?>\s*));
-
-$term = qr[ (?>
-	([A-Za-z\$_](?>[\w\$]+))   # ident
-	  |
-	('(?>(?:[^'\\] | \\.)*)')  # str
-	  |
-	("(?>(?:[^"\\] | \\.)*)")  # str
-	  |
-	(/(?>(?:[^/\\] | \\.)*/(?:ig?|gi?|)))  # re
-) ]x;
-$prefix = qr((-)  # pre )x;
-
-$postfix = qr/
-	(\()       # begin-post
-	  $s
-	(??{ $expression })
-	  $s
-	(\))       # end
-/x;
-
-$infix        = qr/([-+.*\/])  # in /x;
-$term_with_op = qr/ (?>(?:$prefix $s)?)
-	(?> $term | 
-		(\()  # begin-paren
-		(??{ $expression })
-		(\))  # end
-	) (?>(?:$s $postfix)?)
-/x;
-$expression   = qr/ $term_with_op
-			(?>(?: $s $infix $s $term_with_op)*)/x;
-$statement    = qr/$s$expression$s(\z|;)/;
-
---END--
-
-sub build_regex {
-	local $_ = shift;
-	s/ # (?:(begin)-)?([a-z]+)(\s)/   '(?{' . (
-		$1 ?
-			"push\@\$A,[$2=>\$^N,pos,[]];push\@_A,\$A;\$A=\$\$A[-1][-1]"
-		: $2 eq 'end' ?
-			'$A=pop@_A;push@{$$A[-1]},$^N,pos'
-		:	"push\@\$A,[$2=>\$^N,pos]"		
-	) . "})$3"
-	/ge;
-	s/\s//g; # :-)
-	"\n\n$_\n\n";
-}
-
-
-$data = build_regex $data;
-($file = `cat \Q$0`) =~ s<#--BEGIN--(.*?)#--END-->
-                         <#--BEGIN--$data#--END-->s;
-system cp => $0, "$0~";
-open F, ">$0" or die $!;
-print F $file;
-
-__END__
-
-
-This   becomes	this
--------		-----
- # str		(?{ push @$A, [ str => $^N, pos ] })
- # begin-meth	(?{ push @$A, [ meth=> $^N, pos, [] ];
-                    push @_A, $A;
-                    $A = $$A[-1][-1]; })
- # end          (?{ $A = pop @_A;
-                    push @{$$A[-1]}, $^N, pos })
 

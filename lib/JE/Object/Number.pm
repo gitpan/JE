@@ -1,4 +1,4 @@
-package JE::Object::String;
+package JE::Object::Number;
 
 our $VERSION = '0.002';
 
@@ -30,7 +30,11 @@ require JE::String;
 
 =head1 NAME
 
-JE::Object::String - JavaScript String object class
+JE::Object::Number - JavaScript Number object class
+
+not yet implemented
+
+=begin todo
 
 =head1 SYNOPSIS
 
@@ -39,6 +43,8 @@ JE::Object::String - JavaScript String object class
   $js_str_obj = new JE::Object::String $scope, "etetfyoyfoht";
 
   $perl_str = $js_str_obj->value;
+
+  $js_str->id; # returns a number uniquely identifying the object
 
 =head1 DESCRIPTION
 
@@ -67,14 +73,16 @@ sub def_value { shift->method('toString') } # ~~~ make sure this is
 
 return "a true value";
 
+=head1 AUTHOR
+
+Father Chrysostomos <sprout [at] cpan [dot] org>
+
 =head1 SEE ALSO
 
 =over 4
 
 =item JE
-
 =item JE::Object
-
 =item JE::String
 
 =cut
