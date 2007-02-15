@@ -108,20 +108,20 @@ This returns a value that is supposed to be useful in Perl.
 C<< JE::Object::Array->value >>,
 for instance, produces an array ref.
 
-=item call($arg1, $arg2)
+=item call(@args)
 
 Runs the code associated with the object if it is a function.
 The arguments
 are automatically upgraded.
 
-=item apply($obj, $arg1, $arg2)
+=item apply($obj, @args)
 
 Runs the code associated with the object if it is a function. C<$obj> will
 be passed to the function as its invocant (its 'this' value).
 The arguments
 are automatically upgraded.
 
-=item construct($arg1, $arg2)
+=item construct(@args)
 
 This only applies to function objects. This is just like calling a function
 in JS with the C<new> keyword. It calls the constructor, if this 
@@ -176,7 +176,7 @@ Object method.
 
 This returns a boolean indicating whether a given property is readonly. If
 it doesn't exist, then the C<is_readonly> method of the object's prototype
-is called with the same arguments. If there is no prototype, true is 
+is called with the same arguments. If there is no prototype, false is 
 returned.
 This is used internally by C<prop>.
 
@@ -209,6 +209,9 @@ subclass JE::Object, you should not have to
 implement this method, unless you have multiple objects that you would
 like JS to consider the same object.
 
+Note that the id 'num:nan' is treated specially. It is never
+considered equal to itself.
+
 =item primitive
 
 Returns true or false.
@@ -237,10 +240,16 @@ These each perform the appropriate type conversion. $preferred_type, which
 is 
 optional, must be either 'string' or 'number'.
 
-Calling C<to_string> or C<to_number> on a object is the same as calling
-C<to_primitive('string')> or C<to_primitive('number'), respectively.
+Calling C<to_string> or C<to_number> on a object is not exactly the same as 
+calling
+C<to_primitive('string')> or C<to_primitive('number')>, because the
+argument to C<to_primitive> is merely a I<suggestion.>
 
 The last four methods in this list should not be overridden by subclasses.
+
+=item global
+
+Returns a reference to the global object.
 
 =back
 

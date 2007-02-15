@@ -1,9 +1,40 @@
 package JE::Number;
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 use strict;
 use warnings;
+
+
+# I need constants for inf and nan, because perl 5.8.6 interprets the
+# strings "inf" and "nan" as 0 in numeric context.
+
+# This is what I get running Deparse on 5.8.6:
+#    $ perl -mO=Deparse -e 'print 0+"nan"'
+#    print 0;
+#    $ perl -mO=Deparse -e 'print 0+"inf"'
+#    print 0;
+# And here is the output from 5.8.8 (PPC [big-endian]):
+#    $ perl -mO=Deparse -e 'print 0+"nan"'
+#    print unpack("F", pack("h*", "f78f000000000000"));
+#    $ perl -mO=Deparse -e 'print 0+"inf"'
+#    print 9**9**9;
+# I don't know about 5.8.7.
+
+# However, that 'unpack' does not work on little-endian Xeons running
+# Linux. What I'm testing it on is running 5.8.5, so the above one-liners
+# don't work. But I can use this:
+#    $ perl -mO=Deparse -mPOSIX=fmod -e 'use constant nan=>fmod 0,0;print nan'
+#    use POSIX (split(/,/, 'fmod', 0));
+#    use constant ('nan', fmod(0, 0));
+#    print sin(9**9**9);
+
+# sin 9**9**9 also works on the PPC.
+
+
+
+use constant nan => sin 9**9**9;
+use constant inf => 9**9**9;
 
 use overload fallback => 1,
 	'0+' => 'value',
@@ -17,12 +48,27 @@ require JE::Object::Number;
 
 # Each JE::Number object is an array ref like this: [value, global object]
 
-sub new    { # If this is changed to use regexps, JE::Code::_re_num and
-             # JE::Code::_re_hex need to be changed.
+sub new    {
 	my ($class,$global,$val) = @_;
 	
-	$val eq '+Infinity' and $val = 'Infinity';
+	if(UNIVERSAL::isa($val, 'UNIVERSAL') and can $val 'to_number') {
+		my $new_val = $val->to_number;
+		ref $new_val eq $class and return $new_val;
+		eval { $new_val->isa(__PACKAGE__) } and
+			$val = $new_val->[0],
+			goto RETURN;
+	}
 
+	# For perls that don't interpret 0+"inf" as inf:
+	if ($val =~ /^\s*([+-]?)(inf|nan)/i) {
+		$val = lc $2 eq 'nan' ? nan :
+			$1 eq '-' ? -(inf) : inf;
+		# perl complains about 'Ambiguous use of -inf' without
+		# the parens. Beats me.
+	}
+	else { $val+=0 }
+
+	RETURN:
 	bless [$val, $global], $class;
 }
 
@@ -66,8 +112,8 @@ sub primitive { 1 }
 sub to_primitive { $_[0] }
 sub to_boolean   {
 	my $value = (my $self = shift)->[0];
-	JE::Object::Number->new($$self[1],
-		$value == 0 && $value !~ /^-?Infinity/);
+	JE::Boolean->new($$self[1],
+		$value && $value == $value);
 }
 
 sub to_string { # ~~~ I  need  to  find  out  whether Perl's  number
@@ -75,8 +121,8 @@ sub to_string { # ~~~ I  need  to  find  out  whether Perl's  number
                 #     finite numbers.
 	my $value = (my $self = shift)->[0];
 	JE::String->new($$self[1],
-		$value == 'inf'  ?  'Infinity' :
-		$value == '-inf' ? '-Infinity' :
+		$value ==   inf  ?  'Infinity' :
+		$value == -(inf) ? '-Infinity' :
 		$value == $value ? $value :
 		'NaN'
 	);
@@ -88,6 +134,8 @@ sub to_object {
 	my $self = shift;
 	JE::Object::Number->new($$self[1], $self);
 }
+
+sub global { $_[0][1] }
 
 
 =head1 NAME
@@ -115,30 +163,31 @@ number
 I<objects,> while this module implements the I<primitive> values.
 
 Right now, this module simply uses Perl numbers underneath for storing
-the JavaScript numbers (except for NaN, +Infinity and -Infinity). I do not
+the JavaScript numbers. I do not
 know whether Perl numbers are in accord with the IEEE 754 standard that
 ECMAScript uses. Could someone knowledgeable please inform me?
 
 The C<new> method accepts a global (JE) object and a Perl scalar as its 
-two arguments. The latter can be a
-Perl number or a string matching
-S<< C</^( Nan | [+-]?infinity )\z/s> >>.
+two arguments. The latter is numerified Perl-style, so 'nancy' becomes NaN
+and 'information' becomes Infinity.
 
 The C<value> method produces a Perl scalar. The C<0+> numeric operator is
 overloaded and produces the same.
 
-B<To do:> Make it use Perl's 'nan' and 'inf' values. When I started writing
-this, I didn't know that Perl supported these.
+B<To do:> Add support for negative zero, which the specification requires.
+This makes a difference in very few cases (C<x/-0> is the only one I can
+think of). Does
+anyone actually use this?
 
 =head1 SEE ALSO
 
 =over 4
 
-=item JE
+=item L<JE>
 
-=item JE::Types
+=item L<JE::Types>
 
-=item JE::Object::Number
+=item L<JE::Object::Number>
 
 =cut
 

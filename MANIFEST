@@ -8,7 +8,6 @@ lib/JE/Null.pm
 lib/JE/Number.pm
 lib/JE/Object/Array.pm
 lib/JE/Object/Boolean.pm
-lib/JE/Object/Function/Call.pm
 lib/JE/Object/Function.pm
 lib/JE/Object/Number.pm
 lib/JE/Object/String.pm

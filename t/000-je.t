@@ -1,6 +1,6 @@
 #!perl  -T
 
-use Test::More tests => 32;
+use Test::More tests => 67;
 use strict;
 use Scalar::Util 'refaddr';
 
@@ -88,6 +88,44 @@ ok $code = $j->compile('parseFloat');
 isa_ok +($result = $code->execute), 'JE::Object::Function';
 # This will be broken once I make 'execute' return lvalues.
 
+#--------------------------------------------------------------------#
+# Tests 33-67: various js ops
+
+ok $j->eval('delete toString')   eq 'true';
+ok $j->eval('delete undefined')   eq 'false';
+ok $j->eval('delete everything')    eq 'true'; # non-existent property
+ok $j->eval('void delete undefined') eq 'undefined';
+ok $j->eval('true')                 eq 'true';
+ok $j->eval('false')              eq 'false';
+ok $j->eval('typeof undefined')  eq 'undefined';
+ok $j->eval('typeof null')        eq 'object';
+ok $j->eval('typeof true')          eq 'boolean';
+ok $j->eval('typeof new Function')    eq 'function';
+ok $j->eval('typeof new new Function') eq 'object';
+ok $j->eval('typeof 3')               eq 'number';
+ok $j->eval("typeof '3'")           eq 'string';
+ok $j->eval("typeof '3'.toStoo") eq 'undefined';
+ok $j->eval('x = 5')         eq '5';
+ok $j->eval('x++')        eq '5';
+ok $j->eval('x--')      eq '6';
+ok $j->eval('--x')     eq '4';
+ok $j->eval('++x')    eq '5';
+ok $j->eval("+'3.00'") eq '3';
+ok $j->eval('- -5')      eq '5';
+ok $j->eval('- "-5"')     eq '5';
+ok $j->eval('~2147483647') eq '-2147483648';
+ok $j->eval('~1')         eq '-2';
+ok $j->eval('!1')          eq 'false';
+ok $j->eval('!false')        eq 'true';
+ok $j->eval('!"false"')         eq 'false';
+ok $j->eval("!\ntrue")              eq 'false';
+ok $j->eval('6.7 - .5')                 eq '6.2';
+ok $j->eval('-3>>1')                        eq '-2';
+ok $j->eval('3>>1')                              eq '1';
+ok $j->eval('-3>>>1')                                eq '2147483646';
+ok $j->eval('!true ? x = 3 : y = "do\tenut"; y')        eq "do\tenut";
+ok $j->eval('true ? x = 3 : y = "do\tenut"; x')           eq '3';
+ok $j->eval('{"this"    : "that", "the":"other"}["this"]') eq 'that'; 
 
 
 

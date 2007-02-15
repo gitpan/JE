@@ -12,13 +12,23 @@ work on any Unix, but not on any weird OS like Windows.
 
 
 
-The 'build_regex' function below replaces <str: with code that records the beginning of a 'str' (or whatever is between '<' and ':') in @^A, and 
+The 'build_regex' function below replaces <str: with code that records the beginning of a 'str' (or whatever is between '<' and ':') in @A, and 
 replaces :> (a birdie) or :token> with code that records the ending posi-
 tion of a given token.
 <:token:> is used for fixed-length tokens, such as 'new'. In records the
 ending position of the token.
-'<ident>' is replaced with (??{$_re_ident})
-$blahblahblah is replaced with $_re_blahblahblah
+'<ident>' is replaced with (??{$_re_ident}), etc.
+$blahblahblah is replaced with $_re_blahblahblah, etc.
+
+Right now it also replaces '(?>' with '(?:', because I rely on variable
+localisation and backtracking. Currently (as of 5.8.8) variable 
+localisation done within atomic groups is undone when the group is exited.
+If/when this is fixed, I would like to go back to using atomic groups
+again, because it should theoretically speed things up, especially when
+there is a syntax error. Without atomic groups, sometimes this parser will
+backtrack and end up finding a match anyway (maybe this is actually a
+feature, not a bug).
+
 
 
 $h takes care of horizontal white space and /* comments */ that do not
@@ -35,16 +45,16 @@ $ss is a single whitespace char
 I'm calling a 'term' what the spec calls a PrimaryExpression. It includes
 parenthesised expressions, as well as terms.
 
-The special literals null, true and false are slumped by these regexen
+The special literals null, true and false are thrown by these regexps
 into the same category as identifiers. They get sorted out afterwards.
 
 Though 'a || b = c' is a syntax error according to the spec., parsing is
 easier if I allow it. This could be construed as a feature if I make ||
-return an lvalue:
-	a || b = c   would mean   a ? a = c : b = c
+return an lvalue, so that's what I've done):
+	a || b = c   means   a ? a = c : b = c
 Not bad, is it?
 And likewise,
-	a && b = c   would mean   a ? b = c : a = c
+	a && b = c   means   a ? b = c : a = c
 Errors like '3 < 4 = 5' will be caught at run time, which is still acc. to
 spec., since the spec. says explicitly that the reporting of a syntax error
 may be deferred until execution of the statement in question.
@@ -86,7 +96,7 @@ $S = qr(
 
 $id_cont = qr(
 	(?>
-	  \\u([\dA-Fa-f]{4})
+	  \\u(?!003[Dd])([\dA-Fa-f]{4})
 	    |
 	  [\p{ID_Continue}\$_]
 	)
@@ -94,7 +104,7 @@ $id_cont = qr(
 $ident = qr(
 	<ident:
 	  (?:
-	    \\u([\dA-Fa-f]{4})
+	    \\u(?!00[23][Dd])([\dA-Fa-f]{4})
 	      |
 	    [\p{ID_Start}\$_]
 	  )
@@ -149,10 +159,10 @@ $term = qr` (?>
 	  |
 	\{ <hash:
 	  <s> (?> (?:
-	    (?> <ident> | <str> | <num>) <s> :
+	    (?> <ident> | <str> | <num>) <s> : <s>
 	    <assign> <s>
 	    (?> (?:
-	      , <s> (?> <ident> | <str> | <num>) <s> :
+	      , <s> (?> <ident> | <str> | <num>) <s> : <s>
 	      <assign> <s>
 	    )* )
 	  )? )
@@ -233,7 +243,7 @@ $add = qr(
 	<lassoc:
 	<multi>
 	(?> (?:
-	  <s> <in: (?>[+-])(?!=) :in>
+	  <s> <in: (?> \+(?![+=]) | -(?![-=]) ) :in>
 	  <s> <multi>
 	)* )
 	:>
@@ -514,7 +524,7 @@ $statement    = qr/ <s> (?>
 	)
 )/x;
 
-$statements = qr/<statements: $statement* :>/x;
+$statements = qr/<statements: $statement* :> (?{@A = @_A})/x;
 
 --END--
 
@@ -525,11 +535,24 @@ sub build_regex {
 
 	s/<([a-z_]+)>/(??{\$_re_$1})/g;
 
-	s/<([a-z]+):/(?{push \@A, [begin=>$1=>pos]})/g;
-	s/<:([a-z]+):>/(?{push \@A, [$1 => pos]})/g;
-	s/:([a-z]+)>/(?{push \@A, [end => $1 => pos]})/g;
-	s/:>/(?{push \@A, [end => '', pos]})/g;
+	s/<([a-z]+):/(?{ local \@_A = \@_A;
+	                 push \@_A, [begin=>$1=>pos];
+	                 pos > \$pos && (\$pos = pos) })/g;
+	s/<:([a-z]+):>/(?{local \@_A = \@_A;
+	                 push \@_A, [$1 => pos];
+	                 pos > \$pos && (\$pos = pos) })/g;
+	s/:([a-z]+)>/(?{ local \@_A = \@_A;
+	                 push \@_A, [end => $1 => pos];
+	                 pos > \$pos && (\$pos = pos) })/g;
+	s/:>/(?{ local \@_A = \@_A;
+	         push \@_A, [end => '', pos];
+                 pos > \$pos && (\$pos = pos) })/g;
 
+	s/\(\?>/(?:/g;
+
+
+
+# ----------ignore this-----------------
 #	s/ # ([a-z]+)(?:-([a-z]+))?(\s)/
 #		"(?{_re_$1(\$^N," . ($2 ? "'$2'" : '') . ")})$3"
 #	/ge;
@@ -550,6 +573,7 @@ sub build_regex {
 #		:	"push\@\$A,[$2=>\$^N,pos]"		
 #	) . "})$3"
 #	/ge;
+# ----------end ignore this-----------------
 
 
 	s/(?<!\[)\s+//g if $SQUASH_WHITE_SPACE;

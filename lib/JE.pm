@@ -11,7 +11,7 @@ require 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 our @ISA = 'JE::Object';
 
@@ -33,7 +33,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.002
+Version 0.003
 
 B<WARNING:> This module is still at an experimental stage. Only a few
 features have been implemented so far. The API is subject to change without
@@ -46,16 +46,8 @@ this module and let me know if you have any ideas as to how the API might
 be
 improved (or redesigned if need be).
 
-Right now about the only things you can do with it so far are:
-
-  - concatenate strings
-  - add numbers
-  - create arrays and objects with literals
-  - refer to global properties with identifiers
-  - refer to the global object with the 'this' keyword
-
-(despite
-the fact that many more features are documented).
+So far it supports expression statements. See the README file for a list
+of 'to-dos.'
 
 =head1 SYNOPSIS
 
@@ -120,7 +112,7 @@ sub new {
 	my $class = shift;
 
 	# I can't use the usual object and function constructors, since
-	# they both rely on the existance of  the global object and its
+	# they both rely on the existence of  the global object and its
 	# 'Object' and 'Function' properties.
 
 	# Commented lines here are just for reference:
@@ -132,6 +124,7 @@ sub new {
 			Object => bless(\{
 				#prototype => (Function.prototype)
 				#global => ...
+				#scope => bless [global], JE::Scope
 				func_name => 'Object',
 				func_argnames => [],
 				func_args => ['scope','args'],
@@ -172,6 +165,7 @@ sub new {
 			Function => bless(\{
 				#prototype => (Function.prototype)
 				#global => ...
+				#scope => bless [global], JE::Scope
 				func_name => 'Function',
 				func_length => 1,
 				func_argnames => [],
@@ -215,9 +209,11 @@ sub new {
 
 	$obj_constr->prototype( $func_proto );
 	$$$obj_constr{global} = $self;
+	my $scope = $$$obj_constr{scope} =  bless [$self], 'JE::Scope';
 
 	$func_constr->prototype( $func_proto );
 	$$$func_constr{global} = $self;
+	$$$func_constr{scope} = $scope;
 
 	$$$obj_proto{global} = $self;
 
@@ -299,8 +295,9 @@ sub new {
 				my($scope,$str,$radix) = @_;
 				
 				($str = $str->to_string) =~ s/^\s//;
-				my $sign = (-1,1)[($str =~
-					s/^([+-])//)[0] eq '+'];
+				my $sign = $str =~ s/^([+-])//
+					? (-1,1)[$1 eq '+']
+					:  1;
 				$radix ||= $str =~ /^0x/i
 				?	16
 				:	10
@@ -314,7 +311,7 @@ sub new {
 				$str =~ /^([$digits]*)/;
 				$str = $1;
 
-				# ~~~ Return NaN if !length $str
+				return 'nan' if !length $str;
 
 				if($radix == 10) {
 					return $sign * $str;
@@ -436,11 +433,12 @@ JE::LValue object), but I have yet to decide what to call it.
 =cut
 
 sub eval {
-	my $rv = shift->compile(shift)->execute;
-#	my %opts = @_;
-#	$opts{return_obj} ? $rv : $rv->value;
+	my $code = shift->compile(shift);
+	$@ and return;
+
+	$code->execute;
 }
-# ~~~ I don't think we need return_obj, because of overloading
+
 
 
 
@@ -452,6 +450,14 @@ This creates and returns a new function written in Perl. If $name is given,
 it will become a property of the global object.
 
 For more ways to create functions, see L<JE::Object::Function>.
+
+=cut
+
+# ~~~ sub new_function
+
+
+
+
 
 =item $j->upgrade( @values )
 
@@ -643,14 +649,23 @@ experimental), I don't think they will be going away.
 
 =head1 BUGS
 
-Lots and lots.
+Apart from the fact that there aren't enough features for this module to be 
+usable yet, here are some known bugs:
 
-There aren't enough features for this module to be usable yet.
+Identifiers in JS source code that contain pairs of Unicode escape 
+sequences representing
+surrogate pairs are currently not considered equivalent to the same
+identifiers with the actual characters instead of escape sequences. For
+example, '\ud801\udc00' is not considered the same as "\x{10400}", though
+it should be.
+
+The JE::LValue and JE::Scope classes, which have C<AUTOLOAD> subs that 
+delegate methods to the objects to which they refer, do not yet implement 
+the C<can> method, so if you call $thing->can('to_string') on one of these
+you will get a false return value, even though these objects I<can>
+C<to_string>.
 
 The documentation is a bit incoherent. It probably needs a rewrite.
-
-The author is not an expert on JavaScript, so there are probably some big
-conceptual errors here and there.
 
 =head1 AUTHOR, COPYRIGHT & LICENSE
 

@@ -1,6 +1,6 @@
 package JE::Object;
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 
 use strict;
@@ -138,9 +138,9 @@ sub prop {
 			my($new_val) =
 				$$guts{global}->upgrade(shift);
 
-			return $new_val unless $self->is_readonly($name);
+			return $new_val if $self->is_readonly($name);
 
-			$$guts{props}{$name} = 
+			$$guts{props}{$name} = $new_val;
 			push @{ $$guts{keys} }, $name
 			    unless first {$_ eq $name} @{ $$guts{keys} }; 
 			return $new_val;
@@ -169,14 +169,14 @@ sub is_readonly { # See JE::Types for a description of this.
 	if( exists $$props{$name}) {
 		my $read_only_list = $$guts{prop_readonly};
 		return exists $$read_only_list{$name} ?
-			$$read_only_list{$name} : 1;
+			$$read_only_list{$name} : 0;
 	}
 
 	if(my $proto = $self->prototype) {
 		return $proto->is_readonly(@_);
 	}
 
-	return 1;
+	return 0;
 }
 
 
@@ -217,6 +217,13 @@ sub method {
 =item $obj->typeof
 
 This returns the string 'object'.
+
+=cut
+
+sub typeof { 'object' }
+
+
+
 
 =item $obj->class
 
@@ -284,6 +291,10 @@ sub to_string {
 sub to_number {
 	shift->to_primitive('number')->to_number;
 }
+
+sub to_object { $_[0] }
+
+sub global { ${+shift}->{global} }
 
 
 =item I<Class>->new_constructor( $global, \&function, \&prototype_init );

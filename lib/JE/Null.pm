@@ -1,6 +1,6 @@
 package JE::Null;
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 
 use strict;
@@ -45,11 +45,14 @@ isn't much to it.
 Null stringifies to 'null', and is false as a boolean.
 
 =cut
-
+use Carp 'longmess';
 sub new    { bless \$_[1], $_[0] }
-sub prop   { die }
-sub props  { die } # ~~~ implement exception-handling later
-sub delete { die } #     These four need to throw a ReferenceError
+sub prop   {
+	die "Null has no properties, not even one named $_[1]"
+}
+sub props  { die } # ~~~ implement exception-handling later 
+                   #     These need to throw a ReferenceError
+sub delete { JE::Boolean->new(${$_[0]}, 1) }
 sub method { die }
 sub value  { undef }
 sub call   { die }
@@ -63,6 +66,7 @@ sub to_boolean { JE::String->new(${+shift}, '') };
 sub to_string { JE::String->new(${+shift}, 'null') };
 sub to_number { JE::Number->new(${+shift}, 0) }
 sub to_object { die } # ~~~ TypeError
+sub global { ${$_[0]} }
 
 
 "Do you really expect a module called 'null' to return a true value?!";

@@ -1,18 +1,25 @@
-JE, version 0.002
+JE, version 0.003
 
 JE is a pure-Perl ECMAScript (JavaScript) engine.
 
-This is still a pre-alpha release. You can't actually *use* it yet.
-About the only things you can do with it so far are:
-  - concatenate strings
-  - add numbers
-  - create arrays and objects with literals
-  - refer to global properties with identifiers
-  - refer to the global object with the 'this' keyword
+This is still an alpha release. All JavaScript literals (except func-
+tions), identifiers and operators are now supported.
 
 If  you have the time and the interest,  please experiment with this
 module. If you have any ideas as to how the API could be improved or
 reworked, please e-mail me.
+
+
+TO DO
+
+- Add support for all types of statements (currently only expression
+  statements work)
+- Finish the core object classes
+- Implement exception handling and helpful error messages
+- Write lots and lots and lots of tests, at the same time fixing all
+  the bugs they bring to light
+- Perhaps make it easier to bind Perl classes to JavaScript
+
 
 INSTALLATION
 

@@ -1,6 +1,6 @@
 package JE::String;
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 
 use strict;
@@ -75,7 +75,7 @@ sub apply  { die }
 sub construct { die }
 
 sub typeof    { 'string' }
-sub id        { 'str:' . shift->value }
+sub id        { 'str:' . $_[0][0] }
 sub primitive { 1 }
 
 sub to_primitive { $_[0] }
@@ -104,6 +104,8 @@ sub to_number  {
 		'NaN'
 	);
 }
+
+sub global { $_[0][1] }
 
 
 1;

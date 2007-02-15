@@ -1,6 +1,6 @@
 package JE::Scope;
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 use strict;
 use warnings;
@@ -9,6 +9,7 @@ require JE::LValue;
 
 our $AUTOLOAD;
 
+# ~~~ We probably need a C<can> method.
 
 sub var {
 	my ($self,$var) = @_;

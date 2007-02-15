@@ -1,13 +1,13 @@
 package JE::Boolean;
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 
 use strict;
 use warnings;
 
 use overload fallback => 1,
-	'""' =>  sub { qw< true false >[shift->[0]] },
+	'""' =>  sub { qw< false true >[shift->[0]] },
 	 cmp =>  sub { "$_[0]" cmp $_[1] },
 	bool =>  sub { shift->[0] };
 
@@ -65,6 +65,8 @@ sub to_boolean   { $_[0] }
 sub to_string { JE::String->new($_[0][1], qw< true false >[shift->[0]]) }
 sub to_number { JE::Number->new($_[0][1], shift->[0]) }
 sub to_object { JE::Object::Boolean->new($_[0][1], shift) }
+
+sub global { $_[0][1] }
 
 
 

@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 
 use strict;
@@ -49,15 +49,15 @@ I<primitive> string value, while this module implements the I<objects.>
 =cut
 
 sub new {
-	my($class, $scope, $val) = @_;
-	my $self = bless JE::Object->new($scope), $class;
-	$$$self{value} = new JE::String $val;
+	my($class, $global, $val) = @_;
+	my $self = __PACKAGE__->SUPER::new($global);
+	$$$self{value} = new JE::String $global, $val;
 	$self;
 }
 
-sub prop {
+#sub prop {
 	# ~~~ deal with the length property here
-}
+#}
 
 sub value { shift->{value}->value }
 

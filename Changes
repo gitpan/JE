@@ -1,5 +1,11 @@
 Revision history for JE
 
+0.003   14 Feburary, 2007
+        Alpha release. All JavaScript operators are now supported. JS
+        numbers now use Perl's nan and inf.  A few bugs in the object
+        classes have been fixed.  A bug preventing the  expansion  of
+        backslash escapes in string literals has been fixed.
+
 0.002   7 Feburary, 2007
         Still a pre-alpha version with almost no features and lots of
         bugs. A lot of work has been done on the object classes.  The
