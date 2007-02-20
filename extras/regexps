@@ -8,7 +8,7 @@ ule and use it, ignore this file. If you want to play with the module
 and modify it, then you may find this interesting.
 
 Warning: This is not portable code. It works on Mac OS X, and should
-work on any Unix, but not on any weird OS like Windows.
+work on any Unix, but not on Windows.
 
 
 
@@ -59,6 +59,8 @@ Errors like '3 < 4 = 5' will be caught at run time, which is still acc. to
 spec., since the spec. says explicitly that the reporting of a syntax error
 may be deferred until execution of the statement in question.
 
+$statement matches trailing, but not leading, white space. $statements
+takes care of the optional leading white space.
 
 =cut
 
@@ -78,9 +80,9 @@ $ss = qr([ \t\x0b\f\xa0\p{Zs}\cm\cj\x{2028}\x{2029}]);
 
 $s = qr(
 	(?> <ss>* )
-	(?> (?> //[^\cm\cj\x{2028}\x{2029}]* | /\*.*?\*/ )
+	(?> (?> //[^\cm\cj\x{2028}\x{2029}]* (?>$n|\z) | /\*.*?\*/ )
 	    (?> <ss>* )
-	) ?
+	) *
 )sx;
 
 $S = qr(
@@ -96,7 +98,7 @@ $S = qr(
 
 $id_cont = qr(
 	(?>
-	  \\u(?!003[Dd])([\dA-Fa-f]{4})
+	  \\u([\dA-Fa-f]{4})
 	    |
 	  [\p{ID_Continue}\$_]
 	)
@@ -104,7 +106,7 @@ $id_cont = qr(
 $ident = qr(
 	<ident:
 	  (?:
-	    \\u(?!00[23][Dd])([\dA-Fa-f]{4})
+	    \\u([\dA-Fa-f]{4})
 	      |
 	    [\p{ID_Start}\$_]
 	  )
@@ -140,7 +142,7 @@ $params = qr{ <params:
 $term = qr` (?>
 	function(?!<id_cont>) <func: <s> (?>(?:<ident> <s>)?) 
 	  <params> <s> \{
-		<statements>
+		<s> <statements>
 	\} :>
 	  |
 	<ident>
@@ -471,20 +473,28 @@ $expr_noin = qr(
 )x;
 
 $var_decl_list = qr(
-	<vardecl: <ident> (?>(?: <s> = <assign> )?) :vardecl>
+	<vardecl: <ident> (?>(?: <s> = <s> <assign> )?) :vardecl>
 	(?>(?: <s> , <s>
-	  <vardecl: <ident> (?>(?: <s> = <assign> )?) :vardecl>
+	  <vardecl: <ident> (?>(?: <s> = <s> <assign> )?) :vardecl>
 	)?) 
 )x;
 
-$statement    = qr/ <s> (?>
+$statement    = qr/ (?>
 	(?# Statements that do not have an optional semicolon: )
 	(?:
-	  ; <:empty:>
+	  \{ <statements> \}
+	    |
+	  ; <:emptystm:>
 	    |
 	  function <S>  <function: <ident> <s> <params> <s> \{
-	    <statements>
+	    <s> <statements>
 	  \} :>
+	    |
+	  if <s> \( <if: <s> <expr> <s> \) <s> <statement>
+	  (?>(?: <s> else(?!<id_cont>) <s> <statement> )?)
+	  :>
+	    |
+	  while <s> \( <while: <s> <expr> <s> \) <s> <statement> :>
 	    |
 	  for <s> \( <for: <s> (?>
 	    (?>
@@ -503,28 +513,63 @@ $statement    = qr/ <s> (?>
 	        |
 	      <expr> <s> ;
 	    )
-	    (?> ; <:empty:> | <expr> <s> ; )
-	    (?> (?= <s> \) ) <:empty:> | <expr> )
+	    <s> (?> ; <:empty:> | <expr> <s> ; )
+	    (?> (?= <s> \) ) <:empty:> | <s> <expr> )
 	  ) <s> \) <s> <statement>
 	  :>
-	)
+	    |
+	  with <s> \( <with: <s> <expr> <s> \) <s> <statement> :>
+	    |
+	  switch <s> \( <switch: <s> <expr> <s> \) <s> \{
+	    (?>(?: case(?!<id_cont>) <s> <expr> <s> : <s> <statements> )*)
+	    (?>(?:
+	      default <:default:> <s> : <s> <statements>
+	      (?>(?:case(?!<id_cont>) <s> <expr> <s> : <s> <statements> )*)
+	    )?)
+	  \} :>
+	    |
+	  try <s> \{ <try: <s> <statements> \} <s>
+	  (?>
+	    catch <s> \( <s> <ident> <s> \) <s> \{ <s> <statements> \}
+	    (?>(?: <s> finally <s> \{ <s> <statements> \} )?)
+	      |
+	    finally <s> \{ <s> <statements> \}
+	  )
+	    |
+	  <labelled: (?>(?: <ident> <s> : <s> )+) (?!<ident><s> :)
+	  <statement> :>
+	) <s>
 
 	  |
 
 	(?# Statements that do have an optional semicolon: )
 	(?:
-	  <expr>
-	    |
 	  var <S> <var: <var_decl_list> :>
+	    |
+	  do(?!<id_cont>) <s> <do: <statement>
+	  while <s> \( <s> <expr> <s> \)
+	  :>
+	    |
+	  continue(?!<id_cont>) <h> <continue: (?><ident>?) :> 
+	    |
+	  break  (?!<id_cont>) <h> <break:   (?><ident>?) :> 
+	    |
+	  return(?!<id_cont>) <h> <return: (?><expr>?) :> 
+	    |
+	  throw(?!<id_cont>) <h> <throw: (?><expr>?) :> 
+	    |
+	  <expr>
 	)
 	(?:
-	  <s> (?: \z | ; | (?=\}) ) 
+	  <s> (?: \z | ;<s> | (?=\}) ) 
 	    |
-	  <h> <n>
+	  <h> <n> <s>
 	)
 )/x;
 
-$statements = qr/<statements: $statement* :> (?{@A = @_A})/x;
+$statements = qr/<s> <statements: $statement* :>/x;
+
+$program = qr/<statements> (?{@A = @_A}) /x;
 
 --END--
 
@@ -533,7 +578,7 @@ sub build_regex {
 	local $_ = shift;
 	s/\$([a-zA-Z])/\$_re_$1/g;
 
-	s/<([a-z_]+)>/(??{\$_re_$1})/g;
+	s/<([A-Za-z_]+)>/(??{\$_re_$1})/g;
 
 	s/<([a-z]+):/(?{ local \@_A = \@_A;
 	                 push \@_A, [begin=>$1=>pos];

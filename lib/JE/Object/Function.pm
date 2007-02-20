@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.003';
+our $VERSION = '0.004';
 
 
 use strict;
@@ -114,6 +114,8 @@ is invoked with, but with no invocant or scope chain.
 
 =item new_method JE::Object::Function $scope_or_global, sub { ... };
 
+(not yet implemented)
+
 If you are writing a method in Perl and are not interested in the scope, 
 use this method. The first argument to the sub will be the invocant.
 The remaining arguments will be those with which JavaScript called the
@@ -186,7 +188,8 @@ is used in Perl.
 If this is omitted, when C<new> or C<construct> is used, a new empty object 
 will be created and passed to the
 sub specified under C<function>. The return value of the sub will be
-discarded, and the (possibly modified) object will be returned.
+returned I<if> it is an object; the (possibly modified) object originally
+passed to the function will be returned otherwise.
 
 =item constructor_args
 
@@ -195,7 +198,7 @@ C<constructor_args> is
 omitted, but C<constructor> is not, the arg list will be set to
 C<[ qw( scope args ) ]>.
 
-=item downgrade
+=item downgrade (not yet implemented)
 
 This applies only when C<function> or C<constructor> is a code ref. This
 is a boolean indicating whether the arguments to the function should have 
@@ -217,7 +220,7 @@ property.
 
 =item new JE::Object::Function
 
-=item new_method JE::Object::Function
+=item new_method JE::Object::Function (not yet implemented)
 
 See L<OBJECT CREATION>.
 
@@ -305,9 +308,9 @@ sub new { # ~~~ This sub needs some error-checking
 	$self;
 }
 
-sub new_method {
+#sub new_method {
 # ~~~
-}
+#}
 
 
 
@@ -365,8 +368,12 @@ sub construct { # ~~~ we need to upgrade the args passed to construct, but
 		->prototype(
 			$self->prop('prototype')
 		);
-		$self->apply($obj, @_);
-		return $obj;
+		my $return = $$guts{global}->upgrade(
+			$self->apply($obj, @_)
+		);
+		return $return->can('primitive') && !$return->primitive
+			? $return
+			: $obj;
 	}
 }
 
@@ -472,6 +479,12 @@ sub _init_proto {
 
 	# E 15.3.4
 	$proto->prop({
+		dontenum => 1,
+		name => 'constructor',
+		value => $scope->prop('Function'),
+	});
+
+	$proto->prop({
 		name      => 'toString',
 		value     => JE::Object::Function->new({
 			scope    => $scope,
@@ -541,7 +554,7 @@ sub _init_proto {
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.003';
+our $VERSION = '0.004';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -607,7 +620,7 @@ sub delete { # ~~~ Can delete be called on a property of a call object?
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.003';
+our $VERSION = '0.004';
 
 our @ISA = 'JE::Object';
 

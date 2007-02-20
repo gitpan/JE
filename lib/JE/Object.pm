@@ -1,6 +1,6 @@
 package JE::Object;
 
-our $VERSION = '0.003';
+our $VERSION = '0.004';
 
 
 use strict;
@@ -182,9 +182,10 @@ sub is_readonly { # See JE::Types for a description of this.
 
 
 
-sub props {# ~~~ This needs to list enumerable properties of
-            #     the object's prototypes
-	@{ ${+shift}->{keys} };
+sub props {
+	my $self = shift;
+	my $proto = $self->prototype;
+	@{ $$self->{keys} }, defined $proto ? $proto->props : ();
 }
 
 
@@ -299,6 +300,8 @@ sub global { ${+shift}->{global} }
 
 =item I<Class>->new_constructor( $global, \&function, \&prototype_init );
 
+B<Warning:> This method is still subject to change.
+
 You should not call this method--or read its description--unless you are 
 subclassing JE::Object. 
 
@@ -318,7 +321,9 @@ omitted, the function will simply return undefined.
 C<\&prototype_init> (prototype initialiser), if present, will be called by
 the C<new_constructor> with a prototype object as its only argument. It is
 expected to add the default properties to the prototype (except for the
-C<constructor> property, which will be there already).
+C<constructor> property, which will be there already), and to bless the
+it into the appropriate Perl class, if necessary (it will be a
+JE::Object by default).
 
 For both coderefs, the scope will be passed as the first argument.
 
@@ -394,7 +399,14 @@ sub new_constructor {
 		constructor_args => ['scope','args'],
 	});
 
-	$init_proto and &$init_proto($f->prop('prototype'));
+	(my $proto = $f->prop('prototype'))
+	 ->prop({
+		dontenum => 1,
+		name => 'constructor',
+		value => $f,
+	 });
+
+	$init_proto and &$init_proto($proto);
 
 	$f;
 }
@@ -421,6 +433,12 @@ sub _init_proto {
 
 	# E 15.2.4
 	# ~~~ $proto->prop({ ... })
+
+	$proto->prop({
+		dontenum => 1,
+		name => 'constructor',
+		value => $scope->prop('Object'),
+	});
 
 	$proto->prop({
 		name      => 'toString',

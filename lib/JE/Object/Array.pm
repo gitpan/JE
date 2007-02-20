@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.003';
+our $VERSION = '0.004';
 
 
 use strict;
@@ -14,10 +14,11 @@ our @ISA = 'JE::Object';
 
 require JE::Object;
 require JE::String;
+require JE::Number;
 
 =head1 NAME
 
-JE::Object - JavaScript Array objects class
+JE::Object - JavaScript Array object class
 
 =head1 SYNOPSIS
 
@@ -44,7 +45,7 @@ the object uses underneath.
 =head1 METHODS
 
 See L<JE::Types> for descriptions of most of the methods. Only what
-is specific to JE::Object is explained here.
+is specific to JE::Object::Array is explained here.
 
 =over 4
 
@@ -95,12 +96,39 @@ sub new {
 
 # ~~~ Finish writing methods.
 
-#sub prop { # ~~~ needs to take care of array indices, but pass all other
-            #     properties to SUPER::
+sub prop {
+	my ($self, $name, $val) =  (shift, @_);
+	my $guts = $$self;
+
+	if ($name eq 'length') {
+		if (@_ > 1) { # assignment
+			$val == int($val) % 2**32 or die; # ~~~ RangeError
+			$#{$$guts{array}} = $val - 1;
+			return JE::Number->new($$guts{global}, $val);
+		}
+		else {
+			return JE::Number->new($$guts{global},
+				$#{$$guts{array}} + 1);
+		}
+	}
+	elsif ($name =~ /^(?:0|[1-9]\d*)\z/ and $name < 4294967295) {
+		if (@_ > 1) { # assignment
+			return $$guts{array}[$name] =
+				$$guts{global}->upgrade($val);
+		}
+		else {
+			return exists $$guts{array}[$name]
+				? $$guts{array}[$name] : undef;
+		}
+	}
+	$self->SUPER::prop(@_);
+}
+
 
 #sub props # ~~~ I nee to find out wmhat this does.
 
-#sub delete # ~~~ What does this mean when applied to array indices?
+#sub delete # ~~~ array indices are deletable
+	# length is not
 
 
 

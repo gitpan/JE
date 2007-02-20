@@ -1,6 +1,6 @@
 package JavaScript::Engine;
 
-our $VERSION = "0.0102"; # We'll increase the fourth decimal place by one
+our $VERSION = "0.0103"; # We'll increase the fourth decimal place by one
                          # each time JE's third decimal place increases,
                          # until the latter catches up. Then this will be
                          # the same as JE's thenceforth.

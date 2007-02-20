@@ -1,6 +1,6 @@
 package JE::Null;
 
-our $VERSION = '0.003';
+our $VERSION = '0.004';
 
 
 use strict;
@@ -45,7 +45,8 @@ isn't much to it.
 Null stringifies to 'null', and is false as a boolean.
 
 =cut
-use Carp 'longmess';
+
+#use Carp;
 sub new    { bless \$_[1], $_[0] }
 sub prop   {
 	die "Null has no properties, not even one named $_[1]"

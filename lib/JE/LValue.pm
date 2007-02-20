@@ -1,23 +1,59 @@
 package JE::LValue;
 
-our $VERSION = '0.003';
+our $VERSION = '0.004';
 
 use strict;
 use warnings;
 
 use Scalar::Util 'blessed';
+use List::Util 'first';
 
-# ~~~ I need to figure out how to delegate overloaded ops to the object
-#     contained (referenced) by the JE::LValue, such that $lvalue->{0}
-#     will produce the same as $lvalue->get->{0}. I may need to make
-#     JE::LValue objects into references to array refs \[ ... ]. Right
-#     now they are just array refs [ ... ].
+# ~~~ We need a C<can> method.
 
-# ~~~ We probably need a C<can> method.
 
-#use overload nomethod => sub {
-#	
-#};
+# ~~~ Make it so that a TypeError is thrown when an lvalue is *created*
+#     with undefined or null as the base object. JE::Scope::var needs to
+#     be modified to pass undef as the base object when creating a ref to
+#     a non-existent var. When undef is passed to new, store an unblessed
+#     ref to the global object instead of null.
+#     -- Actually this won't work properly because the lvalue needs a ref
+#        to the global object, so I need to think this through more.
+
+# ~~~ Make 'call' use ->method instead of ->apply
+
+
+our $ovl_infix = join ' ', @overload::ops{qw[
+	with_assign assign num_comparison 3way_comparison str_comparison	binary
+]};
+our $ovl_prefix = join ' ', @overload::ops{qw[ mutators func ]};
+
+use overload eq => sub {  # 'eq' is not campatible with 'nomethod' in
+	                  # perl 5.8.8
+	$_[0]->get eq $_[1];
+}, nomethod => sub {
+	local $@;
+	my ($self, $other, $reversed, $symbol) = @_;
+	$self = $self->get;
+	my $val;
+	if ($overload::ops{conversion} =~ /(?:^| )$symbol(?:$| )/) {
+		return $self;
+	}
+	elsif($ovl_infix =~ /(?:^| )$symbol(?:$| )/) {
+		$val = eval( $reversed ? "\$other $symbol \$self"
+		                       : "\$self $symbol \$other" );
+	}
+	elsif($symbol eq 'neg') {
+		$val = eval { -$self };
+	}
+	elsif($ovl_prefix =~ /(?:^| )$symbol(?:$| )/) {
+		$val = eval "$symbol \$self";
+	}
+	$@ and die $@;
+	return $val;
+}, '@{}' => sub {
+	caller eq __PACKAGE__ and return shift;	
+	$_[0]->get;
+}, '%{}' => 'get', '&{}' => 'get', '*{}' => 'get';
 
 
 sub new {
@@ -83,14 +119,25 @@ JE::LValue - JavaScript lvalue class
 
 =head1 DESCRIPTION
 
-This class implements JavaScript lvalue (called "Reference Types" by the
+This class implements JavaScript lvalues (called "Reference Types" by the
 ECMAScript specification).
 
-=head1 METHODS
+=head1 METHODS AND OVERLOADING
 
 If a method is called that is not listed here, it will be passed to the 
 property referenced by the lvalue. (See the last item in the L<SYNOPSIS>,
-above.)
+above.) For this reason, you should never call C<UNIVERSAL::can> on a
+JE::LValue, but, rather, call it as a method (C<< $lv->can(...) >>), unless
+you really know what you are doing.
+
+B<To do:> Implement the C<can> method, since it doesn't exist yet.
+
+Similarly, if you try to use an overloaded operator, it will be passed on 
+to
+the object that the lvalue references, such that C<!$lvalue> is the same
+as calling C<!$lvalue->get>. Note, however, that this does I<not> apply to
+the iterator (C<< <> >>) operator, the scalar dereference op (C<${}>) and 
+the special copy operator (C<=>).
 
 =over 4
 

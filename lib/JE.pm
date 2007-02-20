@@ -11,7 +11,7 @@ require 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.003';
+our $VERSION = '0.004';
 
 our @ISA = 'JE::Object';
 
@@ -33,21 +33,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.003
-
-B<WARNING:> This module is still at an experimental stage. Only a few
-features have been implemented so far. The API is subject to change without
-notice.
-
-Wait a minute! I shouldn't say that. I'll end up scaring people away. :-)
-If
-you have the time and the interest, please go ahead and experiment with
-this module and let me know if you have any ideas as to how the API might
-be
-improved (or redesigned if need be).
-
-So far it supports expression statements. See the README file for a list
-of 'to-dos.'
+Version 0.004 (alpha release)
 
 =head1 SYNOPSIS
 
@@ -453,8 +439,16 @@ For more ways to create functions, see L<JE::Object::Function>.
 
 =cut
 
-# ~~~ sub new_function
-
+sub new_function {
+	my $self = shift;
+	my $f = JE::Object::Function->new($self, pop);
+	@_ and $self->prop({
+		name => shift,
+		value=>$f,
+		dontdel=>1
+	});
+	$f;
+}
 
 
 
@@ -487,10 +481,14 @@ sub upgrade { # ~~~ I need to make '0' into a number,  so that, when
 		?	JE::Object::Array->new($self, $_)
 		: ref($_) eq 'HASH'
 		?	JE::Object->new($self, %$_)
+		: ref($_) eq 'CODE'
+		?	JE::Object::Function->new($self, $_)
+		: $_ eq '0' || $_ eq '-0'
+		?	JE::Number->new($self, 0)
 		:	JE::String->new($self, $_)
 		;
 	}
-	@__ > 1 ? @__ : $__[0];
+	@__ > 1 ? @__ : @__ == 1 ? $__[0] : ();
 }
 
 
@@ -535,129 +533,32 @@ sub null { # ~~~ This needs to be made more efficient.
 1;
 __END__
 
+=begin for me
 
-=head1 WHAT STILL NEEDS TO BE FIGURED OUT
+=head1 IMPLEMENTATION NOTES
 
-=head2 How the Parser Should Work
+(to be written)
 
-I have not quite figured
-out how the JavaScript parser should work.
-
-I could write a parser that parses the code and 
-creates a parse tree. Then the C<execute> subroutine could traverse the
-tree, executing code as it goes. The parse tree could contain line number
-information that would be used to generate helpful error messages.
-
-But I think if I were to turn the parse tree into a Perl subroutine (at
-least for JavaScript functions; perhaps not for code that is run only 
-once--when
-passed to C<eval>), it
-would run a lot faster. The only problem is that I am not sure how to
-retain information needed for helpful error messages. I suppose I could put
-an C<< eval { ... } or die "${$@} at line <number here>" >> around each
-statement. E.g., this function:
-
-  function copy_array(ary) {
-          var new_ary = [];
-          for(var i = 0; i < ary.length; ++i) {
-                  new_ary[i] = ary[i]
-          }
-          return new_ary
-  }
-
-might, without error message support, become
-
-  sub {
-          my($scope, $obj) = @_;
-          $scope->new_var('new_ary', $scope->new_object('Array'));
-          for($scope->new_var('i',0); $scope->var('i') <
-              $scope->var('ary')->prop('length'); ++$scope->var('i')) {
-                  $scope->var('new_ary')->prop(
-                      $scope->var('i'), $scope->var('ary')->prop('i')
-                  );
-          }
-          return $scope->var('new_ary');
-  }
-
-With C<eval> blocks, it would become something like:
-
-  sub {
-          my($scope, $obj) = @_;
-          eval {
-                  $scope->new_var('new_ary', JE::Object::Array->new());
-          } or die "${$@} on line 2";
-          for(eval { $scope->new_var('i',0) or die "${$@} on line 3";
-              eval { $scope->var('i') < $scope->var('ary')->prop('length')
-                    } or die "${$@} on line 3";
-              eval {++$scope->var('i')} or die "${$@} on line 3"
-          ) {
-              eval {
-                  $scope->var('new_ary')->prop(
-                      $scope->var('i'), $scope->var('ary')->prop('i')
-                  );
-              } or die "${$@} on line 4";
-          }
-          eval { return $scope->var('new_ary'); }
-              or die "${$@} on line 6";
-  }
-
-
-But that might slow things down considerably. (The fact that the code is
-messy doesn't matter, because it's computer-generated and shouldn't need
-to be read by a human.)
-
-Or perhaps I could forget error messages altogether, since someone could
-just use Firefox for that instead. :-)  Maybe I could provide the option of
-optimising the code, at the expense of simpler and less helpful error
-messages. "Slow mode" could be turned on for debugging.
-
-Does anyone have any thoughts?
-
-=head2 Tainting
-
-I need to verify that running tainted JS code will, when
-executed, be checked by Perl's taint-checking mechanism. And if
-that's not the case, I need to figure out some way of making it
-work.
-
-=head2 Garbage Collection and Memory Leaks
-
-I'm not sure how to go about removing circular references. Can anyone help?
-
-=head2 Memoisation
-
-Memoisation might help to speed things up a lot if applied to certain
-functions. The C<value> method of JE::String, for instance, which has
-to put the
-string through the torturous desurrogification process, may benefit
-significantly from this.
-
-But then it uses more memory. So maybe we could allow the user to
-C<use JE '-memoize'>, which could set the package var $JE::memoise to
-true. Then all subsequently require'd JE modules would check that var
-when they load.
-
-=head1 PREREQUISITES
-
-perl 5.8.0 or later
-
-The parser uses the officially experimental C<(?{...}}> and C<(??{...})>
-constructs in regexen. Considering that they are described the 3rd edition 
-of
-I<Mastering Regular Expressions> (and are not indicated therein as being
-experimental), I don't think they will be going away.
+=end for me
 
 =head1 BUGS
 
-Apart from the fact that there aren't enough features for this module to be 
-usable yet, here are some known bugs:
+Apart from the fact that the core object classes are incomplete, here are 
+some known bugs:
 
-Identifiers in JS source code that contain pairs of Unicode escape 
-sequences representing
-surrogate pairs are currently not considered equivalent to the same
-identifiers with the actual characters instead of escape sequences. For
-example, '\ud801\udc00' is not considered the same as "\x{10400}", though
-it should be.
+If a script is long (about 30 lines), it will still run, but the Perl
+program might crash when trying to exit (I get a bus error).
+
+Functions objects do not stringify properly. The body of the function is
+missing.
+
+Although the spec says that trying to reference a property of null or
+undefined is meant to throw an error, JE does not throw the error until
+the value is actually I<used>, so you can say C<undefined.property> in void
+context and no error will be thrown. An interesting side-effect of this is
+that, if you assign to C<null.whatever>, the value will be assigned to the
+C<whatever> property if the I<global> object (!). This counter-intuitive
+behaviour will be corrected.
 
 The JE::LValue and JE::Scope classes, which have C<AUTOLOAD> subs that 
 delegate methods to the objects to which they refer, do not yet implement 
@@ -665,7 +566,20 @@ the C<can> method, so if you call $thing->can('to_string') on one of these
 you will get a false return value, even though these objects I<can>
 C<to_string>.
 
+The behaviour of the C<Object> constructor is currently simply wrong, and
+not at all according to spec.
+
 The documentation is a bit incoherent. It probably needs a rewrite.
+
+=head1 PREREQUISITES
+
+perl 5.8.0 or later
+
+The parser uses the officially experimental C<(?{...}}> and C<(??{...})>
+constructs in regexps. Considering that they are described the 3rd edition 
+of
+I<Mastering Regular Expressions> (and are not indicated therein as being
+experimental), I don't think they will be going away.
 
 =head1 AUTHOR, COPYRIGHT & LICENSE
 

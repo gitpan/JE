@@ -1,6 +1,6 @@
 package JE::Number;
 
-our $VERSION = '0.003';
+our $VERSION = '0.004';
 
 use strict;
 use warnings;
@@ -99,10 +99,6 @@ sub method {
 sub value {
 	shift->[0]
 }
-
-sub call   { die }
-sub apply  { die }
-sub construct { die }
 
 
 sub typeof    { 'number' }

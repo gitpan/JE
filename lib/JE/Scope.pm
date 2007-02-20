@@ -1,6 +1,6 @@
 package JE::Scope;
 
-our $VERSION = '0.003';
+our $VERSION = '0.004';
 
 use strict;
 use warnings;
@@ -9,11 +9,12 @@ require JE::LValue;
 
 our $AUTOLOAD;
 
-# ~~~ We probably need a C<can> method.
+# ~~~ We need a C<can> method.
 
 sub var {
 	my ($self,$var) = @_;
 	my $lvalue;
+
 	for(reverse @$self) {
 		defined $_->prop($var) or next;
 		$lvalue = new JE::LValue $_, $var;
@@ -23,23 +24,23 @@ sub var {
 	$lvalue = new JE::LValue $self->[0]->null, $var;
 
 	FINISH:
-	@_ > 2 and $lvalue->set(shift);
+	@_ > 2 and $lvalue->set($_[2]);
 	return $lvalue;
 }
 
 sub new_var {
-	my ($self,$var) = @_;
+	my ($self,$var) = (shift,shift);
 	if (defined $$self[-1]->prop($var)) {
-		$$self[-1]->prop($var, shift) if @_ > 2;
+		$$self[-1]->prop($var, shift) if @_;
 	}
 	else {
-		$$self[-1]->prop($var, @_ > 2 ? shift :
+		$$self[-1]->prop($var, @_ ? shift :
 			$$self[0]->undefined);
 	}
 
 	# This is very naughty code, but it works.	
 	$JE::Code::Expression::_eval or $$self[-1]->prop({
-		name => var,
+		name => $var,
 		dontdel => 1,
 	});
 

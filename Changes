@@ -1,12 +1,31 @@
 Revision history for JE
 
-0.003   14 Feburary, 2007
+0.004   19 February, 2007
+        Alpha release. New features and bug fixes in this
+        release include:
+        - Support for all JavaScript statements, not just expression
+          statements
+        - JE::String now provides a desurrogify function.
+        - JE::upgrade now supports coderefs and makes '0' into a num-
+          ber, as the docs say it does.
+        - The JE::new_function method has been added.
+        - Overloading for JE::LValue objects
+        - JE::Object::props now returns the names of the object's pro-
+          totype's properties as well as the object's own
+        - Error and SyntaxError classes
+        - Function literals and declarations
+        - '==' in JS now does string comparison if at least one oper-
+          and is a string  (it used to determine that it  should  do
+          string  comparison  and  then  do  numeric  equals  anyway,
+          because I typed '==' by mistake instead of 'eq'!)
+
+0.003   14 February, 2007
         Alpha release. All JavaScript operators are now supported. JS
         numbers now use Perl's nan and inf.  A few bugs in the object
         classes have been fixed.  A bug preventing the  expansion  of
         backslash escapes in string literals has been fixed.
 
-0.002   7 Feburary, 2007
+0.002   7 February, 2007
         Still a pre-alpha version with almost no features and lots of
         bugs. A lot of work has been done on the object classes.  The
         parser is half-written,  but the code that actually  executes

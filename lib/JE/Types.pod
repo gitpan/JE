@@ -9,7 +9,9 @@ This is just documentation, not a module.
 The various JavaScript types and objects are represented by
 classes in JE. Each class provides the methods listed
 below. In some cases, a class may throw an exception when the
-method is called.
+method is called. B<Note:> This is going to change. I am going to remove
+redundant methods, and make JE::Code check for the existence of the method
+before calling it or throwing an exception.
 
 If you are creating your own object classes in Perl for
 JavaScript to use, you can subclass JE::Object, but you don't
@@ -46,13 +48,16 @@ complete list of object classes:
 
   JavaScript  Perl
   ----------------
-  Object      JE::Object
-  Function    JE::Object::Function
-  String      JE::Object::String
-  Array       JE::Object::Array
-  Boolean     JE::Object::Boolean
-  Number      JE::Object::Number
-  Date        JE::Object::Date
+  Object       JE::Object
+  Function     JE::Object::Function
+  Array        JE::Object::Array
+  String       JE::Object::String
+  Boolean      JE::Object::Boolean
+  Number       JE::Object::Number
+  Date         JE::Object::Date
+  RegExp       JE::Object::RegExp
+  Error        JE::Object::Error
+  SyntaxError  JE::Object::Error::SyntaxError
   
 And here are the primitive types:
 
