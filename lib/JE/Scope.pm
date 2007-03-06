@@ -1,6 +1,6 @@
 package JE::Scope;
 
-our $VERSION = '0.004';
+our $VERSION = '0.005';
 
 use strict;
 use warnings;
@@ -45,7 +45,7 @@ sub new_var {
 	});
 
 
-	return new JE::LValue $self->[0]->null, $var
+	return new JE::LValue $self->[-1], $var
 		unless not defined wantarray;
 }
 

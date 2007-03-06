@@ -124,8 +124,8 @@ ok $j->eval('-3>>1')              eq '-2';
 ok $j->eval('3>>1')                   eq '1';
 ok $j->eval('-3>>>1')                      eq '2147483646';
 ok $j->eval('!true ? x = 3 : y = "do\tenut"; y') eq "do\tenut";
-ok $j->eval('true ? x = 3 : y = "do\tenut"; x')       eq '3';
-ok $j->eval('{"this"    : "that", "the":"other"}["this"]') eq 'that'; 
+ok $j->eval('true ? x = 3 : y = "do\tenut"; x')        eq '3';
+ok $j->eval('({"this"    : "that", "the":"other"}["this"])') eq 'that'; 
 SKIP: { skip 'String constructor not yet implemented', 2;
 ok $j->eval("new(String)('𝄐').length")                         eq '2'; 
 ok $j->eval("new String.prototype.constructor('A𝄫').length")      eq '3'; 
@@ -140,7 +140,7 @@ isa_ok $j->new_function(ok => \&ok), 'JE::Object::Function';
 defined $j->eval(<<'---') or die;
 
 ok(new new new new Object().constructor()['cons' + "tructor"]()
-   .constructor('aoeu', 'htsn').aoeu === 'htsn');
+   .constructor().htns === void 'ette');
 
 var func = new Function('this,and','a','that');
 ok(typeof func === 'function');
@@ -158,7 +158,7 @@ do str += 7656
 while (++x < 7)
 ok(str === '7656765676567656765676567656');
 
-var object = new Object (0,1,2,3,4,5,6,7,8,9);
+var object = {0:1,2:3,4:5,6:7,8:9};
 var keys = [];
 for(keys[keys.length] in object);
 ok(keys == '0,2,4,6,8');

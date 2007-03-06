@@ -2,6 +2,7 @@ Changes
 extras/regexps
 lib/JavaScript/Engine.pm
 lib/JE/Boolean.pm
+lib/JE/Code/Grammar.pm
 lib/JE/Code.pm
 lib/JE/LValue.pm
 lib/JE/Null.pm
@@ -9,6 +10,7 @@ lib/JE/Number.pm
 lib/JE/Object/Array.pm
 lib/JE/Object/Boolean.pm
 lib/JE/Object/Error/SyntaxError.pm
+lib/JE/Object/Error/URIError.pm
 lib/JE/Object/Error.pm
 lib/JE/Object/Function.pm
 lib/JE/Object/Number.pm

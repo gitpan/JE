@@ -1,6 +1,6 @@
 package JE::LValue;
 
-our $VERSION = '0.004';
+our $VERSION = '0.005';
 
 use strict;
 use warnings;
@@ -19,7 +19,7 @@ use List::Util 'first';
 #     -- Actually this won't work properly because the lvalue needs a ref
 #        to the global object, so I need to think this through more.
 
-# ~~~ Make 'call' use ->method instead of ->apply
+# ~~~ Make 'call' use ->method instead of ->apply???
 
 
 our $ovl_infix = join ' ', @overload::ops{qw[

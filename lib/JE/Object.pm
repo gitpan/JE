@@ -1,6 +1,6 @@
 package JE::Object;
 
-our $VERSION = '0.004';
+our $VERSION = '0.005';
 
 
 use strict;
@@ -74,15 +74,73 @@ is specific to JE::Object is explained here.
 
 =over 4
 
-=item $obj = JE::Object->new( $global_obj, LIST )
+=item $obj = JE::Object->new( $global_obj )
 
-This class method constructs and returns a new object. LIST is a hash-style
-list of keys and values. If the values are not blessed references, they
-will be upgraded. (See L<JE::Types/'UPGRADING VALUES'>.)
+=item $obj = JE::Object->new( $global_obj, $value )
+
+=item $obj = JE::Object->new( $global_obj, \%options )
+
+This class method constructs and returns a new JavaScript object, unless 
+C<$value> is
+already a JS object, in which case it just returns it. The behaviour is the
+same as the C<Object> constructor in JavaScript.
+
+The <%options> are as follows:
+
+  prototype  the object to be used as the prototype for this
+             object (Object.prototype is the default)
+  value      the value to be turned into an object
+
+C<prototype> only applies when C<value> is omitted, C<undef>, C<undefined>
+or C<null>.
+
+To convert a hash into an object, you can use the hash ref syntax like
+this:
+
+  new JE::Object $j, { value => \%hash }
+
+Though it may be easier to write:
+
+  $j->upgrade(\%hash)
+
+The former is what C<upgrade> itself uses.
 
 =cut
 
 sub new {
+	my($class, $global, $value) = @_;
+
+	if (UNIVERSAL::isa $value, 'UNIVERSAL'
+	    and can $value 'to_object') {
+		return to_object $value;
+	}
+	
+	my $p;
+	my %hash;
+	my %opts;
+
+	ref $value eq 'HASH' and (%opts = %$value), $value = $opts{value};
+	
+	local $@;
+	if (!defined $value || !defined eval{$value->value} && $@ eq '') {
+		$p = exists $opts{prototype} ? $opts{prototype}
+		      : $global->prop("Object")->prop("prototype");
+	}
+	elsif(ref $value eq 'HASH') {
+		%hash = %$value;
+		$p = $global->prop("Object")->prop("prototype");
+	}
+	else {
+		return $global->upgrade($value);
+	}
+
+	bless \{ prototype => $p,
+	         global    => $global,
+	         props     => \%hash,
+	         keys      => [keys %hash]  }, $class;
+}
+
+sub ______new { # not according to spec. What *was* I thinking???
 	my($class, $global, %hash, @keys) = (shift, shift);
 	my $key;
 	while (@_) { # I have to loop through them to keep the order.
@@ -177,6 +235,15 @@ sub is_readonly { # See JE::Types for a description of this.
 	}
 
 	return 0;
+}
+
+
+
+
+sub is_enum {
+	my ($self, $name) = @_;
+	$self = $$self;
+	exists $$self{keys}{$name};
 }
 
 
@@ -400,11 +467,11 @@ sub new_constructor {
 	});
 
 	(my $proto = $f->prop('prototype'))
-	 ->prop({
-		dontenum => 1,
-		name => 'constructor',
-		value => $f,
-	 });
+;#	 ->prop({
+#		dontenum => 1,
+#		name => 'constructor',
+#		value => $f,
+#	 });
 
 	$init_proto and &$init_proto($proto);
 
@@ -429,33 +496,117 @@ sub new_constructor {
 
 sub _init_proto {
 	my $proto = shift;
-	my $scope = $$proto->{global};
+	my $global = $$proto->{global};
 
 	# E 15.2.4
-	# ~~~ $proto->prop({ ... })
 
 	$proto->prop({
 		dontenum => 1,
 		name => 'constructor',
-		value => $scope->prop('Object'),
+		value => $global->prop('Object'),
 	});
 
+	my $toString_sub = sub {
+		my $self = shift;
+		JE::String->new($global,
+			'[object ' . $self->class . ']');
+	};
 	$proto->prop({
 		name      => 'toString',
 		value     => JE::Object::Function->new({
-			scope    => $scope,
+			scope    => $global,
 			name     => 'toString',
-			length   => 0, # ~~~ check this
+			length   => 0,
 			function_args => ['this'],
-			function => sub {
-				my $self = shift;
-				JE::String->new($$$self{global},
-					'[object ' . $self->class . ']');
-			},
+			function => $toString_sub,
 		}),
-		dontenum  => 1, # ~~~ any other attrs?
+		dontenum  => 1,
 	});
 
+	$proto->prop({
+		name      => 'toLocaleString',
+		value     => JE::Object::Function->new({
+			scope    => $global,
+			name     => 'toLocaleString',
+			length   => 0,
+			function_args => ['this'],
+			function => $toString_sub,
+		}),
+		dontenum  => 1,
+	});
+
+	$proto->prop({
+		name      => 'valueOf',
+		value     => JE::Object::Function->new({
+			scope    => $global,
+			name     => 'valueOf',
+			length   => 0,
+			function_args => ['this'],
+			function => sub { $_[0] },
+		}),
+		dontenum  => 1,
+	});
+
+	$proto->prop({
+		name      => 'hasOwnProperty',
+		value     => JE::Object::Function->new({
+			scope    => $global,
+			name     => 'hasOwnProperty',
+			length   => 0,
+			function_args => ['this', 'args'],
+			function => sub {
+				JE::Boolean->new($global, 
+				    defined shift->prop({ name => shift })
+				);
+				# 'prop' with hashref syntax does not
+				# search the prototype chain
+			},
+		}),
+		dontenum  => 1,
+	});
+
+	$proto->prop({
+		name      => 'isPrototypeOf',
+		value     => JE::Object::Function->new({
+			scope    => $global,
+			name     => 'isPrototypeOf',
+			length   => 0,
+			function_args => ['this', 'args'],
+			function => sub {
+				my $obj = shift;
+
+				$obj->primitive and return 
+					JE::Boolean->new($global, 0);
+
+				my $id = $obj->id;
+				my $proto = $obj;
+
+				while (defined($proto = $proto->prototype))
+				{
+					$proto->id eq $id and return
+					    JE::Boolean->new($global, 1);
+				}
+
+				return JE::Boolean->new($global, 0);
+			},
+		}),
+		dontenum  => 1,
+	});
+
+	$proto->prop({
+		name      => 'propertyIsEnumerable',
+		value     => JE::Object::Function->new({
+			scope    => $global,
+			name     => 'propertyIsEnumerable',
+			length   => 0,
+			function_args => ['this', 'args'],
+			function => sub {
+				return JE::Boolean->new($global,
+					shift->is_enum(shift));
+			},
+		}),
+		dontenum  => 1,
+	});
 }
 
 

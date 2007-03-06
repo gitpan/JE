@@ -1,5 +1,16 @@
 Revision history for JE
 
+0.005   5 March, 2007
+        Alpha release. Changes and additions:
+        - The parser has been rewritten completely with recursive sub-
+          routines.  It is now faster than before,  and doesn't cause
+          bus errors.
+        - The Error and SyntaxError classes now actually work. Before
+          I just threw them together without even testing them.
+        - The Object constructor is now according to spec.
+	- URI-handling functions and the URIError class
+        - Added the rest of Object.prototype's properties
+
 0.004   19 February, 2007
         Alpha release. New features and bug fixes in this
         release include:

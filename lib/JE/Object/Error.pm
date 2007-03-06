@@ -1,10 +1,13 @@
 package JE::Object::Error;
 
-our $VERSION = '0.004';
+our $VERSION = '0.005';
 
 
 use strict;
 use warnings;
+
+use overload fallback => 1,
+             '""'    => sub { $_[0]->to_string->value . "\n" };
 
 our @ISA = 'JE::Object';
 
@@ -36,6 +39,10 @@ JE::Object::Error - JavaScript Error object class
 This class implements JavaScript Error objects for JE. This is the base
 class for all JavaScript's native error objects. (See L<SEE ALSO>, below.)
 
+Error objects stringify to the return value of the C<toString> method
+I<with a newline appended>. This is different from other objects, which
+simply stringify to the return value of C<toString> as is.
+
 =head1 METHODS
 
 See L<JE::Types> for descriptions of most of the methods. Only what
@@ -55,11 +62,14 @@ C<< $class->JE::Object::new_constructor >> instead of using C<SUPER>.
 
 sub new {
 	my($class, $global, $val) = @_;
-	my $self = $class->SUPER::new($global);
+	my $self = $class->SUPER::new($global, { 
+		prototype => $global->prop(class $class)->prop('prototype')
+	});
+
 	$self->prop({
 		dontenum => 1,
 		name => 'message',
-		value => JE::String->new($val);
+		value => JE::String->new($global, $val),
 	});
 	$self;
 }
@@ -89,6 +99,7 @@ sub new_constructor {
 						JE::String->new(
 							$$$self{global},
 							$self->class .
+							' - ' .
 							$self->prop(
 								'message'							)
 						);

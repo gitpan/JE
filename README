@@ -1,4 +1,4 @@
-JE, version 0.004
+JE, version 0.005
 
 JE is a pure-Perl ECMAScript (JavaScript) engine.
 
@@ -10,16 +10,33 @@ module. If you have any ideas as to how the API could be improved or
 reworked, please e-mail me.
 
 
+CHANGES IN THIS RELEASE
+
+The parser has been rewritten with recursive subroutines (it used to
+use recursive  regexps).  It  runs  faster  now  and  doesn't  cause
+bus errors.
+
+The Error and SyntaxError classes now actually work. Before I just
+threw them together without even testing them.
+
+The Object constructor is now according to spec.
+
+URI-handling functions and the URIError class have been added.
+
+The rest of Object.prototype's properties have been added.
+
+
 TO DO
 
 - Finish the core object classes
 - Implement exception handling and helpful error messages
 - Write lots and lots and lots of tests, at the same time fixing all
   the bugs they bring to light.
-- Verify that tainted JS code runs safely
+- Verify that tainted JS code runs safely (I'm not sure this is feasible)
 - Deal with circular references somehow
 - Optimise JS functions by turning them into Perl subs (but run benchmarks
-  first to see whether this would actually speed things up)
+  first to see whether this would actually speed things up) (I'm having
+  second thoughts about this one)
 
 
 INSTALLATION
@@ -54,4 +71,4 @@ COPYRIGHT AND LICENCE
 Copyright (C) 2007 Father Chrysostomos
 
 This program is free software; you may redistribute it and/or modify
-it under the same terms as Perl itself.
+it under the same terms as perl.

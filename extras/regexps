@@ -491,7 +491,7 @@ $statement    = qr/ (?>
 	  \} :>
 	    |
 	  if <s> \( <if: <s> <expr> <s> \) <s> <statement>
-	  (?>(?: <s> else(?!<id_cont>) <s> <statement> )?)
+	  (?>(?: else(?!<id_cont>) <s> <statement> )?)
 	  :>
 	    |
 	  while <s> \( <while: <s> <expr> <s> \) <s> <statement> :>

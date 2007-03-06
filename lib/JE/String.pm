@@ -1,6 +1,6 @@
 package JE::String;
 
-our $VERSION = '0.004';
+our $VERSION = '0.005';
 
 
 use strict;
@@ -11,7 +11,9 @@ use overload fallback => 1,
 	 cmp =>  sub { "$_[0]" cmp $_[1] };
 
 use Memoize;
-memoize('desurrogify', LIST_CACHE => 'MERGE');
+#memoize('desurrogify', LIST_CACHE => 'MERGE');
+
+use Carp;
 
 our @ISA = 'Exporter';
 our @EXPORT_OK = 'desurrogify';
@@ -24,15 +26,15 @@ require Exporter;
 
 sub new {
 	my($class, $global, $val) = @_;
+	!ref $global || !UNIVERSAL::isa($global,'UNIVERSAL')
+	   and croak "First argument to JE::String->new is not an object.";
+
 	my $self;
 	if(UNIVERSAL::isa($val,'UNIVERSAL') and $val->can('to_string')) {
 		$self = bless [$val->to_string->[0], $global], $class;
 	}
 	else {
 		# surrogify:
-		# ~~~ do char class ranges work this way?
-		#     They do in 5.8.8, but is that reliable?
-#use Carp 'longmess'; warn longmess;
 		$val =~ s<([^\0-\x{ffff}])><    no warnings 'utf8';
 			  chr((ord($1) - 0x10000) / 0x400 + 0xD800)
 			. chr((ord($1) - 0x10000) % 0x400 + 0xDC00)
@@ -98,8 +100,9 @@ sub to_number  {
 			      |
 			    Infinity
 			  )
+			  $s
 			)?
-			$s\z
+			\z
 		/ox ? $value :
 		$value =~ /^$s   0[Xx] ([A-Fa-f\d]+)   $s\z/ox ? hex $1 :
 		'NaN'
@@ -111,10 +114,30 @@ sub global { $_[0][1] }
 
 sub desurrogify($) {
 	my $ret = shift;
-#warn join ',' ord
-	$ret =~ s/([\x{d800}-\x{dbff}])([\x{dc00}-\x{dfff}])/
-		chr 0x10000 + ($1 - 0xD800) * 0x400 + ($2 - 0xDC00)
-	/ge;
+	my($ord1, $ord2);
+	for(my $n = 0; $n < length $ret; ++$n) {  # really slow
+		($ord1 = ord substr $ret,$n,1) >= 0xd800 and
+		 $ord1                          <= 0xdbff and
+		($ord2 = ord substr $ret,$n+1,1) >= 0xdc00 and
+		$ord2                            <= 0xdfff and
+		substr($ret,$n,2) =
+		chr 0x10000 + ($ord1 - 0xD800) * 0x400 + ($ord2 - 0xDC00);
+	}
+
+	# In perl 5.8.8, if there is a sub on the call stack that was
+	# triggered by the overloading mechanism when the object with the 
+	# overloaded operator was passed as the only argument to 'die',
+	# then the following substitution magically calls that subroutine
+	# again with the same arguments, thereby causing infinite
+	# recursion:
+	#
+	# $ret =~ s/([\x{d800}-\x{dbff}])([\x{dc00}-\x{dfff}])/
+	# 	chr 0x10000 + (ord($1) - 0xD800) * 0x400 +
+	#		(ord($2) - 0xDC00)
+	# /ge;
+	#
+	# 5.9.4 still has this bug.
+
 	$ret;
 }
 

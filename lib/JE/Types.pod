@@ -185,6 +185,13 @@ is called with the same arguments. If there is no prototype, false is
 returned.
 This is used internally by C<prop>.
 
+=item is_enum($property_name)
+
+Object method.
+
+This returns a boolean indicating whether a given property is enumerable.
+This is used internally by C<Object.prototype.propertyIsEnumerable>.
+
 =item typeof
 
 Returns a Perl string containing the type of the object. Used

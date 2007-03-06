@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.004';
+our $VERSION = '0.005';
 
 
 use strict;
@@ -246,28 +246,29 @@ sub new { # ~~~ This sub needs some error-checking
 		;
 	}
 
-	my $self = $class->SUPER::new($scope);
+	ref $scope ne 'JE::Scope' and $scope = bless [$scope], 'JE::Scope';
+	my $global = $$scope[0];
+
+	my $self = $class->SUPER::new($global, {
+		prototype => $global->prop('Function')->prop('prototype')
+	});
 	my $guts = $$self;
 
-	my $global = $scope;
-
-	ref $scope ne 'JE::Scope' and $scope = bless [$scope], 'JE::Scope';
 	$$guts{scope} = $scope;
 
-	$self->prototype( $global->prop('Function')->prop('prototype') );
 
 	$opts{no_proto} or $self->prop({
 		name     => 'prototype',
-		dontenum => 1, # ~~~ anytink else?
+		dontenum => 1, # ~~~ anytink else?  # E 15.3.5.2
 		value    => JE::Object->new($scope),
 	})->prop({
 		name     => 'constructor',
-		dontenum => 1, # ~~~ What other attrs does
-		               #     'constructor' need?
+		dontenum => 1,
 		value    => $self,
 	});
 
 	{ no warnings 'uninitialized';
+
 	$$guts{function} =
 	  ref($opts{function}) =~ /^(?:JE::Code|CODE)\z/ ? $opts{function}
 	: length $opts{function} ?
@@ -276,15 +277,19 @@ sub new { # ~~~ This sub needs some error-checking
 		  JE::Code::parse($scope, $opts{function})
 		)
 	: ($$guts{func_src} = '');
-	} #warnings back on
 
 	$self->prop({
 		name     => 'length',
-		value    => $opts{length} || 0,
+		value    => $opts{length} ||
+		            (ref $opts{argnames} eq 'ARRAY'
+		                ? scalar @{$opts{argnames}} : 0),
 		dontenum => 1,
 		dontdel  => 1, 
-		readonly => 1
+		readonly => 1 # ~~~ check 15.3.5.1 for attrs
 	});
+
+	} #warnings back on
+
 	$$guts{func_argnames} = [
 		ref $opts{argnames} eq 'ARRAY' ? @{$opts{argnames}} : ()
 	];
@@ -554,7 +559,7 @@ sub _init_proto {
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.004';
+our $VERSION = '0.005';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -620,7 +625,7 @@ sub delete { # ~~~ Can delete be called on a property of a call object?
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.004';
+our $VERSION = '0.005';
 
 our @ISA = 'JE::Object';
 

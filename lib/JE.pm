@@ -11,12 +11,17 @@ require 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.004';
+our $VERSION = '0.005';
+
+use Encode qw< decode_utf8 encode_utf8 FB_CROAK >;
 
 our @ISA = 'JE::Object';
 
-require JE::Object::Function;
-require JE::Object::Array  ;
+require JE::Object::Error::SyntaxError;
+require JE::Object::Error::URIError ;
+require JE::Object::Function      ;
+require JE::Object::Error      ;
+require JE::Object::Array   ;
 require JE::Undefined     ;
 require JE::Number       ;
 require JE::Object      ;
@@ -33,7 +38,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.004 (alpha release)
+Version 0.005 (alpha release)
 
 =head1 SYNOPSIS
 
@@ -94,6 +99,8 @@ This class method constructs and returns a new global scope (C<JE> object).
 
 =cut
 
+our $s = qr.[ \t\x0b\f\xa0\p{Zs}\cm\cj\x{2028}\x{2029}]*.;
+
 sub new {
 	my $class = shift;
 
@@ -115,20 +122,11 @@ sub new {
 				func_argnames => [],
 				func_args => ['scope','args'],
 				function => sub { # E 15.2.1
-					my $scope = shift;
-					my $arg1 = $_[0];
-					if(!defined $arg1 or
-					   !defined $arg1->value) {
-						return JE::Object->new(
-							$scope, @_ );
-					}
-					else {
-						return $_[0]->to_object;
-					}
+					return JE::Object->new( @_ );
 				},
 				constructor_args => ['scope','args'],
 				constructor => sub {
-					JE::Object->new(@_);
+					return JE::Object->new( @_ );
 				},
 				keys => [],
 				props => {
@@ -224,7 +222,38 @@ sub new {
 		dontenum => 1,
 		dontdel  => 1,
 	});
-	# ~~~ add the rest
+	# ~~~ add String
+	#      Boolean
+	#    Number
+	#  Date
+	# RegExp
+	$self->prop({
+		name => 'Error',
+		value => JE::Object::Error->new_constructor($self),
+		readonly => 1,
+		dontenum => 1,
+		dontdel  => 1,
+	});
+	# ~~~ EvalError ?
+	#   RangeError
+	# ReferenceError
+	$self->prop({
+		name => 'SyntaxError',
+		value => JE::Object::Error::SyntaxError
+			->new_constructor($self),
+		readonly => 1,
+		dontenum => 1,
+		dontdel  => 1,
+	});
+	# ~~~ TypeError
+	$self->prop({
+		name => 'URIError',
+		value => JE::Object::Error::URIError
+			->new_constructor($self),
+		readonly => 1,
+		dontenum => 1,
+		dontdel  => 1,
+	});
 
 	# E 15.1.1
 	$self->prop({
@@ -257,8 +286,7 @@ sub new {
 			function_args => [qw< scope args >],
 			function => sub {
 				my($scope,$code) = @_;
-				return $code if not
-					UNIVERSAL::isa($code,'JE::String');
+				return $code if class $code ne 'String';
 				$scope->eval($code);
 				# ~~~ Find out what the spec means by
 				#     'if the completion value is empty'
@@ -280,10 +308,12 @@ sub new {
 				#     spec
 				my($scope,$str,$radix) = @_;
 				
-				($str = $str->to_string) =~ s/^\s//;
+				($str = $str->to_string) =~ s/^$s//;
 				my $sign = $str =~ s/^([+-])//
 					? (-1,1)[$1 eq '+']
 					:  1;
+				$radix = (int $radix) % 2 ** 32;
+				$radix -= 2**32 if $radix >= 2**31;
 				$radix ||= $str =~ /^0x/i
 				?	16
 				:	10
@@ -337,11 +367,20 @@ sub new {
 				#     spec
 				my($scope,$str,$radix) = @_;
 				
-				$str =~ s/^\s//;
-				
-				return $scope->prop('NaN') if !/^\d/;
-
-				return $str+0;
+				return JE::Number->new($self, $str =~
+					/^$s
+					  (?:
+					    [+-]?
+					    (?:
+					      (?=\d|\.\d) \d*
+					      (?:\.\d*)?
+					      (?:[Ee][+-]?\d+)?
+					        |
+					      Infinity
+					    )
+					  )
+					/ox
+					?  $str : 'nan');
 			},
 		}),
 		dontenum  => 1,
@@ -354,7 +393,7 @@ sub new {
 			length => 1,
 			function_args => ['args'],
 			function => sub {
-				shift->to_number eq 'NaN';
+				shift->to_number->id eq 'num:nan';
 			},
 		}),
 		dontenum  => 1,
@@ -367,16 +406,143 @@ sub new {
 			length => 1,
 			function_args => ['args'],
 			function => sub {
-				shift->to_number !~ /[an]/;
+				shift->to_number->value !~ /n/;
 				# NaN, Infinity, and -Infinity are the only
-				# values with letters in them.
+				# values with the letter 'n' in them.
 			},
 		}),
 		dontenum  => 1,
 	});
 
 	# E 15.1.3
-	# ~~~ Add the rest of the properties from clause 15.1
+	$self->prop({
+		name  => 'decodeURI',
+		value => JE::Object::Function->new({
+			scope  => $self,
+			name   => 'decodeURI',
+			length => 1,
+			function_args => ['args'],
+			function => sub {
+				my $str = shift->to_string->value;
+				$str =~ /%(?![a-fA-F\d]{2})(.{0,2})/ && die
+					JE::Object::Error::URIError->new(
+						"Invalid escape %$1 in URI"
+					);
+
+				$str = encode_utf8 $str;
+
+				# [;/?:@&=+$,#] do not get unescaped
+				$str =~ s/%(?!2[346bcf]|3[abdf]|40)
+					([\da-f]{2})/chr hex $1/iegx;
+				
+				local $@;
+				eval {
+					$str = decode_utf8 $str, FB_CROAK;
+				};
+				if ($@) {
+					die JE::Object::Error::URIError
+					->new('Malformed UTF-8 in URI');
+				}
+				
+				$str =~
+				     /^[\0-\x{d7ff}\x{e000}-\x{10ffff}]*\z/
+				or die JE::Object::Error::URIError->new(
+					'Malformed UTF-8 in URI');
+
+				JE::String->new($self, $str);
+			},
+		}),
+		dontenum  => 1,
+	});
+	$self->prop({
+		name  => 'decodeURIComponent',
+		value => JE::Object::Function->new({
+			scope  => $self,
+			name   => 'decodeURIComponent',
+			length => 1,
+			function_args => ['args'],
+			function => sub {
+				my $str = shift->to_string->value;
+				$str =~ /%(?![a-fA-F\d]{2})(.{0,2})/ && die
+					JE::Object::Error::URIError->new(
+						"Invalid escape %$1 in URI"
+					);
+
+				$str = encode_utf8 $str;
+
+				$str =~ s/%([\da-f]{2})/chr hex $1/iegx;
+				
+				local $@;
+				eval {
+					$str = decode_utf8 $str, FB_CROAK;
+				};
+				if ($@) {
+					die JE::Object::Error::URIError
+					->new('Malformed UTF-8 in URI');
+				}
+				
+				$str =~
+				     /^[\0-\x{d7ff}\x{e000}-\x{10ffff}]*\z/
+				or die JE::Object::Error::URIError->new(
+					'Malformed UTF-8 in URI');
+
+				JE::String->new($self, $str);
+			},
+		}),
+		dontenum  => 1,
+	});
+	$self->prop({
+		name  => 'encodeURI',
+		value => JE::Object::Function->new({
+			scope  => $self,
+			name   => 'encodeURI',
+			length => 1,
+			function_args => ['args'],
+			function => sub {
+				my $str = shift->to_string->value;
+				$str =~ /(\p{Cs})/ and
+die JE::Object::Error::URIError->new(
+	sprintf "Unpaired surrogate 0x%x in string", ord $1
+);
+
+				$str = encode_utf8 $str;
+
+				$str =~
+				s< ([^;/?:@&=+$,A-Za-z\d\-_.!~*'()#]) >
+				 < sprintf '%%%02x', ord $1           >egx;
+				
+				JE::String->new($self, $str);
+			},
+		}),
+		dontenum  => 1,
+	});
+	$self->prop({
+		name  => 'encodeURIComponent',
+		value => JE::Object::Function->new({
+			scope  => $self,
+			name   => 'encodeURIComponent',
+			length => 1,
+			function_args => ['args'],
+			function => sub {
+				my $str = shift->to_string->value;
+				$str =~ /(\p{Cs})/ and
+die JE::Object::Error::URIError->new(
+	sprintf "Unpaired surrogate 0x%x in string", ord $1
+);
+
+				$str = encode_utf8 $str;
+
+				$str =~ s< ([^A-Za-z\d\-_.!~*'()])  >
+				         < sprintf '%%%02x', ord $1 >egx;
+				
+				JE::String->new($self, $str);
+			},
+		}),
+		dontenum  => 1,
+	});
+
+	# E 15.1.5 / 15.8
+	# ~~~ Math object
 
 	$self;
 }
@@ -404,7 +570,8 @@ sub compile {
 
 C<eval> evaluates the JavaScript code contained in string. E.g.:
 
-  $j->eval('[1,2,3]') # returns an array ref
+  $j->eval('[1,2,3]') # returns a JE::Object::Array which can be used as
+                      # an array ref
 
 If an error occurs, C<undef> will be returned and C<$@> will contain the
 error message. If no error occurs, C<$@> will be a null string.
@@ -413,8 +580,15 @@ error message. If no error occurs, C<$@> will be a null string.
 a wrapper around C<compile> and the C<execute> method of the
 C<JE::Code> class.
 
-B<Note:> I'm planning to add an option to return an lvalue (a
-JE::LValue object), but I have yet to decide what to call it.
+If the JavaScript code evaluates to an lvalue, a JE::LValue object will be
+returned. You can use this like any other return value (e.g., as an array
+ref if it points to a JS array). In addition, you can use the C<set> and
+C<get> methods to set/get the value of the property to which the lvalue
+refers. (See also L<JE::LValue>.) E.g., this will create a new object
+named C<document>:
+
+  $j->eval('document')->set({});
+
 
 =cut
 
@@ -466,9 +640,8 @@ is subject to change, so don't do that.
 
 =cut
 
-sub upgrade { # ~~~ I need to make '0' into a number,  so that, when
-              #     used as a bool in JS, it will still be false, as
-              #     in Perl. And I still need to make code refs into funcs
+sub upgrade { # ~~~ I need correct the use of the object constructor, once
+              #     I've fixed that.
 	my @__;
 	my $self = shift;
 	for (@_) {
@@ -480,7 +653,7 @@ sub upgrade { # ~~~ I need to make '0' into a number,  so that, when
 		: ref($_) eq 'ARRAY'
 		?	JE::Object::Array->new($self, $_)
 		: ref($_) eq 'HASH'
-		?	JE::Object->new($self, %$_)
+		?	JE::Object->new($self, { value => $_ })
 		: ref($_) eq 'CODE'
 		?	JE::Object::Function->new($self, $_)
 		: $_ eq '0' || $_ eq '-0'
@@ -505,8 +678,7 @@ sub undefined { # ~~~ This needs to be made for emmicient.
 sub undef { # This was what I originally named it, but it gets confused
             # with Perl's undef too easily (undef and undefined are two
             # different things). Don't use this, because I'm going to
-            # delete it once I'm sure that all references to it are
-            # obliterated.
+            # delete it.
 	goto &undefined;
 }
 
@@ -539,6 +711,13 @@ __END__
 
 (to be written)
 
+- decimal interpretation of parseInt's argument
+- numbers not necessarily acc. to spec
+- typo in 'for' and 'try' algorithms in spec
+- ||  &&  ? :  =  return lvalues
+- behaviour of 'break' and 'continue' outside of loops
+- behaviour of 'return' outside of subs
+
 =end for me
 
 =head1 BUGS
@@ -546,10 +725,8 @@ __END__
 Apart from the fact that the core object classes are incomplete, here are 
 some known bugs:
 
-If a script is long (about 30 lines), it will still run, but the Perl
-program might crash when trying to exit (I get a bus error).
-
-Functions objects do not stringify properly. The body of the function is
+Functions objects do not always stringify properly. The body of the 
+function is
 missing.
 
 Although the spec says that trying to reference a property of null or
@@ -566,20 +743,11 @@ the C<can> method, so if you call $thing->can('to_string') on one of these
 you will get a false return value, even though these objects I<can>
 C<to_string>.
 
-The behaviour of the C<Object> constructor is currently simply wrong, and
-not at all according to spec.
-
 The documentation is a bit incoherent. It probably needs a rewrite.
 
 =head1 PREREQUISITES
 
 perl 5.8.0 or later
-
-The parser uses the officially experimental C<(?{...}}> and C<(??{...})>
-constructs in regexps. Considering that they are described the 3rd edition 
-of
-I<Mastering Regular Expressions> (and are not indicated therein as being
-experimental), I don't think they will be going away.
 
 =head1 AUTHOR, COPYRIGHT & LICENSE
 
@@ -587,7 +755,7 @@ Copyright (C) 2007 Father Chrysostomos <sprout [at] cpan
 [dot] org>
 
 This program is free software; you may redistribute it and/or modify
-it under the same terms as Perl itself.
+it under the same terms as perl.
 
 =head1 SEE ALSO
 

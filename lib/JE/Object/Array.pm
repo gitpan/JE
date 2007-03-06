@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.004';
+our $VERSION = '0.005';
 
 
 use strict;
@@ -82,8 +82,9 @@ sub new {
 	else {
 		@array = $global->upgrade(@_);
 	}
-	(my $self = SUPER::new $class $global)
-	->prototype( $global->prop('Array')->prop('prototype') );
+	my $self = SUPER::new $class $global, {
+		prototype => $global->prop('Array')->prop('prototype')
+	};
 
 	my $guts = $$self;
 
