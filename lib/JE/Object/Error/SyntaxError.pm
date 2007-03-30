@@ -1,6 +1,6 @@
 package JE::Object::Error::SyntaxError;
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 
 use strict;
@@ -26,7 +26,7 @@ JE::Object::Error::SyntaxError - JavaScript SyntaxError object class
   # Later:
   $@->prop('message');  # error message
   $@->prop('name');     # 'SyntaxError'
-  "$@";                 # 'SyntaxError - ' plus the error message
+  "$@";                 # 'SyntaxError: ' plus the error message
 
 =head1 DESCRIPTION
 

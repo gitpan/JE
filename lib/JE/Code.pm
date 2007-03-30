@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 use strict;
 use warnings;
@@ -26,29 +26,11 @@ sub parse {
 	# remove unicode format chrs
 	$src =~ s/\p{Cf}//g;
 
-	my $tree;
+	my $tree = JE::Code::Grammar::parse(program => $src, $global);
+	$@ and return;
 
-	for($src) {
-		pos = 0;
-		eval {
-			no warnings 'once';
-			local $JE::Code::Grammar::global = $global;
-			$tree = JE::Code::Grammar::program();
-			!defined pos or pos == length 
-			     or die \'statement or function declaration';
-		};
-		if($@) {
-			ref $@ or die;
-			$@ = new JE::Object::Error::SyntaxError $global,
-				(ref $@ eq 'SCALAR'
-				 ? "Expected ${$@} but found '".
-					substr($_, pos, 10) . "'"
-				 : ${$@}[0])
-				. " at char " . pos;
-			return;
-		}
-	}
 #print Dumper $tree;
+
 	return bless { global     => $global,
 	               source     => $src,
 	               tree       => $tree };
@@ -118,7 +100,7 @@ sub execute {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 use subs qw'_create_vars _eval_term';
 use List::Util 'first';
@@ -322,8 +304,8 @@ sub eval {  # evaluate statement
 
 			no strict 'refs';
 
-			my($n, $default) = 3;
-			do {
+			my($n, $default) = 1;
+			while (($n+=2) < @$stm) {
 				if($$stm[$n] eq 'default') {
 					$default = $n; next;
 				}
@@ -339,13 +321,16 @@ sub eval {  # evaluate statement
 					undef $default;
 					last;
 				}
-			} while ($n+=2) < @$stm;
+			} ;
 
 			# If we can't find a case that matches, but we
-			# did find a default (and it was not erased when
-			# a case matched)
-			$n = $default +1;
-			do { $$stm[$n]->eval } while ($n+=2) < @$stm;
+			# did find a default (and $default was not erased
+			# when a case matched)
+			if(defined $default) {
+				$n = $default +1;
+				do { $$stm[$n]->eval }
+					while ($n+=2) < @$stm;
+			}
 		}
 
 		# In case 'continue LABEL' is called during the last
@@ -416,19 +401,26 @@ sub eval {  # evaluate statement
 			BREAK: {
 			CONT: {
 				$result = $$stm[2]->eval;
-				goto END_EVAL;
+				goto FINALLY;
 			} $propagate = sub{ next CONT }; goto FINALLY;
 			} $propagate = sub{ last BREAK }; goto FINALLY;
 			} $propagate = sub{ last RETURN }; goto FINALLY;
 		};
-		if ($@ && !ref $$stm[3]) { # catch
+		if (ref $@ || $@ ne '' and !ref $$stm[3]) { # catch
+			(my $new_obj = new JE::Object $_global)
+			 ->prop({
+				name => $$stm[3],
+				value => $@,
+				dontdel => 1,
+			});
 			local $_scope = bless [
-				@$_scope, new JE::Object $$stm[3] => $@
+				@$_scope, $new_obj
 			], 'JE::Scope';
 	
 			eval { # in case an error is thrown in the 
 			       # catch block
 				$result = $$stm[4]->eval;
+				$@ = '';
 			}
 		}
 		# In case the 'finally' block resets $@:
@@ -437,7 +429,8 @@ sub eval {  # evaluate statement
 		if ($#$stm == 3 or $#$stm == 5) {
 			$$stm[-1]->eval;
 		}
-		defined $exception and die $exception;
+		defined $exception and ref $exception || $exception ne ''
+			and die $exception;
 		$propagate and &$propagate();
 		return $result;
 	}
@@ -472,8 +465,10 @@ sub _create_vars {  # Process var and function declarations
 		_create_vars $$_[-1];
 	}
 	elsif ($type eq 'switch') {
-		_create_vars $$_[$_*2+2] for 1..($#$_-2)/2;
-		# Even-numbered array indices starting with 4
+		for my $i (1..($#$_-2)/2) {
+			_create_vars $$_[$i*2+2]
+			 # Even-numbered array indices starting with 4
+		}
 	}
 	elsif ($type eq 'try') {
 		ref eq __PACKAGE__ and _create_vars $_ for @$_[2..$#$_];
@@ -499,7 +494,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 # See the comments in Number.pm for how I found out these constant values.
 use constant nan => sin 9**9**9;
@@ -1009,7 +1004,7 @@ sub eval {  # evalate (sub)expression
 			: $_scope;
 		my $f = new JE::Object::Function {
 			scope    => $func_scope,
-			name     => $name,
+			defined $name ? (name => $name) : (),
 			argnames => $params,
 			function => bless {
 				global => $_global,
@@ -1044,7 +1039,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1056,7 +1051,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 sub list {
 	my $self = shift;

@@ -1,6 +1,6 @@
 package JE::Object::Error::URIError;
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 
 use strict;
@@ -26,7 +26,7 @@ JE::Object::Error::URIError - JavaScript URIError object class
   # Later:
   $@->prop('message');  # error message
   $@->prop('name');     # 'URIError'
-  "$@";                 # 'URI error: ' plus the error message
+  "$@";                 # 'URIError: ' plus the error message
 
 =head1 DESCRIPTION
 

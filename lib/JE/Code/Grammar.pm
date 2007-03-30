@@ -1,10 +1,10 @@
 package JE::Code::Grammar;
 
-our $VERSION = '0.005';
-our $x;
+our $VERSION = '0.006';
+
 use strict;
 use warnings;
-use re 'taint'; # highly important
+use re 'taint';
 use subs qw'statement statements assign assign_noin expr new';
 
 use constant JECE => 'JE::Code::Expression';
@@ -40,7 +40,7 @@ our $h = qr(
 our $n = qr((?>[\cm\cj\x{2028}\x{2029}]));
 
 # single space char
-our $ss = qr((?>[ \t\x0b\f\xa0\p{Zs}\cm\cj\x{2028}\x{2029}]));
+our $ss = qr((?>[\p{Zs}\s\ck]));
 
 # optional comments and whitespace
 our $s = qr(
@@ -64,7 +64,7 @@ our $S = qr(
 
 our $id_cont = qr(
 	(?>
-	  \\u([\dA-Fa-f]{4})
+	  \\u([0-9A-Fa-f]{4})
 	    |
 	  [\p{ID_Continue}\$_]
 	)
@@ -74,10 +74,12 @@ sub  str() {
 	/\G (?: '((?>(?:[^'\\] | \\.)*))'
 	          |
 	        "((?>(?:[^"\\] | \\.)*))"  )/xcgs or return;
+
+	no re 'taint'; # I need eval "qq-..." to work
 	(my $yarn = $+) =~ s/\\(?:
-		u([\da-fA-F]{4})
+		u([0-9a-fA-F]{4})
 		 |
-		x([\da-fA-F]{2})
+		x([0-9a-fA-F]{2})
 		 |
 		([bfnrt])
 		 |
@@ -96,22 +98,23 @@ sub  str() {
 
 sub  num() {
 	/\G (?:
-	  (?=\d|\.\d)
-	  (
-	    (?:0|[1-9]\d*)?
-	    (?:\.\d*)?
-	    (?:[Ee][+-]?\d+)?
-	  )
+	  0[Xx] ([A-Fa-f0-9]+)
 	    |
-	  0[Xx] ([A-Fa-f\d]+)
+	  (?=[0-9]|\.[0-9])
+	  (
+	    (?:0|[1-9][0-9]*)?
+	    (?:\.[0-9]*)?
+	    (?:[Ee][+-]?[0-9]+)?
+	  )
 	) /xcg
 	or return;
-	return new JE::Number $global, defined $1 ? $1 : hex $2;
+	return new JE::Number $global, defined $1 ? hex $1 : $2;
 }
 
 our $ident = qr(
+          (?! (?: case | default )  (?!$id_cont) )
 	  (?:
-	    \\u[\dA-Fa-f]{4}
+	    \\u[0-9A-Fa-f]{4}
 	      |
 	    [\p{ID_Start}\$_]
 	  )
@@ -120,12 +123,13 @@ our $ident = qr(
 
 sub unescape_ident($) {
 	my $ident = shift;
-	$ident =~ s/\\u([\da-fA-F]{4})/chr hex $1/ge;
+	no warnings 'utf8';
+	$ident =~ s/\\u([0-9a-fA-F]{4})/chr hex $1/ge;
 	$ident = desurrogify $ident;
 	$ident =~ /^[\p{ID_Start}\$_]
 	            [\p{ID_Continue}\$_]*
 	          \z/x
-	  or die ["'$ident' is not a valid identifier."];
+	  or die ["'$ident' is not a valid identifier"];
 	$ident;
 }
 
@@ -245,6 +249,7 @@ sub subscript() { # skips leading whitespace
 	my $subscript;
 	if (/\G$s\[$s/cog) {
 		$subscript = expr or die \'expression';
+		skip;
 		/\G]/cog or die \"']'";
 	}
 	elsif (/\G$s\.$s/cog) {
@@ -302,7 +307,7 @@ sub left_expr() {
 sub postfix() {
 	my($pos,@ret) = pos;
 	@ret != push @ret, left_expr or return;
-	push @ret, $1 while /\G $h ( \+\+ | -- ) $s /cogx;
+	push @ret, $1 while /\G $h ( \+\+ | -- ) /cogx;
 	@ret == 1 ? @ret : bless [[$pos, pos], 'postfix', @ret],
 		JECE;
 }
@@ -327,7 +332,8 @@ sub multi() {
 	my($pos,@ret) = pos;
 	@ret != push @ret, unary or return;
 	while(m-\G $s ( [*%](?!=) | / (?![*/=]) ) $s -cogx) {
-		@ret+1 == push @ret, $1, unary and die
+		push @ret, $1;
+		@ret == push @ret,  unary and die
 		    \'expression';
 	}
 	@ret == 1 ? @ret : bless [[$pos, pos], 'lassoc', @ret],
@@ -338,7 +344,8 @@ sub add() {
 	my($pos,@ret) = pos;
 	@ret != push @ret, multi or return;
 	while(/\G $s ( \+(?![+=]) | -(?![-=]) ) $s /cogx) {
-		@ret+1 == push @ret, $1, multi and die
+		push @ret, $1;
+		@ret == push @ret, multi and die
 		    \'expression';
 	}
 	@ret == 1 ? @ret : bless [[$pos, pos], 'lassoc', @ret],
@@ -348,8 +355,9 @@ sub add() {
 sub bitshift() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, add and return;
-	while(/\G $s (>>>? | <<)(?!=) $s /cogx) {
-		@ret+1 == push @ret, $1, add and die
+	while(/\G $s (>>> | >>(?!>) | <<)(?!=) $s /cogx) {
+		push @ret, $1;
+		@ret == push @ret, add and die
 		    \'expression';
 	}
 	@ret == 1 ? @ret : bless [[$pos, pos], 'lassoc', @ret],
@@ -359,8 +367,10 @@ sub bitshift() {
 sub rel() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, bitshift and return;
-	while(/\G $s ( [<>]=? | in(?:stanceof)?(?!$id_cont) ) $s /cogx) {
-		@ret+1 == push @ret, $1, bitshift and die
+	while(/\G $s ( ([<>])(?!\2|=) | [<>]= |
+	               in(?:stanceof)?(?!$id_cont) ) $s /cogx) {
+		push @ret, $1;
+		@ret== push @ret, bitshift and die
 		    \'expression';
 	}
 	@ret == 1 ? @ret : bless [[$pos, pos], 'lassoc', @ret],
@@ -370,8 +380,10 @@ sub rel() {
 sub rel_noin() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, bitshift and return;
-	while(/\G $s ( [<>]=? | instanceof(?!$id_cont) ) $s /cogx) {
-		@ret+1 == push @ret, $1, bitshift and die
+	while(/\G $s ( ([<>])(?!\2|=) | [<>]= | instanceof(?!$id_cont) )
+	          $s /cogx) {
+		push @ret, $1;
+		@ret == push @ret, bitshift and die
 		    \'expression';
 	}
 	@ret == 1 ? @ret : bless [[$pos, pos], 'lassoc', @ret],
@@ -382,7 +394,8 @@ sub equal() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, rel and return;
 	while(/\G $s ([!=]==?) $s /cogx) {
-		@ret+1 == push @ret, $1, rel and die
+		push @ret, $1;
+		@ret == push @ret, rel and die
 		    \'expression';
 	}
 	@ret == 1 ? @ret : bless [[$pos, pos], 'lassoc', @ret],
@@ -393,7 +406,8 @@ sub equal_noin() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, rel_noin and return;
 	while(/\G $s ([!=]==?) $s /cogx) {
-		@ret+1 == push @ret, $1, rel_noin and die
+		push @ret, $1;
+		@ret == push @ret, rel_noin and die
 		    \'expression';
 	}
 	@ret == 1 ? @ret : bless [[$pos, pos], 'lassoc', @ret],
@@ -403,7 +417,7 @@ sub equal_noin() {
 sub bit_and() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, equal and return;
-	while(/\G $s &(?!=) $s /cogx) {
+	while(/\G $s &(?![&=]) $s /cogx) {
 		@ret == push @ret, '&', equal and die
 		    \'expression';
 	}
@@ -414,7 +428,7 @@ sub bit_and() {
 sub bit_and_noin() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, equal_noin and return;
-	while(/\G $s &(?!=) $s /cogx) {
+	while(/\G $s &(?![&=]) $s /cogx) {
 		@ret == push @ret, '&', equal_noin and die
 		    \'expression';
 	}
@@ -425,7 +439,7 @@ sub bit_and_noin() {
 sub bit_or() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, bit_and and return;
-	while(/\G $s \|(?!=) $s /cogx) {
+	while(/\G $s \|(?![|=]) $s /cogx) {
 		@ret == push @ret, '|', bit_and and die
 		    \'expression';
 	}
@@ -436,7 +450,7 @@ sub bit_or() {
 sub bit_or_noin() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, bit_and_noin and return;
-	while(/\G $s \|(?!=) $s /cogx) {
+	while(/\G $s \|(?![|=]) $s /cogx) {
 		@ret == push @ret, '|', bit_and_noin and die
 		    \'expression';
 	}
@@ -515,7 +529,8 @@ sub assign() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, or_expr and return;
 	while(m@\G $s ((?>(?: [-*/%+&^|] | << | >>>? )?)=) $s @cogx) {
-		@ret+1 == push @ret, $1, or_expr and die
+		push @ret, $1;
+		@ret == push @ret, or_expr and die
 		    \'expression';
 	}
 	if(/\G$s\?$s/cog) {
@@ -534,7 +549,8 @@ sub assign_noin() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, or_noin and return;
 	while(m~\G $s ((?>(?: [-*/%+&^|] | << | >>>? )?)=) $s ~cogx) {
-		@ret+1 == push @ret, $1, or_noin and die
+		push @ret, $1;
+		@ret == push @ret, or_noin and die
 		    \'expression';
 	}
 	if(/\G$s\?$s/cog) {
@@ -631,6 +647,7 @@ sub statement() {
 		no warnings 'uninitialized';
 		if($1 eq '{') {
 			push @$ret, 'statements';
+			skip;
 			while() { # 'last' does not work when 'while' is a
 			         # statement modifier
 				@$ret == push @$ret, statement and last;
@@ -675,7 +692,7 @@ sub statement() {
 			if (/\G var$S/cogx) {
 				push @$ret, my $var = bless
 					[[pos() - length $1], 'var'],
-					JECE;
+					'JE::Code::Statement';
 
 				push @$var, vardecl_noin;
 				skip;
@@ -686,8 +703,8 @@ sub statement() {
 						# finish getting the var
 						# decl list
 						do{
-							@$ret ==
-							push @$ret, vardecl 
+							@$var ==
+							push @$var, vardecl 
 							and die
 							      \'identifier'
 						} while (/\G$s,$s/ogc);
@@ -707,7 +724,7 @@ sub statement() {
 					/\G\)$s/cog or die \"')'";
 				}
 			}
-			if(@$ret != push @$ret, expr_noin) {
+			elsif(@$ret != push @$ret, expr_noin) {
 				skip;
 				if (/\G;$s/ogc) {
 					# if there's a semicolon then
@@ -734,17 +751,18 @@ sub statement() {
 			@$ret != push @$ret, statement or die \'statement';
 		}
 		elsif($3 eq 'with') {
-			push @$ret, 'while';
+			push @$ret, 'with';
 			@$ret == push @$ret, expr and die \'expression';
 			skip;
 			/\G\)$s/goc or die \"')'";
 			@$ret != push @$ret, statement or die \'statement';
 		}
 		elsif($3 eq 'switch') {
-			push @$ret, 'while';
+			push @$ret, 'switch';
 			@$ret == push @$ret, expr and die \'expression';
 			skip;
 			/\G\)$s/goc or die \"')'";
+			/\G\{$s/goc or die \"'{'";
 
 			while (/\G case(?!$id_cont) $s/cogx) {
 				@$ret == push @$ret, expr
@@ -756,7 +774,7 @@ sub statement() {
 			my $default=0;
 			if (/\G default(?!$id_cont) $s/cogx) {
 				/\G : $s /cgox or die \'colon';
-				push @$ret, statements;
+				push @$ret, default => statements;
 				++$default;
 			}
 			while (/\G case(?!$id_cont) $s/cogx) {
@@ -773,8 +791,10 @@ sub statement() {
 			); 
 		}
 		elsif($4) { # try
-			push @$ret, statements;
+			push @$ret, 'try', statements;
 			/\G \} $s /cgox or die \"'}'";
+
+			my $pos = pos;
 
 			if(/\Gcatch$s/cgo) {
 				/\G \( $s /cgox or die \"'('";
@@ -792,6 +812,8 @@ sub statement() {
 				push @$ret, statements;
 				/\G \} $s /cgox or die \"'}'";
 			}
+
+			pos eq $pos and die \"'catch' or 'finally'";
 		}
 		else { # labelled statement
 			push @$ret, 'labelled', unescape_ident $5;
@@ -819,15 +841,18 @@ sub statement() {
 			skip;
 			/\G\)/cog or die \"')'";
 		}
-		elsif(/\G(continue|break)(?!$id_cont)$s/cog) {
+		elsif(/\G(continue|break)(?!$id_cont)/cog) {
 			push @$ret, $1;
 			/\G$h($ident)/cog
 				and push @$ret, unescape_ident $1;
 		}
-		elsif(/\G(return|throw)(?!$id_cont)$s/cog) {
+		elsif(/\G(return|throw)(?!$id_cont)/cog) {
 			push @$ret, $1;
+			my $pos = pos;
 			/\G$h/g; # skip horz ws
-			push @$ret, expr;
+			@$ret == push @$ret, expr and pos = $pos;
+				# reverse to before the white space if
+				# there is no expr
 		}
 		else { # expression statement
 			$ret = expr or return;
@@ -872,8 +897,63 @@ sub statements() {
 	return $ret;
 }
 
-sub program() {
-	my $ret = statements;
-	return $ret;
+BEGIN {
+	*program = \&statements;
 }
 
+sub parse($$$) {
+	my ($rule, $src, $my_global) = @_;
+	my $tree;
+	for($src) {
+		pos = 0;
+		eval {
+			local $global = $my_global;
+			$tree = (\&$rule)->();
+			!defined pos or pos == length 
+			     or die \'statement or function declaration';
+		};
+		if($@) {
+			ref $@ or die;
+			$@ = new JE::Object::Error::SyntaxError $my_global,
+				(ref $@ eq 'SCALAR'
+				 ? "Expected ${$@} but found '".
+					substr($_, pos, 10) . "'"
+				 : ${$@}[0])
+				. " at char " . pos;
+			return;
+		}
+	}
+	$tree;
+}
+
+
+__END__
+
+This code:
+sub foo{
+	s/(.)//;
+	bar() if $_;
+	print $1
+}
+
+sub bar{
+	s/(.)//;
+	foo() if $_;
+	print $1
+}
+
+$_ = "frodb";
+foo(); 
+__END__
+
+prints the following:
+
+b
+d
+b
+d
+b
+
+$1 is automatically scope to the currect block. Re-entering the same block
+again with a recursive routine will reveal the *same* instance of the
+variable.

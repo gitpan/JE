@@ -38,6 +38,9 @@ conversion is as follows:
   '0'             number
   other scalar    string
 
+B<WARNING:> The 'upgrading' of simple scalars (strings/numbers) is still 
+subject to change.
+
 =head1 WHICH CLASSES ARE WHICH
 
 Each built-in JavaScript class or primitive type is a Perl class 
@@ -58,6 +61,8 @@ complete list of object classes:
   RegExp       JE::Object::RegExp
   Error        JE::Object::Error
   SyntaxError  JE::Object::Error::SyntaxError
+  TypeError    JE::Object::Error::TypeError
+  URIError     JE::Object::Error::URIError
   
 And here are the primitive types:
 
@@ -171,7 +176,8 @@ If C<value> is given, the value of the property will be set, regardless of
 the attributes.
 
 This is not supported by Arguments objects. It does not work on Array
-objects when the property name is an array index (an non-negative integer 
+objects when the property name is C<length> or an array index (a 
+non-negative integer 
 below
 4,294,967,295).
 
@@ -267,7 +273,7 @@ Returns a reference to the global object.
 
 =head1 OVERLOADED OPERATORS
 
-All primitive classes overload the "" (stringification) operator. See each
+All classes overload the "" (stringification) operator. See each
 class's respective man page (both primitives and objects) for more info on
 overloaded ops.
 

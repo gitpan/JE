@@ -7,28 +7,32 @@ package JE;
 # Note also that comments like "# E 7.1" refer to the indicated
 # clause (7.1 in this case) in the ECMA-262 standard.
 
-require 5.008;
+use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 use Encode qw< decode_utf8 encode_utf8 FB_CROAK >;
 
 our @ISA = 'JE::Object';
 
-require JE::Object::Error::SyntaxError;
-require JE::Object::Error::URIError ;
-require JE::Object::Function      ;
-require JE::Object::Error      ;
-require JE::Object::Array   ;
-require JE::Undefined     ;
-require JE::Number       ;
-require JE::Object      ;
-require JE::String     ;
-require JE::Scope     ;
-require JE::Null     ;
 require JE::Code    ;
+require JE::Null     ;
+require JE::Number     ;
+require JE::Object       ;
+require JE::Object::Array   ;
+require JE::Object::Error       ;
+require JE::Object::Error::RangeError;
+require JE::Object::Error::SyntaxError   ;
+require JE::Object::Error::TypeError        ;
+require JE::Object::Error::URIError           ;
+require JE::Object::Function                   ;
+require JE::Object::RegExp                      ;
+require JE::Object::String                      ;
+require JE::Scope                              ;
+require JE::String                           ;
+require JE::Undefined                     ;
 
 =head1 NAME
 
@@ -38,7 +42,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.005 (alpha release)
+Version 0.006 (alpha release)
 
 =head1 SYNOPSIS
 
@@ -46,7 +50,7 @@ Version 0.005 (alpha release)
 
   $j = new JE; # create a new global object
 
-  $j->eval('{"this": "that", "the": "other"}["this"]');
+  $j->eval('({"this": "that", "the": "other"}["this"])');
   # returns "that"
 
   $compiled = $j->compile('new Array(1,2,3)');
@@ -82,7 +86,8 @@ basically
 creating
 a new JavaScript "world," the C<JE> object itself being the global object. 
 To
-add properties and methods to it, and to access those properties, see 
+add properties and methods to it from Perl, and to access those properties, 
+see 
 L<< C<JE::Types> >> and L<< C<JE::Object> >>, which this
 class inherits from.
 
@@ -99,7 +104,7 @@ This class method constructs and returns a new global scope (C<JE> object).
 
 =cut
 
-our $s = qr.[ \t\x0b\f\xa0\p{Zs}\cm\cj\x{2028}\x{2029}]*.;
+our $s = qr.[\p{Zs}\s\ck]*.;
 
 sub new {
 	my $class = shift;
@@ -151,15 +156,20 @@ sub new {
 				#global => ...
 				#scope => bless [global], JE::Scope
 				func_name => 'Function',
-				func_length => 1,
 				func_argnames => [],
 				func_args => ['scope','args'],
 				function => sub { # E 15.3.1
-					JE::Object::Function->new(@_);
+					JE::Object::Function->new(
+						$${$_[0][0]}{global},
+						@_[1..$#_]
+					);
 				},
 				constructor_args => ['scope','args'],
 				constructor => sub {
-					JE::Object::Function->new(@_);
+					JE::Object::Function->new(
+						$${$_[0][0]}{global},
+						@_[1..$#_]
+					);
 				},
 				keys => [],
 				props => {
@@ -167,9 +177,12 @@ sub new {
 					prototype => bless(\{
 						#prototype=>(Object.proto)
 						#global => ...
+						func_argnames => [],
+						func_args => [],
+						function => '',
 						keys => [],
 						props => {},
-					}, 'JE::Object')
+					}, 'JE::Object::Function')
 				},
 				prop_readonly => {
 					prototype => 1,
@@ -204,10 +217,9 @@ sub new {
 	$func_proto->prototype( $obj_proto );
 	$$$func_proto{global} = $self;
 
-	$obj_constr ->prop({name=>'length', value=>1, dontenum=>1,
-		dontdel=>1, readonly=>1});
-	$func_constr->prop({name=>'length', value=>1, dontenum=>1,
-		dontdel=>1, readonly=>1});
+	$obj_constr ->prop({name=>'length', value=>1});
+	$func_constr->prop({name=>'length', value=>1});
+	$func_proto->prop({name=>'length', value=>0});
 
 	JE::Object::_init_proto($obj_proto);
 	JE::Object::Function::_init_proto($func_proto);
@@ -218,41 +230,51 @@ sub new {
 	$self->prop({
 		name => 'Array',
 		value => JE::Object::Array->new_constructor($self),
-		readonly => 1,
 		dontenum => 1,
-		dontdel  => 1,
 	});
-	# ~~~ add String
-	#      Boolean
+	$self->prop({
+		name => 'String',
+		value => JE::Object::String->new_constructor($self),
+		dontenum => 1,
+	});
+	# ~~~ Boolean
 	#    Number
 	#  Date
-	# RegExp
+	$self->prop({
+		name => 'RegExp',
+		value => JE::Object::RegExp->new_constructor($self),
+		dontenum => 1,
+	});
 	$self->prop({
 		name => 'Error',
 		value => JE::Object::Error->new_constructor($self),
-		readonly => 1,
 		dontenum => 1,
-		dontdel  => 1,
 	});
 	# ~~~ EvalError ?
-	#   RangeError
-	# ReferenceError
+	$self->prop({
+		name => 'RangeError',
+		value => JE::Object::Error::RangeError
+			->new_constructor($self),
+		dontenum => 1,
+	});
+	# ~~~ ReferenceError
 	$self->prop({
 		name => 'SyntaxError',
 		value => JE::Object::Error::SyntaxError
 			->new_constructor($self),
-		readonly => 1,
 		dontenum => 1,
-		dontdel  => 1,
 	});
-	# ~~~ TypeError
+	$self->prop({
+		name => 'TypeError',
+		value => JE::Object::Error::TypeError
+			->new_constructor($self),
+		dontenum => 1,
+	});
 	$self->prop({
 		name => 'URIError',
 		value => JE::Object::Error::URIError
 			->new_constructor($self),
-		readonly => 1,
 		dontenum => 1,
-		dontdel  => 1,
 	});
 
 	# E 15.1.1
@@ -282,16 +304,17 @@ sub new {
 		value     => JE::Object::Function->new({
 			scope    => $self,
 			name     => 'eval',
-			length   => 1,
+			argnames => ['x'],
 			function_args => [qw< scope args >],
 			function => sub {
 				my($scope,$code) = @_;
-				return $code if class $code ne 'String';
+				return $code if class $code ne 'String'; # ~~~ I think this is wrong. (should be typeof $code eq 'string')
 				$scope->eval($code);
 				# ~~~ Find out what the spec means by
 				#     'if the completion value is empty'
 				# ~~~ Add exception handling
 			},
+			no_proto => 1,
 		}),
 		dontenum  => 1,
 	});
@@ -300,7 +323,8 @@ sub new {
 		value => JE::Object::Function->new({
 			scope  => $self,
 			name   => 'parseInt', # E 15.1.2.2
-			length => 2,
+			argnames => [qw/string radix/],
+			no_proto => 1,
 			function_args => [qw< scope args >],
 			function => sub {
 				# ~~~ implement ToInt32 and
@@ -344,7 +368,7 @@ sub new {
 				}
 				else { my($num, $place);
 				for (reverse split //, $str){
-					$num += ($_ =~ /\d/ ? $_
+					$num += ($_ =~ /[0-9]/ ? $_
 					    : ord(uc) - 55) 
 					    * $radix**$place++
 				}
@@ -359,7 +383,8 @@ sub new {
 		value => JE::Object::Function->new({
 			scope  => $self,
 			name   => 'parseFloat', # E 15.1.2.3
-			length => 1,
+			argnames => [qw/string/],
+			no_proto => 1,
 			function_args => [qw< scope args >],
 			function => sub {
 				# ~~~ implement StrWhiteSpaceChar and
@@ -372,9 +397,9 @@ sub new {
 					  (?:
 					    [+-]?
 					    (?:
-					      (?=\d|\.\d) \d*
-					      (?:\.\d*)?
-					      (?:[Ee][+-]?\d+)?
+					      (?=[0-9]|\.[0-9]) [0-9]*
+					      (?:\.[0-9]*)?
+					      (?:[Ee][+-]?[0-9]+)?
 					        |
 					      Infinity
 					    )
@@ -390,7 +415,8 @@ sub new {
 		value => JE::Object::Function->new({
 			scope  => $self,
 			name   => 'isNaN',
-			length => 1,
+			argnames => [qw/number/],
+			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
 				shift->to_number->id eq 'num:nan';
@@ -403,7 +429,8 @@ sub new {
 		value => JE::Object::Function->new({
 			scope  => $self,
 			name   => 'isFinite',
-			length => 1,
+			argnames => [qw/number/],
+			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
 				shift->to_number->value !~ /n/;
@@ -420,11 +447,13 @@ sub new {
 		value => JE::Object::Function->new({
 			scope  => $self,
 			name   => 'decodeURI',
-			length => 1,
+			argnames => [qw/encodedURI/],
+			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
 				my $str = shift->to_string->value;
-				$str =~ /%(?![a-fA-F\d]{2})(.{0,2})/ && die
+				$str =~ /%(?![a-fA-F0-9]{2})(.{0,2})/
+				 && die
 					JE::Object::Error::URIError->new(
 						"Invalid escape %$1 in URI"
 					);
@@ -433,7 +462,7 @@ sub new {
 
 				# [;/?:@&=+$,#] do not get unescaped
 				$str =~ s/%(?!2[346bcf]|3[abdf]|40)
-					([\da-f]{2})/chr hex $1/iegx;
+					([0-9a-f]{2})/chr hex $1/iegx;
 				
 				local $@;
 				eval {
@@ -459,18 +488,20 @@ sub new {
 		value => JE::Object::Function->new({
 			scope  => $self,
 			name   => 'decodeURIComponent',
-			length => 1,
+			argnames => [qw/encodedURIComponent/],
+			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
 				my $str = shift->to_string->value;
-				$str =~ /%(?![a-fA-F\d]{2})(.{0,2})/ && die
+				$str =~ /%(?![a-fA-F0-9]{2})(.{0,2})/
+				 && die
 					JE::Object::Error::URIError->new(
 						"Invalid escape %$1 in URI"
 					);
 
 				$str = encode_utf8 $str;
 
-				$str =~ s/%([\da-f]{2})/chr hex $1/iegx;
+				$str =~ s/%([0-9a-f]{2})/chr hex $1/iegx;
 				
 				local $@;
 				eval {
@@ -496,7 +527,8 @@ sub new {
 		value => JE::Object::Function->new({
 			scope  => $self,
 			name   => 'encodeURI',
-			length => 1,
+			argnames => [qw/uri/],
+			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
 				my $str = shift->to_string->value;
@@ -508,7 +540,7 @@ die JE::Object::Error::URIError->new(
 				$str = encode_utf8 $str;
 
 				$str =~
-				s< ([^;/?:@&=+$,A-Za-z\d\-_.!~*'()#]) >
+				s< ([^;/?:@&=+$,A-Za-z0-9\-_.!~*'()#]) >
 				 < sprintf '%%%02x', ord $1           >egx;
 				
 				JE::String->new($self, $str);
@@ -521,7 +553,8 @@ die JE::Object::Error::URIError->new(
 		value => JE::Object::Function->new({
 			scope  => $self,
 			name   => 'encodeURIComponent',
-			length => 1,
+			argnames => [qw/uriComponent/],
+			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
 				my $str = shift->to_string->value;
@@ -532,7 +565,7 @@ die JE::Object::Error::URIError->new(
 
 				$str = encode_utf8 $str;
 
-				$str =~ s< ([^A-Za-z\d\-_.!~*'()])  >
+				$str =~ s< ([^A-Za-z0-9\-_.!~*'()])  >
 				         < sprintf '%%%02x', ord $1 >egx;
 				
 				JE::String->new($self, $str);
@@ -615,7 +648,12 @@ For more ways to create functions, see L<JE::Object::Function>.
 
 sub new_function {
 	my $self = shift;
-	my $f = JE::Object::Function->new($self, pop);
+	my $f = JE::Object::Function->new({
+		scope   => $self,
+		function   => pop,
+		function_args => ['args'],
+		@_ ? (name => $_[0]) : ()
+	});
 	@_ and $self->prop({
 		name => shift,
 		value=>$f,
@@ -717,6 +755,8 @@ __END__
 - ||  &&  ? :  =  return lvalues
 - behaviour of 'break' and 'continue' outside of loops
 - behaviour of 'return' outside of subs
+- Array.prototype.toLocaleString uses ',' as the separator
+- reversed words can be used as idents when there is no ambiguity
 
 =end for me
 
@@ -727,7 +767,7 @@ some known bugs:
 
 Functions objects do not always stringify properly. The body of the 
 function is
-missing.
+missing. This produces warnings, too.
 
 Although the spec says that trying to reference a property of null or
 undefined is meant to throw an error, JE does not throw the error until

@@ -1,5 +1,36 @@
 Revision history for JE
 
+0.006   March 29, 2007
+        Alpha release.
+        - Added TypeError and RangeError classes
+        - Finished the Function and Array classes (except for
+          Function.prototype.toString)
+        - JE::String now has an exportable 'surrogify' function
+        - Added some methods (toString, valueOf, charAt, charCodeAt,
+          concat, indexOf, lastIndexOf,  localeCompare)  to  String
+          objects, and added the String constructor to the
+          global object
+        - Found and fixed quite a few bugs in the parser:
+          o || && were parsing as | |  and & &
+          o Hexadecimal literals would cause syntax errors
+          o The parser would create a garbage tree when certain infix
+            ops were followed by compound expressions that could  con-
+            tain the same op (i.e., [], {}, () and function literals).
+            (I fell into the 'sub foo { /regex(.*)/; foo(); print $1}'
+            trap.)
+          o Bracketed subscripts did not allow whitespace before the
+            closing bracket
+          o "a++\nb++"  without a semicolon between the two statements
+            was causing a syntax error because -- and ++ were gobbling
+            up trailing whitespace.
+          o <<= and >>= and >>>= were causing syntax errors
+          o for loops with variable declarations in the header
+            weren't parsing
+          o continue/throw/break/return were not parsing correctly
+            when followed by a line break
+          o 'with' was parsing as 'while' (!)
+          o switch and try blocks weren't parsing correctly
+
 0.005   5 March, 2007
         Alpha release. Changes and additions:
         - The parser has been rewritten completely with recursive sub-

@@ -1,22 +1,21 @@
 package JE::Object::Function;
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 
 use strict;
 use warnings;
 
+use Carp                 ;
 use Scalar::Util 'blessed';
 
 our @ISA = 'JE::Object';
 
-require JE::Object;
-require JE::Scope;
-require JE::Code;
-
-
-# ~~~ Make sure that 'new' accepts args the same order as 'new Function()'
-#     preceded by ($class, $global). 
+require JE::Code         ;
+require JE::Code::Grammar     ;
+require JE::Object                ;
+require JE::Object::Error::TypeError ;
+require JE::Scope                      ;
 
 
 =head1 NAME
@@ -77,7 +76,7 @@ an lvalue
 that
 refers to a variable visible within the function's scope, use
 S<< C<<< $scope->var('varname') >>> >> (this assumes that you have
-shifted the scope object off C<@_> and called it C<$scope>;
+shifted the scope object off C<@_> and called it C<$scope>).
 
 =item new JE::Object::Function $scope_or_global, @argnames, $function;
 
@@ -226,9 +225,8 @@ See L<OBJECT CREATION>.
 
 =cut
 
-sub new { # ~~~ This sub needs some error-checking
-	# ~~~ IT also needs to split argnames on ','
-	#     In fact, I need to check the whole thing against E 15.3.2
+sub new {
+	# E 15.3.2
 	my($class,$scope) = (shift,shift);
 	my %opts;
 
@@ -240,11 +238,23 @@ sub new { # ~~~ This sub needs some error-checking
 		%opts = ref($_[0]) eq 'CODE'
 		? 	( function      => shift,
 			  function_args => ['args'], )
-		: 	( argnames => [ @_[0..$#_-1] ],
+		: 	( argnames => do {
+				my $src = '(' . join(',', @_[0..$#_-1]) .
+					')';
+				$src =~ s/\p{Cf}//g;
+				my $params = JE::Code::Grammar::parse(
+					params => $src, $scope
+				);
+				$@ and die $@;
+				$params;
+			  },
 			  function => pop,
 			  function_args => [qw<scope this args>] )
 		;
 	}
+
+	UNIVERSAL::isa($scope,'UNIVERSAL')
+	    or croak "The 'scope' passed to JE::Object::Function->new ($scope) is not an object";
 
 	ref $scope ne 'JE::Scope' and $scope = bless [$scope], 'JE::Scope';
 	my $global = $$scope[0];
@@ -394,12 +404,15 @@ Calls the function with $obj as the invocant and @args as the args.
 sub apply { # ~~~ we need to upgrade the args passed to apply, but still
             #     retain the unupgraded values to pass to the function *if*
             #     the function wants them downgraded
-	my ($self, $obj) = (shift, shift->to_object);
+	my ($self, $obj) = (shift, shift);
 	my $guts = $$self;
 
-	if(!blessed $obj or $obj->id eq 'null'
+	if(!blessed $obj or $obj->id =~ /^(?:null|undef)\z/
 	    or ref $obj eq 'JE::Object::Function::Call') {
 		$obj = $$guts{global};
+	}
+	else {
+		$obj = $obj->to_object;
 	}
 
 	if(ref $$guts{function} eq 'CODE') {
@@ -494,6 +507,7 @@ sub _init_proto {
 		value     => JE::Object::Function->new({
 			scope    => $scope,
 			name     => 'toString',
+			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
 				my $self = shift;
@@ -502,37 +516,67 @@ sub _init_proto {
 				JE::String->new($scope,
 					'function ' .
 					( exists $$guts{func_name} ?
-					  $$guts{func_name} : '') .
+					  $$guts{func_name} :
+					  'anon'.$self->id) .
 					'(' .
 					join(',', @{$$guts{func_argnames}})
 					. ") {" .
 					( ref $$guts{function} eq 'CODE' ?
-					  "\n    [native code]\n" :
+					  "\n    // [native code]\n" :
 					  $$guts{func_src}
 					) . '}'
 				);
 			},
 		}),
-		dontenum  => 1, # ~~~ any other attrs?
+		dontenum  => 1,
 	});
 	$proto->prop({
 		name      => 'apply',
 		value     => JE::Object::Function->new({
 			scope    => $scope,
 			name     => 'apply',
-			length   => 2,
+			argnames => [qw/thisArg argArray/],
+			no_proto => 1,
 			function_args => ['this','args'],
 			function => sub {
 				my($self,$obj,$args) = @_;
 
-				# ~~~ finish writing this with all the
-				#     'ifs' described in E 15.3.4.3
-				$self->apply($obj, eval{@{+shift}});
+				local $@;
+
+				if(defined $args and
+				   ref $args ne 
+					'JE::Object::Function::Arguments'
+				   and eval{$args->class} ne 'Array') {
+					die JE::Object::Error::TypeError
+					->new($scope, "Second argument to "
+					      . "'apply' is of type '" . 
+					      (eval{$args->class} ||
+					       eval{$args->typeof} ||
+					       'unknown') .
+					      "', not 'Arguments' or " .
+					      "'Array'");
+				}
+				$args = $args->value;
+				$self->apply($obj,
+					defined $args ? @$args : ());
 			},
 		}),
-		dontenum  => 1, # ~~~ any other attrs?
+		dontenum  => 1,
 	});
-	# ~~~ $proto->prop({ ... })
+	$proto->prop({
+		name      => 'call',
+		value     => JE::Object::Function->new({
+			scope    => $scope,
+			name     => 'call',
+			argnames => ['thisArg'],
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => sub {
+				shift->apply(@_);
+			},
+		}),
+		dontenum  => 1,
+	});
 }
 
 
@@ -559,7 +603,7 @@ sub _init_proto {
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -625,7 +669,7 @@ sub delete { # ~~~ Can delete be called on a property of a call object?
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 our @ISA = 'JE::Object';
 
@@ -715,6 +759,9 @@ sub delete {
 	SUPER::delete $self @_[1..$#_];
 }
 
-
+sub value {
+	my $self = shift;
+	[ map $self->prop($_), 0..$$$self{args_length}-1 ];
+}
 
 1;

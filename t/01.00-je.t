@@ -126,21 +126,19 @@ ok $j->eval('-3>>>1')                      eq '2147483646';
 ok $j->eval('!true ? x = 3 : y = "do\tenut"; y') eq "do\tenut";
 ok $j->eval('true ? x = 3 : y = "do\tenut"; x')        eq '3';
 ok $j->eval('({"this"    : "that", "the":"other"}["this"])') eq 'that'; 
-SKIP: { skip 'String constructor not yet implemented', 2;
+SKIP: { skip 'String.prototype.length not yet implemented', 2;
 ok $j->eval("new(String)('𝄐').length")                         eq '2'; 
 ok $j->eval("new String.prototype.constructor('A𝄫').length")      eq '3'; 
 };
 ok !defined $j->eval('{ a = 6; b= tru\u003d; }');
+ok $j->eval("{ a = 6; b= 7; }")                         eq '7'; 
 
 #--------------------------------------------------------------------#
-# Tests 72-81: more complicated js stuff
+# Tests 73-81: more complicated js stuff
 
 isa_ok $j->new_function(ok => \&ok), 'JE::Object::Function';
 
 defined $j->eval(<<'---') or die;
-
-ok(new new new new Object().constructor()['cons' + "tructor"]()
-   .constructor().htns === void 'ette');
 
 var func = new Function('this,and','a','that');
 ok(typeof func === 'function');

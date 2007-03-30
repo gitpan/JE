@@ -1,7 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.005';
-
+our $VERSION = '0.006';
 
 use strict;
 use warnings;
@@ -10,11 +9,15 @@ use overload fallback => 1,
 	'@{}'=> 'value';
 
 
+use List::Util qw/min max/;
+
 our @ISA = 'JE::Object';
 
-require JE::Object;
-require JE::String;
-require JE::Number;
+require JE::Object     ;
+require JE::Object::Error::RangeError;
+require JE::Object::Error::TypeError              ;
+require JE::String                                            ;
+require JE::Number                                                       ;
 
 =head1 NAME
 
@@ -76,7 +79,9 @@ sub new {
 		@array = $global->upgrade(@{+shift});
 	} elsif (@_ == 1 && UNIVERSAL::isa $_[0], 'JE::Number') {
 		my $num = 0+shift;
-		$num == int($num) % 2**32 or die; # ~~~ RangeError
+		$num == int($num) % 2**32
+			or die JE::Object::Error::RangeError->new($global,
+				"$num is not a valid array index");
 		$#array = $num - 1;
 	}
 	else {
@@ -94,8 +99,6 @@ sub new {
 
 
 
-
-# ~~~ Finish writing methods.
 
 sub prop {
 	my ($self, $name, $val) =  (shift, @_);
@@ -126,10 +129,41 @@ sub prop {
 }
 
 
-#sub props # ~~~ I nee to find out wmhat this does.
 
-#sub delete # ~~~ array indices are deletable
-	# length is not
+
+sub is_enum {
+	my ($self,$name) = @_;
+	$name eq 'length' and return 1;
+	if ($name =~ /^(?:0|[1-9]\d*)\z/ and $name < 4294967295) {
+		my $array = $$$self{array};
+		return $name < @$array && defined $$array[$name];
+	}
+	SUPER::is_enum $self $name;
+}
+
+
+
+
+sub props { # length is not enumerable
+	my $self = shift;
+	my $array = $$$self{array};
+	grep(defined $$array[$_], 0..$#$array),
+		SUPER::props $self;
+}
+
+
+
+
+sub delete {  # array indices are deletable; length is not
+	my($self,$name) = @_;
+	$name eq 'length' and return 0;
+	if($name =~ /^(?:0|[1-9]\d*)\z/ and $name < 4294967295) {
+		my $array = $$$self{array};
+		$name < @$array and $$array[$name] = undef;
+		return 1;
+	}
+	SUPER::delete $self $name;
+}
 
 
 
@@ -156,28 +190,482 @@ sub new_constructor {
 		},
 		sub {
 			my $proto = shift;
+			bless $proto, __PACKAGE__;
+			$$$proto{array} = [];
+
 			my $global = $$proto->{global};
+
 			$proto->prop({
 				name  => 'toString',
 				value => JE::Object::Function->new({
 					scope  => $global,
 					name   => 'toString',
-					length => 1,
+					length => 0,
+					no_proto => 1,
 					function_args => ['this'],
-					function => sub {
-						my $guts = ${+shift};
-						JE::String->new(
-							$$guts{global},
-							join ',', @{
-							     $$guts{array}
-							}
-						);
-					}
+					function => \&_toString,
+				}),
+				dontenum => 1,
+			});
+
+			$proto->prop({
+				name  => 'toLocaleString',
+				value => JE::Object::Function->new({
+					scope  => $global,
+					name   => 'toLocaleString',
+					length => 0,
+					no_proto => 1,
+					function_args => ['this'],
+					function => \&_toLocaleString,
+				}),
+				dontenum => 1,
+			});
+
+			$proto->prop({
+				name  => 'concat',
+				value => JE::Object::Function->new({
+					scope  => $global,
+					name   => 'concat',
+					length => 1,
+					no_proto => 1,
+					function_args => ['this','args'],
+					function => \&_concat,
+				}),
+				dontenum => 1,
+			});
+
+			$proto->prop({
+				name  => 'join',
+				value => JE::Object::Function->new({
+					scope  => $global,
+					name   => 'join',
+					argnames => ['separator'],
+					no_proto => 1,
+					function_args => ['this','args'],
+					function => \&_join,
+				}),
+				dontenum => 1,
+			});
+
+			$proto->prop({
+				name  => 'pop',
+				value => JE::Object::Function->new({
+					scope  => $global,
+					name   => 'pop',
+					length => 0,
+					no_proto => 1,
+					function_args => ['this'],
+					function => \&_pop,
+				}),
+				dontenum => 1,
+			});
+
+			$proto->prop({
+				name  => 'push',
+				value => JE::Object::Function->new({
+					scope  => $global,
+					name   => 'push',
+					length => 1,
+					no_proto => 1,
+					function_args => ['this','args'],
+					function => \&_push,
+				}),
+				dontenum => 1,
+			});
+
+			$proto->prop({
+				name  => 'reverse',
+				value => JE::Object::Function->new({
+					scope  => $global,
+					name   => 'reverse',
+					length => 1,
+					no_proto => 1,
+					function_args => ['this'],
+					function => \&_reverse,
+				}),
+				dontenum => 1,
+			});
+
+			$proto->prop({
+				name  => 'shift',
+				value => JE::Object::Function->new({
+					scope  => $global,
+					name   => 'shift',
+					length => 0,
+					no_proto => 1,
+					function_args => ['this'],
+					function => \&_shift,
+				}),
+				dontenum => 1,
+			});
+
+			$proto->prop({
+				name  => 'slice',
+				value => JE::Object::Function->new({
+					scope  => $global,
+					name   => 'shift',
+					argnames => [qw/start end/],
+					no_proto => 1,
+					function_args => ['this'],
+					function => \&_shift,
+				}),
+				dontenum => 1,
+			});
+
+			$proto->prop({
+				name  => 'sort',
+				value => JE::Object::Function->new({
+					scope  => $global,
+					name   => 'sort',
+					argnames => [qw/comparefn/],
+					no_proto => 1,
+					function_args => ['this','args'],
+					function => \&_sort,
+				}),
+				dontenum => 1,
+			});
+
+			$proto->prop({
+				name  => 'splice',
+				value => JE::Object::Function->new({
+					scope  => $global,
+					name   => 'splice',
+					argnames => [qw/start
+					               deleteCount/],
+					no_proto => 1,
+					function_args => ['this','args'],
+					function => \&_splice,
+				}),
+				dontenum => 1,
+			});
+
+			$proto->prop({
+				name  => 'unshift',
+				value => JE::Object::Function->new({
+					scope  => $global,
+					name   => 'unshift',
+					length => 1,
+					no_proto => 1,
+					function_args => ['this','args'],
+					function => \&_unshift,
 				}),
 				dontenum => 1,
 			});
 		},
 	);
+}
+
+# ~~~ I should be able to optimise those methods that are designed to work
+#    with any JS object by checking first to see whether ref eq __PACKAGE__ 
+#  and then doing a fast Perl-style algorithm (reverse would be a good
+# candidate for this) 
+
+sub _toString {
+	my $self = shift;
+	eval{$self->class} eq 'Array'
+	or die JE::Object::Error::TypeError->new(
+		'Object is not an Array');
+
+	my $guts = $$self;
+	JE::String->new(
+		$$guts{global},
+		join ',', map
+			defined $_ && defined $_->value
+			? $_->to_string->value : '',
+			@{ $$guts{array} }
+	);
+}
+
+sub _toLocaleString {
+	my $self = shift;
+	eval{$self->class} eq 'Array'
+	or die JE::Object::Error::TypeError->new(
+		'Object is not an Array');
+
+	my $guts = $$self;
+	JE::String->new(
+		$$guts{global},
+		join ',', map
+			defined $_ && defined $_->value
+				? $_->method('toLocaleString')->value : '',
+			@{ $$guts{array} }
+	);
+}
+
+sub _concat {
+	my $thing;
+	my $new = __PACKAGE__->new(my $global = $thing->global);
+	my @new;
+	while(@_) {
+		$thing = shift;
+		if(eval{$thing->class} eq 'Array') {
+			push @new, @{ $$$thing{array} };
+		}
+		else {
+			push @new, $thing->to_string;
+		}
+	}
+
+	$$$new{array} = \@new;
+
+	$new;
+}
+
+sub _join {
+	my( $self,$sep) = @_;
+	!defined $sep || $sep->id eq 'undef' and $sep = ',';
+
+	my $length = $self->prop('length')->to_number->value % 2**32;
+	$length == $length or $length = 0;
+	
+
+	my $val;
+	JE::String->new(
+		$self->global,
+		join $sep,
+			map {
+				my $val = $self->prop($_);
+				defined $val && defined $val->value
+				? $val->to_string->value : ''
+			} 0..$length-1
+	);
+}
+
+sub _pop {
+	my( $self) = @_;
+
+	my $length = $self->prop('length')->to_number->value % 2**32;
+	$length == $length or $length = 0;
+	
+	$length or
+		$self->prop('length', 0),
+		return $self->global->undefined;
+
+	
+	$length--;
+	my $val = $self->prop($length);
+	$self->delete($length);
+	$self->prop(length => $length);
+	$val;
+}
+
+sub _push {
+	my( $self) = shift;
+
+	my $length = $self->prop('length')->to_number->value % 2**32;
+	$length == $length or $length = 0;
+	
+	while(@_) {
+		$self->prop($length++, shift);
+	}
+
+	$self->prop(length => $length);
+	
+	$length;
+}
+
+sub _reverse {
+	my $self = shift;
+	
+	my $length = $self->prop('length')->to_number->value % 2**32;
+	$length == $length or $length = 0;
+	
+	my($elem1,$elem2,$indx2);
+
+	for (0..int $length/2-1) {
+		$elem1 = $self->prop($_);
+		$elem2 = $self->prop($indx2 = $length - $_ - 1);
+
+		defined $elem2
+			? $self->prop($_ => $elem2)
+			: $self->delete($_);
+
+		defined $elem1
+			? $self->prop($indx2 => $elem1)
+			: $self->delete($indx2);
+	}
+
+	$self;
+}
+
+sub _shift {
+	my( $self) = @_;
+
+	my $length = $self->prop('length')->to_number->value % 2**32;
+	$length == $length or $length = 0;
+	
+	$length or
+		$self->prop('length', 0),
+		return $self->global->undefined;
+
+	my $ret = $self->prop(0);
+	my $val;
+
+	for (0..$length-2) {
+		$val = $self->prop($_+1);
+		defined $val
+			? $self-> prop($_ => $val)
+			: $self->delete($_);
+	}
+	$self->delete(--$length);
+	$self->prop(length => $length);
+
+	$ret;
+}
+
+sub _slice {
+	my( $self,$start,$end) = @_;
+
+	my $length = $self->prop('length')->to_number->value % 2**32;
+	$length == $length or $length = 0;
+	
+	my $new = __PACKAGE__->new(my $global = $self->global);
+	my @new;
+
+	if (defined $start) {
+		$start = int $start->to_number->value;
+		$start  = $start == $start
+			? $start < 0
+				? max($start + $length,0)
+				: min($start, $length)
+			: 0;
+	}
+	else {
+		$start = 0
+	}
+
+	if (defined $end and $end->id ne 'undef') {
+		$end = $end->to_number->value;
+		$end  = $end == $end
+			? $end < 0
+				? max($end + $length,0)
+				: min($end, $length)
+			: 0;
+	}
+	else {
+		$end = $length
+	}
+	
+
+	for ($start..$end-1) {
+		push @new, $self->prop($_);
+	}
+
+	$$$new{array} = \@new;
+
+	$new;
+}
+
+sub _sort {
+	my($self, $comp) = @_;
+	
+	my $length = $self->prop('length')->to_number->value % 2**32;
+	$length == $length or $length = 0;
+	
+	my(@sortable, @undef, $nonexistent, $val);
+	for(0..$length-1) {
+		defined($val = $self->prop($_))
+			? $val->id eq 'undef'
+				? (push @undef, $val)
+				: (push @sortable, $val)
+			: ++$nonexistent;
+	}
+
+	$comp = defined $comp && $comp->can('call') 
+		? sub { $comp->call(@_) }
+		: sub { $a->to_string->[0] cmp $b->to_string->[0] };
+
+	my @sorted = ((sort $comp @sortable),@undef);
+
+	for (0..$#sorted) {
+		$self->prop($_ => $sorted[$_]);
+	}
+
+	no warnings 'uninitialized';
+	for (@sorted .. $#sorted + $nonexistent) {
+		$self->delete($_);
+	}
+
+	$self;
+}
+
+sub _splice {
+	my ($self, $start, $del_count) = (shift, shift, shift);
+
+	my $length = $self->prop('length')->to_number->value % 2**32;
+	$length == $length or $length = 0;
+	
+	if (defined $start) {
+		$start = int $start->to_number->value;
+		$start  = $start == $start
+			? $start < 0
+				? max($start + $length,0)
+				: min($start, $length)
+			: 0;
+	}
+	else {
+		$start = 0
+	}
+
+	if(defined $del_count) {
+		$del_count = int $del_count->to_number->value;
+		$del_count = $del_count >= 0
+			? min($del_count, $length-$start)
+			: 0;
+	}
+	else {
+		$del_count = 0
+	}
+
+	my @new = map $self->prop($_),
+		$start..(my $end = $start+$del_count-1);
+
+	my $val;
+	if (@_ < $del_count) {
+		my $diff = $del_count - @_;
+		for ($end..$length-1) {
+			defined ($val = $self->prop($_))
+			?	$self->prop ($_ - $diff => $val)
+			:	$self->delete($_ - $diff);
+		}
+	}
+	elsif (@_ > $del_count) {
+		my $diff = @_ - $del_count;
+		for (reverse $end..$length-1) {
+			defined ($val = $self->prop($_))
+			?	$self->prop ($_ + $diff => $val)
+			:	$self->delete($_ + $diff);
+		}
+	}
+
+	for (0..$#_) {
+		$self->prop($_+$start => $_[$_]);
+	}
+
+	my $new = __PACKAGE__->new($self->global);
+	$$new->{array} = \@new;
+	
+	$new;
+}
+
+sub _unshift {
+	my ($self) = (shift,);
+
+	my $length = $self->prop('length')->to_number->value % 2**32;
+	$length == $length or $length = 0;
+	
+	my $val;
+	for (reverse 0..$length-1) {
+		defined ($val = $self->prop($_))
+		?	$self->prop ($_ + @_ => $val)
+		:	$self->delete($_ + @_);
+	}
+
+	for (0..$#_) {
+		$self->prop($_ => $_[$_]);
+	}
+
+	return JE::Number->new($self->global, $length + @_);
 }
 
 =back

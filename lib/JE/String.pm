@@ -1,6 +1,6 @@
 package JE::String;
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 
 use strict;
@@ -10,13 +10,26 @@ use overload fallback => 1,
 	'""' => 'value',
 	 cmp =>  sub { "$_[0]" cmp $_[1] };
 
-use Memoize;
-#memoize('desurrogify', LIST_CACHE => 'MERGE');
-
 use Carp;
+use Memoize;
+memoize 'desurrogify'; #, LIST_CACHE => 'MERGE';  # If a memoised func-
+memoize 'surrogify'; #,  LIST_CACHE => 'MERGE';  # tion is  called  in
+                                               # list context the first
+                                             # time it is called with a
+                                          # particular set of arguments,
+                                       # LIST_CACHE => MERGE will  cause
+                                   # an array ref to be cached instead of
+                              # the actual return value, as of Memoize.pm
+                        # version 1.01.
+
+# ~~~ Perhaps memoize is a bad idea, because it would create a memory leak
+#    of sorts.  Maybe we should cache the two strings in the  JE::String
+#  object itself, so they will be collected as garbage when appropriate.
+# And perhaps we need a 'value16' method (or 'utf16val', but that looks
+# ugly and is harder to type),  for accessing the  surrogified  string.
 
 our @ISA = 'Exporter';
-our @EXPORT_OK = 'desurrogify';
+our @EXPORT_OK = qw'surrogify desurrogify';
 
 require JE::Object::String;
 require JE::Boolean;
@@ -26,22 +39,16 @@ require Exporter;
 
 sub new {
 	my($class, $global, $val) = @_;
-	!ref $global || !UNIVERSAL::isa($global,'UNIVERSAL')
-	   and croak "First argument to JE::String->new is not an object.";
+	UNIVERSAL::isa($global,'UNIVERSAL')
+	   or croak "First argument to JE::String->new is not an object";
 
 	my $self;
 	if(UNIVERSAL::isa($val,'UNIVERSAL') and $val->can('to_string')) {
 		$self = bless [$val->to_string->[0], $global], $class;
 	}
 	else {
-		# surrogify:
-		$val =~ s<([^\0-\x{ffff}])><    no warnings 'utf8';
-			  chr((ord($1) - 0x10000) / 0x400 + 0xD800)
-			. chr((ord($1) - 0x10000) % 0x400 + 0xDC00)
-		>eg;
-					
-		# objectify:
-		$self = bless [$val, $global], $class;
+		$self = bless [surrogify($val), $global], $class;
+		ref $self->[0] eq "ARRAY" and print "look: " . ref $val;;
 	}
 	$self;
 }
@@ -87,24 +94,25 @@ sub to_string    { $_[0] }
 sub to_boolean { JE::Boolean       ->new($_[0][1], length shift->[0]) }
 sub to_object  { JE::Object::String->new($_[0][1], shift) }
 
-our $s = qr.[ \t\x0b\f\xa0\p{Zs}\cm\cj\x{2028}\x{2029}]*.;
+our $s = qr.[\p{Zs}\s\ck]*.;
 
 sub to_number  {
 	my $value = (my $self = shift)->[0];
 	JE::Number->new($self->[1],
 		$value =~ /^$s
-			(?:
-			  [+-]?
-			  (?:
-			    (?=\d|\.\d) \d* (?:\.\d*)? (?:[Ee][+-]?\d+)?
-			      |
-			    Infinity
-			  )
-			  $s
-			)?
-			\z
+		  (?:
+		    [+-]?
+		    (?:
+		      (?=[0-9]|\.[0-9]) [0-9]* (?:\.[0-9]*)?
+		      (?:[Ee][+-]?[0-9]+)?
+		        |
+		      Infinity
+		    )
+		    $s
+		  )?
+		  \z
 		/ox ? $value :
-		$value =~ /^$s   0[Xx] ([A-Fa-f\d]+)   $s\z/ox ? hex $1 :
+		$value =~ /^$s   0[Xx] ([A-Fa-f0-9]+)   $s\z/ox ? hex $1 :
 		'NaN'
 	);
 }
@@ -138,6 +146,18 @@ sub desurrogify($) {
 	#
 	# 5.9.4 still has this bug.
 
+	$ret;
+}
+
+sub surrogify($) {
+	my $ret = shift;
+
+	no warnings 'utf8';
+
+	$ret =~ s<([^\0-\x{ffff}])><
+		  chr((ord($1) - 0x10000) / 0x400 + 0xD800)
+		. chr((ord($1) - 0x10000) % 0x400 + 0xDC00)
+	>eg;
 	$ret;
 }
 

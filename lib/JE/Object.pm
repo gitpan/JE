@@ -1,6 +1,6 @@
 package JE::Object;
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 
 use strict;
@@ -21,6 +21,12 @@ require JE::Object::Function;
 require JE::Boolean;
 require JE::String;
 
+
+sub in_list { 
+	my $str = shift;
+	shift eq $str and return 1 while @_;
+	!1;
+}
 
 
 =head1 NAME
@@ -243,7 +249,7 @@ sub is_readonly { # See JE::Types for a description of this.
 sub is_enum {
 	my ($self, $name) = @_;
 	$self = $$self;
-	exists $$self{keys}{$name};
+	in_list $name, @{ $$self{keys} };
 }
 
 
@@ -337,8 +343,10 @@ sub to_primitive {
 	my @methods = ('valueOf','toString');
 	$hint eq 'string' and @methods = reverse @methods;
 
+	my $method;
 	for (@methods) {
-		return +($self->prop($_) || next)->apply($self)
+		defined($method = $self->prop($_)) || next;
+		return $method->apply($self)
 	}
 
 	die; # ~~~ throw a TypeError exception later
@@ -454,8 +462,9 @@ S<< C<<< __PACKAGE__->JE::Object::new_constructor >>> >>).
 
 sub new_constructor {
 	my($package,$global,$function,$init_proto) = @_;
-	
+
 	my $f = JE::Object::Function->new({
+		name            => $package->class,
 		scope            => $global,
 		function         => $function,
 		function_args    => ['scope','args'],
@@ -466,12 +475,7 @@ sub new_constructor {
 		constructor_args => ['scope','args'],
 	});
 
-	(my $proto = $f->prop('prototype'))
-;#	 ->prop({
-#		dontenum => 1,
-#		name => 'constructor',
-#		value => $f,
-#	 });
+	my $proto = $f->prop('prototype');
 
 	$init_proto and &$init_proto($proto);
 
@@ -511,6 +515,7 @@ sub _init_proto {
 		JE::String->new($global,
 			'[object ' . $self->class . ']');
 	};
+
 	$proto->prop({
 		name      => 'toString',
 		value     => JE::Object::Function->new({
@@ -519,6 +524,7 @@ sub _init_proto {
 			length   => 0,
 			function_args => ['this'],
 			function => $toString_sub,
+			no_proto => 1,
 		}),
 		dontenum  => 1,
 	});
@@ -531,6 +537,7 @@ sub _init_proto {
 			length   => 0,
 			function_args => ['this'],
 			function => $toString_sub,
+			no_proto => 1,
 		}),
 		dontenum  => 1,
 	});
@@ -543,6 +550,7 @@ sub _init_proto {
 			length   => 0,
 			function_args => ['this'],
 			function => sub { $_[0] },
+			no_proto => 1,
 		}),
 		dontenum  => 1,
 	});
@@ -552,7 +560,7 @@ sub _init_proto {
 		value     => JE::Object::Function->new({
 			scope    => $global,
 			name     => 'hasOwnProperty',
-			length   => 0,
+			argnames => ['V'],
 			function_args => ['this', 'args'],
 			function => sub {
 				JE::Boolean->new($global, 
@@ -561,6 +569,7 @@ sub _init_proto {
 				# 'prop' with hashref syntax does not
 				# search the prototype chain
 			},
+			no_proto => 1,
 		}),
 		dontenum  => 1,
 	});
@@ -570,7 +579,7 @@ sub _init_proto {
 		value     => JE::Object::Function->new({
 			scope    => $global,
 			name     => 'isPrototypeOf',
-			length   => 0,
+			argnames => ['V'],
 			function_args => ['this', 'args'],
 			function => sub {
 				my $obj = shift;
@@ -589,6 +598,7 @@ sub _init_proto {
 
 				return JE::Boolean->new($global, 0);
 			},
+			no_proto => 1,
 		}),
 		dontenum  => 1,
 	});
@@ -598,12 +608,13 @@ sub _init_proto {
 		value     => JE::Object::Function->new({
 			scope    => $global,
 			name     => 'propertyIsEnumerable',
-			length   => 0,
+			argnames => ['V'],
 			function_args => ['this', 'args'],
 			function => sub {
 				return JE::Boolean->new($global,
 					shift->is_enum(shift));
 			},
+			no_proto => 1,
 		}),
 		dontenum  => 1,
 	});

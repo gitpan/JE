@@ -1,6 +1,6 @@
 package JE::Null;
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 
 use strict;
@@ -66,7 +66,6 @@ sub to_primitive { $_[0] }
 sub to_boolean { JE::String->new(${+shift}, '') };
 sub to_string { JE::String->new(${+shift}, 'null') };
 sub to_number { JE::Number->new(${+shift}, 0) }
-sub to_object { die } # ~~~ TypeError
 sub global { ${$_[0]} }
 
 

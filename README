@@ -1,4 +1,4 @@
-JE, version 0.005
+JE, version 0.006
 
 JE is a pure-Perl ECMAScript (JavaScript) engine.
 
@@ -12,27 +12,28 @@ reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-The parser has been rewritten with recursive subroutines (it used to
-use recursive  regexps).  It  runs  faster  now  and  doesn't  cause
-bus errors.
+Added the TypeError and RangeError classes
 
-The Error and SyntaxError classes now actually work. Before I just
-threw them together without even testing them.
+Finished the Function and Array classes (except for
+Function.prototype.toString)
 
-The Object constructor is now according to spec.
+Half-finished the String class
 
-URI-handling functions and the URIError class have been added.
+Fixed various parser bugs
 
-The rest of Object.prototype's properties have been added.
+Added the JE::String::surrogify function
 
 
 TO DO
 
 - Finish the core object classes
-- Implement exception handling and helpful error messages
+- Add helpful error messages
+- Provide a way to bind Perl classes to JS
+- Determine some logical way of dealing with locale settings (for
+  String.prototype.localeCompare, et al.)
 - Write lots and lots and lots of tests, at the same time fixing all
   the bugs they bring to light.
-- Verify that tainted JS code runs safely (I'm not sure this is feasible)
+- Make tainted JS code run safely
 - Deal with circular references somehow
 - Optimise JS functions by turning them into Perl subs (but run benchmarks
   first to see whether this would actually speed things up) (I'm having
@@ -41,9 +42,13 @@ TO DO
 
 INSTALLATION
 
-The easiest way to install this module is to use the CPAN module:
+The easiest way to install this module is to use the CPAN module or the
+cpan script:
 
     [sudo] perl -MCPAN -e "install JE"
+
+    [sudo] cpan
+    cpan> install JE
 
 Or you can use the following:
 
@@ -64,6 +69,16 @@ After installing, you can find documentation for this module with the
 perldoc command.
 
     perldoc JE
+
+Or try using man (it's faster, in my experience):
+
+    man JE
+
+
+ACKNOWLEDGEMENTS
+
+Thanks to Max Maischein [ webmaster  corion net ] for letting me use
+his tests.
 
 
 COPYRIGHT AND LICENCE
