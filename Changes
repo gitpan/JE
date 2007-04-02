@@ -1,6 +1,32 @@
 Revision history for JE
 
-0.006   March 29, 2007
+0.007   April Fool's Day, 2007
+	Alpha release. New features/fixes:
+        - Added the RegExp constructor and RegExp.prototype.exec
+        - Added the rest of the string methods
+        - Added the Boolean, Number and ReferenceError classes
+        - Added the Math object
+        - Fixed 'return' without an argument, so it returns undefined,
+          rather than a null Perl string  (which  was  causing  weird
+          errors elsewhere).
+        - 'break' called from within a labelled statement was produc-
+          ing warnings (fixed)
+        - 'throw' without an argument now throws undefined, rather
+          than 'Died at /usr/local/lib/perl5/5.8.8/JE/Code.pm
+          line 387'
+        - 'continue' now works with a do-while loop
+        - instanceof now works instead of just dying
+        - Assigning to a writeable property used  to  overwrite  the 
+          dontenum attribute and make the property enumerable (fixed)
+        - Fixed lvalues such that 'null.var = val' no longer creates a
+          global property.  'null.var'  in void context now  throws  a
+          TypeError.
+        - Fixed the null and undefined classes, so they don't try to
+          rebless the same scalar as each other.
+        - Fixed the boolean class's to_string method, so it no longer
+          gives 'true' for false and 'false' for true (!).
+
+0.006   29 March, 2007
         Alpha release.
         - Added TypeError and RangeError classes
         - Finished the Function and Array classes (except for

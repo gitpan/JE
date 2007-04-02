@@ -1,6 +1,6 @@
 #!perl  -T
 
-use Test::More tests => 81;
+use Test::More tests => 80;
 use strict;
 use Scalar::Util 'refaddr';
 use utf8;
@@ -32,13 +32,7 @@ ok !ref(our $value = $result->value),
 ok $value eq 'aabb', '(string)->value eq "aabb"';
 
 #--------------------------------------------------------------------#
-# Test 10: Unicode format chars in source
-
-ok +JE->new->compile(qq("aa" + \x{200e}'bb'))->execute eq 'aabb',
-	'Unicode format char in source';
-
-#--------------------------------------------------------------------#
-# Tests 11-15: numeric addition
+# Tests 10-14: numeric addition
 
 ok $code = $j->compile('3+7.9');
 
@@ -49,7 +43,7 @@ ok !ref($value = $result->value),
 ok $value == 10.9, '(number)->value == 10.9';
 
 #--------------------------------------------------------------------#
-# Tests 16-21: array literals
+# Tests 15-20: array literals
 
 ok $code = $j->compile('[1, 2,3+4]');
 
@@ -61,7 +55,7 @@ ok ref($value = $result->value) eq 'ARRAY',
 ok $value->[2] == 7, '(array obj)->value->[2] == 7';
 
 #--------------------------------------------------------------------#
-# Tests 22-27: array literals
+# Tests 21-26: array literals
 
 ok $code = $j->compile('({a:"b"})');
 
@@ -73,7 +67,7 @@ ok ref($value = $result->value) eq 'HASH',
 ok $value->{a} eq 'b', '(obj)->value->{a} eq "b"';
 
 #--------------------------------------------------------------------#
-# Tests 28-30: this
+# Tests 27-29: this
 
 ok $code = $j->compile('this');
 
@@ -81,7 +75,7 @@ isa_ok +($result = $code->execute), 'JE';
 ok refaddr $result == refaddr $j, '"this" is the same as the global obj';
 
 #--------------------------------------------------------------------#
-# Tests 31-33: bare identifiers
+# Tests 30-32: bare identifiers
 
 ok $code = $j->compile('parseFloat');
 
@@ -89,7 +83,7 @@ isa_ok +($result = $code->execute), 'JE::LValue';
 isa_ok get $result, 'JE::Object::Function';
 
 #--------------------------------------------------------------------#
-# Tests 34-71: various js ops
+# Tests 33-70: various js ops
 
 ok $j->eval('delete toString') eq 'true';
 ok $j->eval('delete undefined')   eq 'false';
@@ -126,15 +120,13 @@ ok $j->eval('-3>>>1')                      eq '2147483646';
 ok $j->eval('!true ? x = 3 : y = "do\tenut"; y') eq "do\tenut";
 ok $j->eval('true ? x = 3 : y = "do\tenut"; x')        eq '3';
 ok $j->eval('({"this"    : "that", "the":"other"}["this"])') eq 'that'; 
-SKIP: { skip 'String.prototype.length not yet implemented', 2;
 ok $j->eval("new(String)('𝄐').length")                         eq '2'; 
 ok $j->eval("new String.prototype.constructor('A𝄫').length")      eq '3'; 
-};
 ok !defined $j->eval('{ a = 6; b= tru\u003d; }');
 ok $j->eval("{ a = 6; b= 7; }")                         eq '7'; 
 
 #--------------------------------------------------------------------#
-# Tests 73-81: more complicated js stuff
+# Tests 72-80: more complicated js stuff
 
 isa_ok $j->new_function(ok => \&ok), 'JE::Object::Function';
 

@@ -11,7 +11,7 @@ use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 use Encode qw< decode_utf8 encode_utf8 FB_CROAK >;
 
@@ -22,12 +22,16 @@ require JE::Null     ;
 require JE::Number     ;
 require JE::Object       ;
 require JE::Object::Array   ;
-require JE::Object::Error       ;
+require JE::Object::Boolean   ;
+require JE::Object::Error        ;
 require JE::Object::Error::RangeError;
-require JE::Object::Error::SyntaxError   ;
-require JE::Object::Error::TypeError        ;
-require JE::Object::Error::URIError           ;
+require JE::Object::Error::ReferenceError;
+require JE::Object::Error::SyntaxError      ;
+require JE::Object::Error::TypeError          ;
+require JE::Object::Error::URIError            ;
 require JE::Object::Function                   ;
+require JE::Object::Math                       ;
+require JE::Object::Number                     ;
 require JE::Object::RegExp                      ;
 require JE::Object::String                      ;
 require JE::Scope                              ;
@@ -42,7 +46,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.006 (alpha release)
+Version 0.007 (alpha release)
 
 =head1 SYNOPSIS
 
@@ -234,12 +238,20 @@ sub new {
 	});
 	$self->prop({
 		name => 'String',
-		value => JE::Object::String->new_constructor($self),
+		value => JE::Object::String::_new_constructor($self),
 		dontenum => 1,
 	});
-	# ~~~ Boolean
-	#    Number
-	#  Date
+	$self->prop({
+		name => 'Boolean',
+		value => JE::Object::Boolean::_new_constructor($self),
+		dontenum => 1,
+	});
+	$self->prop({
+		name => 'Number',
+		value => JE::Object::Number::_new_constructor($self),
+		dontenum => 1,
+	});
+	# ~~~ Date
 	$self->prop({
 		name => 'RegExp',
 		value => JE::Object::RegExp->new_constructor($self),
@@ -257,7 +269,12 @@ sub new {
 			->new_constructor($self),
 		dontenum => 1,
 	});
-	# ~~~ ReferenceError
+	$self->prop({
+		name => 'ReferenceError',
+		value => JE::Object::Error::ReferenceError
+			->new_constructor($self),
+		dontenum => 1,
+	});
 	$self->prop({
 		name => 'SyntaxError',
 		value => JE::Object::Error::SyntaxError
@@ -575,7 +592,11 @@ die JE::Object::Error::URIError->new(
 	});
 
 	# E 15.1.5 / 15.8
-	# ~~~ Math object
+	$self->prop({
+		name  => 'Math',
+		value => JE::Object::Math->new($self),
+		dontenum  => 1,
+	});
 
 	$self;
 }
@@ -609,7 +630,7 @@ C<eval> evaluates the JavaScript code contained in string. E.g.:
 If an error occurs, C<undef> will be returned and C<$@> will contain the
 error message. If no error occurs, C<$@> will be a null string.
 
- This is actually just
+This is actually just
 a wrapper around C<compile> and the C<execute> method of the
 C<JE::Code> class.
 
@@ -620,8 +641,10 @@ C<get> methods to set/get the value of the property to which the lvalue
 refers. (See also L<JE::LValue>.) E.g., this will create a new object
 named C<document>:
 
-  $j->eval('document')->set({});
+  $j->eval('this.document')->set({});
 
+Note that I used C<this.document> rather than just C<document>, since the
+latter would throw an error if the variable did not exist.
 
 =cut
 
@@ -643,6 +666,10 @@ This creates and returns a new function written in Perl. If $name is given,
 it will become a property of the global object.
 
 For more ways to create functions, see L<JE::Object::Function>.
+
+B<To do:> Make this a method of JE::Object so it is more versatile. It will
+still be accessible the same way as before, since JE inherits from 
+JE::Object.
 
 =cut
 
@@ -769,14 +796,6 @@ Functions objects do not always stringify properly. The body of the
 function is
 missing. This produces warnings, too.
 
-Although the spec says that trying to reference a property of null or
-undefined is meant to throw an error, JE does not throw the error until
-the value is actually I<used>, so you can say C<undefined.property> in void
-context and no error will be thrown. An interesting side-effect of this is
-that, if you assign to C<null.whatever>, the value will be assigned to the
-C<whatever> property if the I<global> object (!). This counter-intuitive
-behaviour will be corrected.
-
 The JE::LValue and JE::Scope classes, which have C<AUTOLOAD> subs that 
 delegate methods to the objects to which they refer, do not yet implement 
 the C<can> method, so if you call $thing->can('to_string') on one of these
@@ -789,6 +808,9 @@ The documentation is a bit incoherent. It probably needs a rewrite.
 
 perl 5.8.0 or later
 
+B<Note:> JE may end up with other dependencies. It is too soon to say for
+sure.
+
 =head1 AUTHOR, COPYRIGHT & LICENSE
 
 Copyright (C) 2007 Father Chrysostomos <sprout [at] cpan
@@ -796,6 +818,12 @@ Copyright (C) 2007 Father Chrysostomos <sprout [at] cpan
 
 This program is free software; you may redistribute it and/or modify
 it under the same terms as perl.
+
+=head1 ACKNOWLEDGEMENTS
+
+Thanks to Max Maischein [ webmasterE<nbsp>E<nbsp>corion net ] for letting
+me use
+his tests.
 
 =head1 SEE ALSO
 

@@ -1,6 +1,6 @@
 package JE::Number;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 use strict;
 use warnings;
@@ -154,7 +154,7 @@ JE::Number - JavaScript number value
 =head1 DESCRIPTION
 
 This class implements JavaScript number values for JE. The difference
-in use between this and JE::Object::Number is that that module implements
+between this and JE::Object::Number is that that module implements
 number
 I<objects,> while this module implements the I<primitive> values.
 

@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 
 use strict;
@@ -30,7 +30,7 @@ JE::Function - JavaScript function class
 
   $f = new JE::Object::Function $scope, @argnames, $function;
   $f = new JE::Object::Function $scope, sub { ... };
-  $f = new_method JE::Object::Function $scope, sub { ... };
+  #$f = new_method JE::Object::Function $scope, sub { ... };
 
   # constructor that lets you do anything:
 
@@ -94,7 +94,7 @@ $function is one of
   - a coderef
 
 If C<$function> is a coderef (Perl subroutine), the arguments passed to it
-when the function is invoked will be
+when the function is invoked will be (B<this is likely to change>)
 
   0) a scope chain object (see L<JE::Scope>)
   1) the invocant (the object through which the function is invoked)
@@ -113,7 +113,8 @@ is invoked with, but with no invocant or scope chain.
 
 =item new_method JE::Object::Function $scope_or_global, sub { ... };
 
-(not yet implemented)
+(not yet implemented; in fact, I might make this a method of JE::Object
+instead, since it seems far more useful there)
 
 If you are writing a method in Perl and are not interested in the scope, 
 use this method. The first argument to the sub will be the invocant.
@@ -138,14 +139,16 @@ The name of the function. This is used only by C<toString>.
 A global object or scope chain object. If this is omitted, the
 body of the function (the C<function> element) must be a Perl coderef, and
 not a string of JS code, and it must return a JavaScript value or a simple
-scalar (not an unblessed array or hash ref).
+scalar (not an unblessed array or hash ref). (B<To do:> check that this is
+correct. I think it always has to be a blessed reference.)
 
 =item length
 
 The number of arguments expected. If this is omitted, the number of
 elements of C<argnames> will be used. If that is omitted, 0 will be used.
 Note that this does not cause the argument list to be checked. It only
-provides the C<length> property for inquisitive scripts to look at.
+provides the C<length> property (and possibly, later, an C<arity> property)
+for inquisitive scripts to look at.
 
 =item argnames
 
@@ -176,7 +179,7 @@ as follows:
 
 If C<function_args> is omitted, the first argument will be the scope chain,
 followed by the invocant, and then the arguments (as individual
-elements in C<@_>, not as an array ref).
+elements in C<@_>, not as an array ref). B<This is subject to change.>
 
 =item constructor
 
@@ -186,7 +189,8 @@ is used in Perl.
 
 If this is omitted, when C<new> or C<construct> is used, a new empty object 
 will be created and passed to the
-sub specified under C<function>. The return value of the sub will be
+sub specified under C<function> as its 'this' value. The return value of 
+the sub will be
 returned I<if> it is an object; the (possibly modified) object originally
 passed to the function will be returned otherwise.
 
@@ -195,7 +199,7 @@ passed to the function will be returned otherwise.
 Like C<function_args>, but the C<'this'> string does not apply. If 
 C<constructor_args> is
 omitted, but C<constructor> is not, the arg list will be set to
-C<[ qw( scope args ) ]>.
+C<[ qw( scope args ) ]> (B<this might change>).
 
 =item downgrade (not yet implemented)
 
@@ -269,7 +273,7 @@ sub new {
 
 	$opts{no_proto} or $self->prop({
 		name     => 'prototype',
-		dontenum => 1, # ~~~ anytink else?  # E 15.3.5.2
+		dontdel  => 1,
 		value    => JE::Object->new($scope),
 	})->prop({
 		name     => 'constructor',
@@ -486,6 +490,9 @@ Not yet implemented.
 
 =cut
 
+sub value { die "JE::Object::Function::value is not yet implemented." }
+
+
 #----------- PRIVATE SUBROUTINES ---------------#
 
 # _init_proto takes the Function prototype (Function.prototype) as its sole
@@ -603,7 +610,7 @@ sub _init_proto {
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -669,7 +676,7 @@ sub delete { # ~~~ Can delete be called on a property of a call object?
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 our @ISA = 'JE::Object';
 

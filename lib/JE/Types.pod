@@ -7,21 +7,21 @@ This is just documentation, not a module.
 =head1 DESCRIPTION
 
 The various JavaScript types and objects are represented by
-classes in JE. Each class provides the methods listed
-below. In some cases, a class may throw an exception when the
-method is called. B<Note:> This is going to change. I am going to remove
-redundant methods, and make JE::Code check for the existence of the method
-before calling it or throwing an exception.
+classes in JE. Each class provides whichever methods listed
+below apply.
 
 If you are creating your own object classes in Perl for
 JavaScript to use, you can subclass JE::Object, but you don't
-have to. Just make sure that you provide all the methods listed
-below.
+have to, in which case you ought to implement the C<prop>, C<delete>,
+C<method>,
+C<typeof>, C<class>, C<id>, C<primitive>, C<prototype> and C<to_object> 
+methods;
+otherwise TypeErrors may occur unexpectedly.
 
 =head1 UPGRADING VALUES
 
 When a value is passed to the C<prop> and C<method> methods of objects, and
-various other functions, it will be "upgraded" to a Perl object
+to various other functions, it will be "upgraded" to a Perl object
 representing a JavaScript value. This is done by the C<upgrade> method of
 the global object.
 
@@ -38,7 +38,8 @@ conversion is as follows:
   '0'             number
   other scalar    string
 
-B<WARNING:> The 'upgrading' of simple scalars (strings/numbers) is still 
+B<WARNING:> The 'upgrading' of simple scalars (strings/numbers) and regexps
+is still 
 subject to change.
 
 =head1 WHICH CLASSES ARE WHICH
@@ -49,38 +50,44 @@ is the (not
 yet)
 complete list of object classes:
 
-  JavaScript  Perl
-  ----------------
-  Object       JE::Object
-  Function     JE::Object::Function
-  Array        JE::Object::Array
-  String       JE::Object::String
-  Boolean      JE::Object::Boolean
-  Number       JE::Object::Number
-  Date         JE::Object::Date
-  RegExp       JE::Object::RegExp
-  Error        JE::Object::Error
-  SyntaxError  JE::Object::Error::SyntaxError
-  TypeError    JE::Object::Error::TypeError
-  URIError     JE::Object::Error::URIError
+  JavaScript   Perl
+  -----------------
+  Object          JE::Object
+  Function        JE::Object::Function
+  Array           JE::Object::Array
+  String          JE::Object::String
+  Boolean         JE::Object::Boolean
+  Number          JE::Object::Number
+  Date            JE::Object::Date
+  RegExp          JE::Object::RegExp
+  Error           JE::Object::Error
+  RangeError      JE::Object::Error::RangeError
+  ReferenceError  JE::Object::Error::ReferenceError
+  SyntaxError     JE::Object::Error::SyntaxError
+  TypeError       JE::Object::Error::TypeError
+  URIError        JE::Object::Error::URIError
   
 And here are the primitive types:
 
-  string      JE::String
-  number      JE::Number
-  boolean     JE::Boolean
-  null        JE::Null
-  undefined   JE::Undefined
+  string          JE::String
+  number          JE::Number
+  boolean         JE::Boolean
+  null            JE::Null
+  undefined       JE::Undefined
 
+And I might also mention a couple of special cases:
+
+  Global          JE
+  Math            JE::Object::Math
+  
 
 =head1 METHODS
 
-Each class provides the following methods. In some
-cases the method may simply die (as is the case, for instance, with the
-C<call> and C<apply> methods of non-function objects).
-
-If you define your own classes, you must implement all the methods here,
-except for C<new>, which is optional.
+Each class provides whichever of the following methods are applicable. If
+an object does not support a particular method, a TypeError will be thrown
+when JavaScript code (indirectly) tries to call that method. (For instance,
+C<'some_string'()> will attempt to call the C<call> method of JE::String,
+thus resulting in a TypeError).
 
 =over 4
 
@@ -98,6 +105,9 @@ L</UPGRADING VALUES>.) See also the S<< C<prop({ ... })> >> usage below.
 Returns a list of the names of enumerable properties. This is a list of
 Perl strings, not JE::Strings.
 
+B<WARNING:> I might just rename this and call it C<keys>, since that seems
+more intuitive.
+
 =item delete($name)
 
 Deletes the property named $name, if it is deletable. If the property did 
@@ -114,8 +124,8 @@ are automatically upgraded.
 
 =item value
 
-This returns a value that is supposed to be useful in Perl.
-C<< JE::Object::Array->value >>,
+This returns a value that is supposed to be useful in Perl. The 
+C<< value >> method of a JE::Object,
 for instance, produces an array ref.
 
 =item call(@args)
@@ -133,13 +143,16 @@ are automatically upgraded.
 
 =item construct(@args)
 
-This only applies to function objects. This is just like calling a function
-in JS with the C<new> keyword. It calls the constructor, if this 
+This is just like calling a function
+in JS with the C<new> keyword (which itself calls this method). It calls 
+the constructor, if this 
 function has one (functions written in JS
 don't have this). Otherwise, an empty object will be created and passed to 
 the 
 function as its invocant. The return value of the function will be
-discarded, and the object (possibly modified) will be returned instead.
+returned if it is an object. Otherwise it will be discarded, and the object 
+originally passed to the function will be returned instead (possibly 
+modified).
 
 =back
 
@@ -150,7 +163,8 @@ The rest of these are mostly for internal use:
 =item I<Class>->new($global_obj, @args)
 
 The C<@args> are in the same order that they are passed to the constructor
-function in JavaScript. For primitive classes, there should be only two
+function in JavaScript (for objects, not primitives. For primitive classes, 
+there should be only two
 arguments, the global object and the value.
 
 Some object classes also provide a hash ref syntax. See each object class's
@@ -179,24 +193,34 @@ This is not supported by Arguments objects. It does not work on Array
 objects when the property name is C<length> or an array index (a 
 non-negative integer 
 below
-4,294,967,295).
+4,294,967,295). It does not work on strings or String objects if the
+property name is C<length>.
+
+=item exists($property_name)
+
+Returns a boolean indicating whether the property exists. Used by 
+C<Object.prototype.hasOwnProperty>. (C<hasProperty> checks to see whether
+the return value of C<prop> is defined.)
+
+B<To do:> Make C<hasOwnProperty> use the C<exists> method. Right
+now it uses C<prop> with hashref syntax.
+
+B<To do:> Implement this method.
 
 =item is_readonly($property_name)
 
-Object method.
-
-This returns a boolean indicating whether a given property is readonly. If
+Not supported by the primitive JE classes. This returns a boolean 
+indicating whether a given property is readonly. If
 it doesn't exist, then the C<is_readonly> method of the object's prototype
 is called with the same arguments. If there is no prototype, false is 
 returned.
-This is used internally by C<prop>.
+This is used internally by JE::Object's C<prop> method.
 
 =item is_enum($property_name)
 
-Object method.
-
-This returns a boolean indicating whether a given property is enumerable.
-This is used internally by C<Object.prototype.propertyIsEnumerable>.
+Not supported (yet) by the primitive JE classes. This returns a boolean 
+indicating whether a given property is enumerable.
+This is used by C<Object.prototype.propertyIsEnumerable>.
 
 =item typeof
 
@@ -205,7 +229,8 @@ by the JS C<typeof> operator.
 
 =item class
 
-This applies to object classes only. It returns a Perl string containing
+This applies to object classes only (though this may change). It returns a 
+Perl string containing
 the type of object. This is only used by the defoult JavaScript C<toString>
 method. If you create your own object class without subclassing JE::Object,
 you should I<still> provide the C<class> method, so that this
@@ -239,10 +264,10 @@ Returns true or false.
 =item prototype ( $obj )
 
 This applies to objects only, not to primitives. This method returns the 
-prototype of the object. If C<$obj> is specified,
+prototype of the object, or undef if there is no prototype. If C<$obj> is 
+specified,
 the prototype is set to that object first. The C<prop> method uses this
-method. You should not normally need
-to call it yourself, unless you are subclassing JE::Object. 
+method, as does C<< JE::Object->new >>.
 
 =item to_primitive($preferred_type)
 
@@ -263,7 +288,8 @@ calling
 C<to_primitive('string')> or C<to_primitive('number')>, because the
 argument to C<to_primitive> is merely a I<suggestion.>
 
-The last four methods in this list should not be overridden by subclasses.
+The last four methods in this list should not be overridden by subclasses
+of JE::Object.
 
 =item global
 
@@ -279,7 +305,7 @@ overloaded ops.
 
 =head1 SEE ALSO
 
-L<JE> and all the modules listed above.
+L<JE> and all the modules listed above under L<WHICH CLASSES ARE WHICH>.
 
 =cut
 

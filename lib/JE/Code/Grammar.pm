@@ -1,6 +1,6 @@
 package JE::Code::Grammar;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 use strict;
 use warnings;
@@ -914,6 +914,7 @@ sub parse($$$) {
 		};
 		if($@) {
 			ref $@ or die;
+			UNIVERSAL::isa($@, 'UNIVERSAL') and die;
 			$@ = new JE::Object::Error::SyntaxError $my_global,
 				(ref $@ eq 'SCALAR'
 				 ? "Expected ${$@} but found '".

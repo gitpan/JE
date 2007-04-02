@@ -1,6 +1,6 @@
 package JE::Object;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 
 use strict;
@@ -40,14 +40,13 @@ JE::Object - Base class for all JavaScript objects
 
   $j = new JE;
 
-  $obj = new JE::Object $j,
-          property1 => $obj1,
-          property2 => $obj2;
+  $obj = new JE::Object $j;
 
-  $obj->prop('property1');              # returns $obj1;
   $obj->prop('property1', $new_value);  # sets the property
+  $obj->prop('property1');              # returns $new_value;
 
   $obj->props; # returns a list of the names of enumerable property
+  # (this might be renamed)
 
   $obj->delete('property_name');
 
@@ -189,28 +188,36 @@ sub prop {
 			    	unless first {$_ eq $name} @{$$guts{keys}};
 			}
 		}
+		my $props = $$guts{props};
 		if(exists $$opts{value}) {
-			return $$guts{props}{$name} =
+			return $$props{$name} =
 				$$guts{global}->upgrade($$opts{value});
 		}
-		return exists $$guts{value} ? $$guts{value} : undef;
+		return exists $$props{$name} ? $$props{$name} : undef;
 	}
 
 	else { # normal use
 		my $name = $opts;
+		my $props = $$guts{props};
 		if (@_) { # we is doing a assignment
 			my($new_val) =
 				$$guts{global}->upgrade(shift);
 
 			return $new_val if $self->is_readonly($name);
 
-			$$guts{props}{$name} = $new_val;
+			# Make sure we don't change attributes if the
+			# property already exists
+			my $exists = exists $$props{$name} &&
+				defined $$props{$name};
+
+			$$props{$name} = $new_val;
 			push @{ $$guts{keys} }, $name
-			    unless first {$_ eq $name} @{ $$guts{keys} }; 
+			    unless $exists ||
+				first {$_ eq $name} @{ $$guts{keys} }; 
+
 			return $new_val;
 		}
 		else {
-			my $props = $$guts{props};
 			my $proto;
 			return exists $$props{$name} ? $$props{$name} :
 				($proto = $self->prototype) ?
@@ -328,7 +335,7 @@ sub id {
 	refaddr shift;
 }
 
-sub primitive { 0 };
+sub primitive { !1 };
 
 sub prototype {
 	@_ > 1 ? (${+shift}->{prototype} = $_[1]) : ${+shift}->{prototype};
@@ -341,15 +348,18 @@ sub to_primitive {
 	my($self, $hint) = @_;
 
 	my @methods = ('valueOf','toString');
-	$hint eq 'string' and @methods = reverse @methods;
+	defined $hint && $hint eq 'string' and @methods = reverse @methods;
 
-	my $method;
+	my $method; my $prim;
 	for (@methods) {
 		defined($method = $self->prop($_)) || next;
-		return $method->apply($self)
+		($prim = $method->apply($self))->primitive || next;
+		return $prim;
 	}
 
-	die; # ~~~ throw a TypeError exception later
+	# This will be upgraded to a TypeError automagically.
+	die "An object of type " . (eval {$self->class} || ref $self) .
+		" cannot be converted to a primitive";
 }
 
 
@@ -375,7 +385,9 @@ sub global { ${+shift}->{global} }
 
 =item I<Class>->new_constructor( $global, \&function, \&prototype_init );
 
-B<Warning:> This method is still subject to change.
+B<WARNING:> I am going to delete this method
+since its interface is very convoluted and it is insufficient for too many
+cases. Just consider it a private method that you don't know about.
 
 You should not call this method--or read its description--unless you are 
 subclassing JE::Object. 
@@ -475,7 +487,11 @@ sub new_constructor {
 		constructor_args => ['scope','args'],
 	});
 
-	my $proto = $f->prop('prototype');
+	my $proto = $f->prop({
+		name    => 'prototype',
+		dontenum => 1,
+		readonly => 1,
+	});
 
 	$init_proto and &$init_proto($proto);
 

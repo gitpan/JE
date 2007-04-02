@@ -1,6 +1,6 @@
 package JE::Undefined;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 use strict;
 use warnings;
@@ -9,6 +9,8 @@ use overload fallback => 1,
 	'""' => 'typeof',
 	 cmp =>  sub { "$_[0]" cmp $_[1] },
 	bool =>  sub { undef };
+
+# ~~~ How should this numify?
 
 require JE::String;
 require JE::Boolean;
@@ -39,7 +41,7 @@ Undefined stringifies to 'undefined', and is false as a boolean.
 
 # A JE::Undefined object is a reference to a global object.
 
-sub new    { bless \$_[1], $_[0] }
+sub new    { bless \do{my $thing = $_[1]}, $_[0] }
 sub prop   { die }
 sub props  { die } # ~~~ implement exception-handling later
 sub delete { die } #     All exceptions that die throw a TypeError

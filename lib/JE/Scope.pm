@@ -1,6 +1,6 @@
 package JE::Scope;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 use strict;
 use warnings;
@@ -20,8 +20,8 @@ sub var {
 		$lvalue = new JE::LValue $_, $var;
 		goto FINISH;
 	}
-	# if we get this far, then we creat lvalue(null,prop)
-	$lvalue = new JE::LValue $self->[0]->null, $var;
+	# if we get this far, then we create an lvalue without a base obj
+	$lvalue = new JE::LValue \$self->[0], $var;
 
 	FINISH:
 	@_ > 2 and $lvalue->set($_[2]);
@@ -108,6 +108,12 @@ variable.
 This method creates (and optionally sets the value of) a new
 variable on the nearest end of the scope chain (the top of the scope 
 stack) and returns an lvalue.
+
+B<To do:> Correct this method such that it creates the variable in the
+first (topmost) object on the scope chain that is a call object, or uses
+C<< $scope->[0] >> if none is found. (C<with> and C<catch> are not supposed 
+to
+affect which object C<var> adds properties to.)
 
 =head1 CONSTRUCTOR
 

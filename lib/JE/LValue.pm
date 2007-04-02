@@ -1,11 +1,10 @@
 package JE::LValue;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 use strict;
 use warnings;
 
-use Scalar::Util 'blessed';
 use List::Util 'first';
 
 # ~~~ We need a C<can> method.
@@ -29,6 +28,8 @@ our $ovl_prefix = join ' ', @overload::ops{qw[ mutators func ]};
 
 use overload eq => sub {  # 'eq' is not campatible with 'nomethod' in
 	                  # perl 5.8.8
+			# ~~~ I need to learn more about 'fallback', to
+			#    see whether that can fix the problem.
 	$_[0]->get eq $_[1];
 }, nomethod => sub {
 	local $@;
@@ -58,20 +59,30 @@ use overload eq => sub {  # 'eq' is not campatible with 'nomethod' in
 
 sub new {
 	my ($class, $obj, $prop) = @_; # prop is a string
+	if(UNIVERSAL::isa($obj, 'UNIVERSAL') && can $obj 'id'){
+		my $id = $obj->id;
+		$id eq 'null' || $id eq 'undef' and die 
+			new JE::Object::Error::TypeError $obj->global,
+			$obj->to_string->value . " has no properties";
+	}
 	bless [$obj, $prop], $class;
 }
 
 sub get {
-	my $self = shift;
-	my $val = $self->[0]->prop($self->[1]);
-	defined $val ? $val : $self->[0]->global->undefined;
+	my $base = (my $self = shift)->[0];
+	UNIVERSAL::isa($base, 'UNIVERSAL') or die new 
+		JE::Object::Error::ReferenceError $$base,
+		"The variable $$self[1] has not been declared";
+		
+	my $val = $base->prop($self->[1]);
+	defined $val ? $val : $base->global->undefined;
 		# If we have a Perl undef, then the property does not
 		# not exist, and we have to return a JS undefined val.
 }
 
 sub set {
 	my $obj = (my $self = shift)->[0];
-	$obj->id eq 'null' and $obj = $$self[0] = $$obj;
+	UNIVERSAL::isa $obj, 'UNIVERSAL' or $obj = $$self[0] = $$obj;
 	$obj->prop($self->[1], shift);
 	$self;
 }
@@ -79,11 +90,13 @@ sub set {
 sub call {
 	my $base_obj = (my $self = shift)->[0];
 	my $prop = $self->get;
-	blessed $prop and can $prop 'apply' or die; # ~~~ TypeError, I fink
 	$prop->apply($base_obj, @_);
 }
 
-sub base { shift->[0] }
+sub base { 
+	my $base = $_[0][0];
+	UNIVERSAL::isa($base, 'UNIVERSAL') ? $base : ()
+}
 
 sub property { shift->[1] }
 
@@ -135,16 +148,24 @@ B<To do:> Implement the C<can> method, since it doesn't exist yet.
 Similarly, if you try to use an overloaded operator, it will be passed on 
 to
 the object that the lvalue references, such that C<!$lvalue> is the same
-as calling C<!$lvalue->get>. Note, however, that this does I<not> apply to
-the iterator (C<< <> >>) operator, the scalar dereference op (C<${}>) and 
-the special copy operator (C<=>).
+as calling C<< !$lvalue->get >>. Note, however, that this does I<not> apply 
+to
+the iterator (C<< <> >>) operator, the scalar dereference op (C<${}>) or to 
+the special copy operator (C<=>). (See L<overload> for more info on what
+that last one is).
 
 =over 4
 
 =item $lv = new JE::LValue $obj, $property
 
 Creates an lvalue/reference with $obj as the base object and $property
-as the property name.
+as the property name. If $obj is undefined or null, a TypeError is thrown.
+To create a lvalue that has no base object, and which will throw a
+ReferenceError when 
+C<< ->get >> is
+called and create a global property upon invocation of C<< ->set >>, pass
+an unblessed reference to a global object as the first argument. (This is
+used by bare identifiers in JS expressions.)
 
 =item $lv->get
 
@@ -152,7 +173,8 @@ Gets the value of the property.
 
 =item $lv->set($value)
 
-Sets the property to $value and returns $lv.
+Sets the property to $value and returns $lv. If the lvalue has no base
+object, the global object will become its base object automatically.
 
 =item $lv->call(@args)
 
@@ -161,7 +183,8 @@ base object as the 'this' value.
 
 =item $lv->base
 
-Returns the base object.
+Returns the base object. If there isn't any, it returns undef or an empty
+list, depending on context.
 
 =item $lv->property
 

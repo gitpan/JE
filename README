@@ -1,9 +1,10 @@
-JE, version 0.006
+JE, version 0.007
 
 JE is a pure-Perl ECMAScript (JavaScript) engine.
 
-This is still an alpha release. All JavaScript syntax should be parsed
-and executed correctly now. The core objects are not yet complete.
+This is still an alpha release. The core objects are not yet complete,
+but as long as you don't need dates or regular expressions,  this mod-
+ule is actually usable
 
 If  you have the time and the interest,  please experiment with this
 module. If you have any ideas as to how the API could be improved or
@@ -12,16 +13,16 @@ reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-Added the TypeError and RangeError classes
+Finished the String class
 
-Finished the Function and Array classes (except for
-Function.prototype.toString)
+Started writing the RegExp class (the constructor and the exec method
+have been written so far)
 
-Half-finished the String class
+Added the Boolean, Number and ReferenceError classes
 
-Fixed various parser bugs
+Addded the Math object
 
-Added the JE::String::surrogify function
+Fixed various bugs
 
 
 TO DO
@@ -35,6 +36,7 @@ TO DO
   the bugs they bring to light.
 - Make tainted JS code run safely
 - Deal with circular references somehow
+- Autoload built-in JS properties
 - Optimise JS functions by turning them into Perl subs (but run benchmarks
   first to see whether this would actually speed things up) (I'm having
   second thoughts about this one)

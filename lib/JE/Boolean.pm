@@ -1,6 +1,6 @@
 package JE::Boolean;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 
 use strict;
@@ -10,6 +10,8 @@ use overload fallback => 1,
 	'""' =>  sub { qw< false true >[shift->[0]] },
 	 cmp =>  sub { "$_[0]" cmp $_[1] },
 	bool =>  sub { shift->[0] };
+
+# ~~~ to do: make sure it numifies properly (as 0 or 1)
 
 require JE::Object::Boolean;
 require JE::Number;
@@ -53,7 +55,7 @@ sub call   { die }
 sub apply  { die }
 sub construct { die }
 
-sub typeof    { 'boolean' }# ~~~ I think
+sub typeof    { 'boolean' }
 sub id        { 'bool:' . shift->value }
 sub primitive { 1 }
 
@@ -62,7 +64,7 @@ sub to_boolean   { $_[0] }
 
 
 # $_[0][1] is the global object
-sub to_string { JE::String->new($_[0][1], qw< true false >[shift->[0]]) }
+sub to_string { JE::String->new($_[0][1], qw< false true >[shift->[0]]) }
 sub to_number { JE::Number->new($_[0][1], shift->[0]) }
 sub to_object { JE::Object::Boolean->new($_[0][1], shift) }
 
@@ -84,8 +86,8 @@ JE::Boolean - JavaScript boolean value
 
   $j = JE->new;
 
-  $js_true  = new JE::String $j, 1;
-  $js_false = new JE::String $j, 0;
+  $js_true  = new JE::Boolean $j, 1;
+  $js_false = new JE::Boolean $j, 0;
 
   $js_true ->value; # returns 1
   $js_false->value; # returns ""

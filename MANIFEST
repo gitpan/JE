@@ -9,11 +9,13 @@ lib/JE/Number.pm
 lib/JE/Object/Array.pm
 lib/JE/Object/Boolean.pm
 lib/JE/Object/Error/RangeError.pm
+lib/JE/Object/Error/ReferenceError.pm
 lib/JE/Object/Error/SyntaxError.pm
 lib/JE/Object/Error/TypeError.pm
 lib/JE/Object/Error/URIError.pm
 lib/JE/Object/Error.pm
 lib/JE/Object/Function.pm
+lib/JE/Object/Math.pm
 lib/JE/Object/Number.pm
 lib/JE/Object/RegExp.pm
 lib/JE/Object/String.pm
@@ -65,6 +67,8 @@ t/00.35-labelled-continue-break.t
 t/00.36-do.t
 t/00.37-return-throw.t
 t/00.38-empty.t
+t/00.39-format-chars.t
+t/00.40-white-space.t
 t/01.00-je.t
 t/01.01-je-lvalue.t
 t/01.02-je-number.t
@@ -74,5 +78,10 @@ t/01.05-je-object-function.t
 t/01.06-je-object-string.t
 t/01.07-je-scope.t
 t/01.08-je-string.t
+t/07.09-semicolon-insertion.t
+t/08.06.01-attributes.t
+t/08.06.02-internal-properties.t
+t/08.07-reference-type.t
+t/09-type-conversion.t
 t/note.text
 META.yml                                 Module meta-data (added by MakeMaker)

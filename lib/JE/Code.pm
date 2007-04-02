@@ -1,12 +1,13 @@
 package JE::Code;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 use strict;
 use warnings;
 
 use Data::Dumper;
 
+require JE::Object::Error::ReferenceError;
 require JE::Object::Error::SyntaxError;
 require JE::Object::Array;
 require JE::Code::Grammar;
@@ -90,7 +91,15 @@ sub execute {
 
 	FINISH:
 
-	$@ eq '' and !defined $rv and $rv = $scope->undefined;
+	if(!ref $@ and $@ eq '') {
+		!defined $rv and $rv = $scope->undefined;
+	}
+	else {
+		# Catch-all for any errors not dealt with elsewhere
+		ref $@ or $@ = new JE::Object::Error::TypeError
+			$$code{global}, $@;
+		# ~~~ Deal with proper line numbers later.
+	}
 
 	$rv;
 }
@@ -100,7 +109,7 @@ sub execute {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 use subs qw'_create_vars _eval_term';
 use List::Util 'first';
@@ -148,6 +157,7 @@ sub eval {  # evaluate statement
 			undef $_label;
 			return $to_return;
 		} else {
+			no warnings 'exiting';
 			last BREAK;
 		}
 	}
@@ -165,8 +175,10 @@ sub eval {  # evaluate statement
 		my $returned;
 		for (@$stm[2..$#$stm]) {
 			next if $_ eq 'empty';
-			defined($returned = $_->eval)
-				and $to_return = $returned;
+			defined($returned = $_->eval) and
+				$to_return = $returned,
+				ref $to_return eq 'JE::LValue'
+					&& get $to_return;
 		}
 		return $to_return;
 	}
@@ -213,7 +225,7 @@ sub eval {  # evaluate statement
 		
 		BREAK: {
 		if ($type eq 'do') {
-			CONT: do {
+			do { CONT: {
 				if($_label and
 				   !first {$_ eq $_label} @labels) {
 					goto NEXT;
@@ -224,7 +236,7 @@ sub eval {  # evaluate statement
 					? $$stm[2]->eval : undef)
 				and $to_return = $returned;
 
-			} while $$stm[3]->eval->to_boolean->value;
+			}} while $$stm[3]->eval->to_boolean->value;
 		}
 		elsif ($type eq 'while') {
 			CONT: while ($$stm[2]->eval->to_boolean->value) {
@@ -368,7 +380,7 @@ sub eval {  # evaluate statement
 		if (exists $$stm[2]) {
 			ref ($_return = $$stm[2]->eval) eq 'JE::LValue'
 			and $_return = get $_return;
-		} else { $_return = '' }
+		} else { $_return = undef }
 		last RETURN;
 	}
 	if ($type eq 'with') {
@@ -383,7 +395,7 @@ sub eval {  # evaluate statement
 			ref ($excep = $$stm[2]->eval) eq 'JE::LValue'
 			and $excep = get $excep;
 		}
-		die $excep;
+		die defined $excep? $excep : $_global->undefined;
 	}
 	if ($type eq 'try') {
 		# We have one of the following:
@@ -406,7 +418,13 @@ sub eval {  # evaluate statement
 			} $propagate = sub{ last BREAK }; goto FINALLY;
 			} $propagate = sub{ last RETURN }; goto FINALLY;
 		};
+		# check ref first to avoid the overhead of overloading
 		if (ref $@ || $@ ne '' and !ref $$stm[3]) { # catch
+			# Turn miscellaneous errors into TypeErrors
+			ref $@ or $@ = new JE::Object::Error::TypeError
+				$_global, $@;
+			# ~~~ Deal with line numbers?
+
 			(my $new_obj = new JE::Object $_global)
 			 ->prop({
 				name => $$stm[3],
@@ -494,7 +512,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 # See the comments in Number.pm for how I found out these constant values.
 use constant nan => sin 9**9**9;
@@ -540,8 +558,9 @@ our($_scope,$_this,$_global);
 	*{'predelete'} = sub {
 		ref(my $term = shift) eq 'JE::LValue' or return
 			new JE::Boolean $_global, 1;
+		my $base = $term->base;
 		new JE::Boolean $_global,
-			$term->base->delete($term->property);
+			defined $base ? $base->delete($term->property) : 1;
 	};
 	*{'prevoid'} = sub {
 		my $term = shift;
@@ -705,19 +724,20 @@ our($_scope,$_this,$_global);
 	};
 	*{'ininstanceof'} = sub {
 		my($obj,$func) = @_;
-		die "$func is not an object" # ~~~ TypeError
+		die new JE::Object::Error::TypeError $_global,
+			"$func is not an object"
 			if $func->primitive;
 		return new JE::Boolean $_global, 0 if $obj->primitive;
 		
 		my $proto_id = $func->prop('prototype');
-		!defined $proto_id || $proto_id->primitive and die
-			"Function $$$func{func_name} has no prototype property"; # ~~~ TypeError
+		!defined $proto_id || $proto_id->primitive and die new
+		   JE::Object::Error::TypeError $_global,
+		   "Function $$$func{func_name} has no prototype property";
 		$proto_id = $proto_id->id;
 
 		0 while (defined($obj = $obj->prototype)
-		         or return new JE::Boolean $_global, 0)
-			->id ne $proto_id;
-		# ~~~ find out about joined objects (E 13.1.2)
+		         or return new JE::Boolean $_global, 0),
+			$obj->id ne $proto_id;
 		
 		new JE::Boolean $_global, 1;
 	};
@@ -853,7 +873,11 @@ sub eval {  # evalate (sub)expression
 	my @labels;
 
 	if ($type eq 'expr') {
-		_eval_term $_ for @$expr[2..$#$expr-1];
+		my $result;
+		for (@$expr[2..$#$expr-1]) {
+			$result = _eval_term $_ ;
+			get $result if ref $result eq 'JE::LValue';
+		}
 		return _eval_term $$expr[-1];
 	}
 	if ($type eq 'assign') {
@@ -893,7 +917,10 @@ sub eval {  # evalate (sub)expression
 					$terms[-1], $val
 				);
 			$val = $val->get if ref $val eq 'JE::LValue'; 
-			$val = (pop @terms)->set($val);
+			eval { $val = (pop @terms)->set($val) };
+			$@ and die new JE::Object::Error::ReferenceError
+				$_global, "Cannot assign to a non-lvalue";
+			
 		}
 		return $val;
 	}
@@ -1026,10 +1053,11 @@ sub eval {  # evalate (sub)expression
 }
 sub _eval_term {
 	my $term = shift;
-
+my $copy = $term;
 	while (ref $term eq 'JE::Code::Expression') {
 		$term = $term->eval;
 	}
+defined $term or print "@$copy";
 	ref $term ? $term : $term eq 'this' ?
 				$_this : $_scope->var($term);
 }
@@ -1039,7 +1067,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1051,7 +1079,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 sub list {
 	my $self = shift;
@@ -1080,11 +1108,6 @@ JE::Code - ECMAScript parser and code executor for JE
   $code = $j->compile('1+1'); # returns a JE::Code object
 
   $code->execute;
-
-=head1 DESCRIPTION
-
-This parser is still in the process of being written. Right now it only
-supports a few features of the syntax.
 
 =head1 THE FUNCTION
 

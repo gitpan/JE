@@ -1,6 +1,6 @@
 package JE::String;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 
 use strict;
@@ -55,21 +55,25 @@ sub new {
 
 
 sub prop {
-	# ~~~ if length is readonly and undeletable, I can deal with it
-	#     here.
 	 # ~~~ Make prop simply return the value if the prototype has that
 	 #      property.
 	my $self = shift;
+
+	if ($_[0] eq 'length') {
+		return length $$self[0];
+	}
+
 	JE::Object::String->new($$self[1], $self)->prop(@_);
 }
 
 sub props {
 	my $self = shift;
-	JE::Object::String->new($$self[1], $self)->props;
+	$$self[1]->prop('String')->prop('prototype')->props;
 }
 
 sub delete {
 	my $self = shift;
+	if ($_[0] eq 'length') { return !1 }
 	JE::Object::String->new($$self[1], $self)->delete(@_);
 }
 
@@ -100,7 +104,7 @@ sub to_number  {
 	my $value = (my $self = shift)->[0];
 	JE::Number->new($self->[1],
 		$value =~ /^$s
-		  (?:
+		  (
 		    [+-]?
 		    (?:
 		      (?=[0-9]|\.[0-9]) [0-9]* (?:\.[0-9]*)?
@@ -111,7 +115,7 @@ sub to_number  {
 		    $s
 		  )?
 		  \z
-		/ox ? $value :
+		/ox ? defined $1 ? $value : 0 :
 		$value =~ /^$s   0[Xx] ([A-Fa-f0-9]+)   $s\z/ox ? hex $1 :
 		'NaN'
 	);
