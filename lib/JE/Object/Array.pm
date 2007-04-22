@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 use strict;
 use warnings;
@@ -10,6 +10,7 @@ use overload fallback => 1,
 
 
 use List::Util qw/min max/;
+use Scalar::Util 'blessed';
 
 our @ISA = 'JE::Object';
 
@@ -144,11 +145,11 @@ sub is_enum {
 
 
 
-sub props { # length is not enumerable
+sub keys { # length is not enumerable
 	my $self = shift;
 	my $array = $$$self{array};
 	grep(defined $$array[$_], 0..$#$array),
-		SUPER::props $self;
+		SUPER::keys $self;
 }
 
 
@@ -156,7 +157,7 @@ sub props { # length is not enumerable
 
 sub delete {  # array indices are deletable; length is not
 	my($self,$name) = @_;
-	$name eq 'length' and return 0;
+	$name eq 'length' and return !1;
 	if($name =~ /^(?:0|[1-9]\d*)\z/ and $name < 4294967295) {
 		my $array = $$$self{array};
 		$name < @$array and $$array[$name] = undef;
@@ -362,11 +363,11 @@ sub new_constructor {
 
 sub _toString {
 	my $self = shift;
+	my $guts = $$self;
 	eval{$self->class} eq 'Array'
-	or die JE::Object::Error::TypeError->new(
+	or die JE::Object::Error::TypeError->new($$guts{global},
 		'Object is not an Array');
 
-	my $guts = $$self;
 	JE::String->new(
 		$$guts{global},
 		join ',', map
@@ -378,11 +379,11 @@ sub _toString {
 
 sub _toLocaleString {
 	my $self = shift;
+	my $guts = $$self;
 	eval{$self->class} eq 'Array'
-	or die JE::Object::Error::TypeError->new(
+	or die JE::Object::Error::TypeError->new($$guts{global},
 		'Object is not an Array');
 
-	my $guts = $$self;
 	JE::String->new(
 		$$guts{global},
 		join ',', map

@@ -1,10 +1,10 @@
-JE, version 0.007
+JE, version 0.008
 
 JE is a pure-Perl ECMAScript (JavaScript) engine.
 
 This is still an alpha release. The core objects are not yet complete,
 but as long as you don't need dates or regular expressions,  this mod-
-ule is actually usable
+ule is actually usable.
 
 If  you have the time and the interest,  please experiment with this
 module. If you have any ideas as to how the API could be improved or
@@ -13,16 +13,17 @@ reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-Finished the String class
+Some API changes/improvements:
+- new_function is now a method of any object (not just the
+  global object)
+- new_method has been added as well
+- JE's 'compile' method has been renamed to 'parse'
+- The 'props' method has been renamed to 'keys'
+- A few other changes
 
-Started writing the RegExp class (the constructor and the exec method
-have been written so far)
+Fixed more bugs
 
-Added the Boolean, Number and ReferenceError classes
-
-Addded the Math object
-
-Fixed various bugs
+See the 'Changes' file for more details
 
 
 TO DO
@@ -64,6 +65,8 @@ DEPENDENCIES
 
 This module requires Perl 5.8.0 or later.
 
+Later it will probably require Unicode::Collate and Date::Parse.
+
 
 DOCUMENTATION
 
@@ -80,7 +83,11 @@ Or try using man (it's faster, in my experience):
 ACKNOWLEDGEMENTS
 
 Thanks to Max Maischein [ webmaster  corion net ] for letting me use
-his tests.
+his tests,
+
+to Andy Armstrong [ andy  hexten net ] for his suggestions,
+
+and to the CPAN Testers for their helpful bug reports.
 
 
 COPYRIGHT AND LICENCE

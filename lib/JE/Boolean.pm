@@ -1,6 +1,6 @@
 package JE::Boolean;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 
 use strict;
@@ -9,7 +9,8 @@ use warnings;
 use overload fallback => 1,
 	'""' =>  sub { qw< false true >[shift->[0]] },
 	 cmp =>  sub { "$_[0]" cmp $_[1] },
-	bool =>  sub { shift->[0] };
+	bool =>  sub { shift->[0] },
+	'0+' =>  sub { shift->[0] };
 
 # ~~~ to do: make sure it numifies properly (as 0 or 1)
 
@@ -18,8 +19,7 @@ require JE::Number;
 require JE::String;
 
 
-sub new { # If this should end up using a regexp, be sure to change the
-          # code in JE::Code::_re_ident
+sub new {
 	my($class, $global, $val) = @_;
 	bless [!!$val, $global], $class;
 }
@@ -33,9 +33,9 @@ sub prop {
 	JE::Object::Boolean->new($$self[1], $self)->prop($name);
 }
 
-sub props {
+sub keys {
 	my $self = shift;
-	JE::Object::Boolean->new($$self[1], $self)->props;
+	JE::Object::Boolean->new($$self[1], $self)->keys;
 }
 
 sub delete {
@@ -51,11 +51,10 @@ sub method {
 
 sub value { shift->[0] }
 
-sub call   { die }
-sub apply  { die }
-sub construct { die }
+sub exists { !1 }
 
 sub typeof    { 'boolean' }
+sub class     { 'Boolean' }
 sub id        { 'bool:' . shift->value }
 sub primitive { 1 }
 

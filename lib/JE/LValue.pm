@@ -1,22 +1,13 @@
 package JE::LValue;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 use strict;
 use warnings;
 
 use List::Util 'first';
+use Scalar::Util 'blessed';
 
-# ~~~ We need a C<can> method.
-
-
-# ~~~ Make it so that a TypeError is thrown when an lvalue is *created*
-#     with undefined or null as the base object. JE::Scope::var needs to
-#     be modified to pass undef as the base object when creating a ref to
-#     a non-existent var. When undef is passed to new, store an unblessed
-#     ref to the global object instead of null.
-#     -- Actually this won't work properly because the lvalue needs a ref
-#        to the global object, so I need to think this through more.
 
 # ~~~ Make 'call' use ->method instead of ->apply???
 
@@ -56,10 +47,9 @@ use overload eq => sub {  # 'eq' is not campatible with 'nomethod' in
 	$_[0]->get;
 }, '%{}' => 'get', '&{}' => 'get', '*{}' => 'get';
 
-
 sub new {
 	my ($class, $obj, $prop) = @_; # prop is a string
-	if(UNIVERSAL::isa($obj, 'UNIVERSAL') && can $obj 'id'){
+	if(defined blessed $obj && can $obj 'id'){
 		my $id = $obj->id;
 		$id eq 'null' || $id eq 'undef' and die 
 			new JE::Object::Error::TypeError $obj->global,
@@ -70,7 +60,7 @@ sub new {
 
 sub get {
 	my $base = (my $self = shift)->[0];
-	UNIVERSAL::isa($base, 'UNIVERSAL') or die new 
+	defined blessed $base or die new 
 		JE::Object::Error::ReferenceError $$base,
 		"The variable $$self[1] has not been declared";
 		
@@ -82,12 +72,13 @@ sub get {
 
 sub set {
 	my $obj = (my $self = shift)->[0];
-	UNIVERSAL::isa $obj, 'UNIVERSAL' or $obj = $$self[0] = $$obj;
+	defined blessed $obj or $obj = $$self[0] = $$obj;
 	$obj->prop($self->[1], shift);
 	$self;
 }
 
 sub call {
+	# ~~~ What happens here if $bose_obj is not blessed?
 	my $base_obj = (my $self = shift)->[0];
 	my $prop = $self->get;
 	$prop->apply($base_obj, @_);
@@ -95,7 +86,7 @@ sub call {
 
 sub base { 
 	my $base = $_[0][0];
-	UNIVERSAL::isa($base, 'UNIVERSAL') ? $base : ()
+	defined blessed $base ? $base : ()
 }
 
 sub property { shift->[1] }
@@ -107,12 +98,26 @@ sub AUTOLOAD {
 
 	 # deal with DESTROY, etc. # ~~~ Am I doing the right
 	                           #     thing?
-	return if $method =~ /^[A-Z]+\z/;
+	if($method =~ /^[A-Z]+\z/) {
+		substr($method,0,0) = 'SUPER::';
+		local $@;
+		return eval { shift->$method(@_) };
+	}
 
 	shift->get->$method(@_); # ~~~ Maybe I should use goto
 	                         #     to remove AUTOLOAD from
 	                         #     the call stack.
 }
+
+sub can { # I think this returns a *canned* lvalue, as opposed to a fresh
+          # one. :-)
+	
+	# deal with DESTROY, etc. # ~~~ Am I doing the right thing?
+	$_[1] =~ /^[A-Z]+\z/ and goto &UNIVERSAL::can;
+
+	&UNIVERSAL::can || shift->get->can(@_);
+}
+
 
 
 =head1 NAME
@@ -143,14 +148,13 @@ above.) For this reason, you should never call C<UNIVERSAL::can> on a
 JE::LValue, but, rather, call it as a method (C<< $lv->can(...) >>), unless
 you really know what you are doing.
 
-B<To do:> Implement the C<can> method, since it doesn't exist yet.
-
 Similarly, if you try to use an overloaded operator, it will be passed on 
 to
 the object that the lvalue references, such that C<!$lvalue> is the same
 as calling C<< !$lvalue->get >>. Note, however, that this does I<not> apply 
 to
-the iterator (C<< <> >>) operator, the scalar dereference op (C<${}>) or to 
+the iterator (C<< <> >>) operator, the scalar dereference op (C<${}>) nor 
+to 
 the special copy operator (C<=>). (See L<overload> for more info on what
 that last one is).
 
@@ -174,7 +178,9 @@ Gets the value of the property.
 =item $lv->set($value)
 
 Sets the property to $value and returns $lv. If the lvalue has no base
-object, the global object will become its base object automatically.
+object, the global object will become its base object automatically. 
+<Note:> Whether the lvalue object itself is modified in the latter case is
+not set in stone yet. (Currently it is modified, but that may change.) 
 
 =item $lv->call(@args)
 

@@ -1,6 +1,6 @@
 package JE::Object;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 
 use strict;
@@ -12,7 +12,7 @@ use overload fallback => 1,
 	 cmp =>  sub { "$_[0]" cmp $_[1] },
 	bool =>  sub { 1 };
 
-use Scalar::Util 'refaddr';
+use Scalar::Util qw'refaddr blessed';
 use List::Util 'first';
 use Data::Dumper;
 
@@ -45,8 +45,7 @@ JE::Object - Base class for all JavaScript objects
   $obj->prop('property1', $new_value);  # sets the property
   $obj->prop('property1');              # returns $new_value;
 
-  $obj->props; # returns a list of the names of enumerable property
-  # (this might be renamed)
+  $obj->keys; # returns a list of the names of enumerable property
 
   $obj->delete('property_name');
 
@@ -115,7 +114,7 @@ The former is what C<upgrade> itself uses.
 sub new {
 	my($class, $global, $value) = @_;
 
-	if (UNIVERSAL::isa $value, 'UNIVERSAL'
+	if (defined blessed $value
 	    and can $value 'to_object') {
 		return to_object $value;
 	}
@@ -161,6 +160,65 @@ sub ______new { # not according to spec. What *was* I thinking???
 	         global    => $global,
 	         props     => \%hash,
 	         keys      => \@keys  }, $class;
+}
+
+
+
+=item $j->new_function($name, sub { ... })
+
+=item $j->new_function(sub { ... })
+
+This creates and returns a new function object. If $name is given,
+it will become a property of the object. As with built-in JS functions, the property will not be enumerable.
+
+For more ways to create functions, see L<JE::Object::Function>.
+
+=cut
+
+sub new_function {
+	my $self = shift;
+	my $f = JE::Object::Function->new({
+		scope   => $self->global,
+		function   => pop,
+		function_args => ['args'],
+		@_ ? (name => $_[0]) : ()
+	});
+	@_ and $self->prop({
+		name => shift,
+		value=>$f,
+		dontenum=>1
+	});
+	$f;
+}
+
+
+
+
+=item $j->new_method($name, sub { ... })
+
+=item $j->new_method(sub { ... })
+
+This is the same as C<new_function>, except that the subroutine's first
+argument will be the object with which the function is called.
+
+For more ways to create functions, see L<JE::Object::Function>.
+
+=cut
+
+sub new_method {
+	my $self = shift;
+	my $f = JE::Object::Function->new({
+		scope   => $self->global,
+		function   => pop,
+		function_args => ['this','args'],
+		@_ ? (name => $_[0]) : ()
+	});
+	@_ and $self->prop({
+		name => shift,
+		value=>$f,
+		dontenum=>1
+	});
+	$f;
 }
 
 
@@ -262,10 +320,10 @@ sub is_enum {
 
 
 
-sub props {
+sub keys {
 	my $self = shift;
 	my $proto = $self->prototype;
-	@{ $$self->{keys} }, defined $proto ? $proto->props : ();
+	@{ $$self->{keys} }, defined $proto ? $proto->keys : ();
 }
 
 
@@ -275,10 +333,13 @@ sub delete {
 	my ($self, $name) = @_;
 	my $guts = $$self;
 
-	my $dontdel_list = $$guts{prop_dontdel};
-	exists $$dontdel_list{$name} and $$dontdel_list{$name}
-		and return !1;
-
+	unless($_[2]) { # second arg means always delete
+		my $dontdel_list = $$guts{prop_dontdel};
+		exists $$dontdel_list{$name} and $$dontdel_list{$name}
+			and return !1;
+	}
+	
+	delete $$guts{prop_dontdel }{$name};
 	delete $$guts{prop_dontenum}{$name};
 	delete $$guts{prop_readonly}{$name};
 	delete $$guts{props}{$name};
@@ -325,7 +386,7 @@ This returns a hash ref of the object's enumerable properties.
 
 sub value {
 	my $self = shift;
-	+{ map +($_ => $self->prop($_)), $self->props };
+	+{ map +($_ => $self->prop($_)), $self->keys };
 }
 
 

@@ -1,4 +1,0 @@
-Tests beginning with '00' are for the parser.
-Tests beginning with '01' test the Perl interface.
-The rest test JS features described in the spec and are numbered according
-to the sections of the spec.

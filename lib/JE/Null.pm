@@ -1,6 +1,6 @@
 package JE::Null;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 
 use strict;
@@ -51,8 +51,6 @@ sub new    { bless \do{my $thing = $_[1]}, $_[0] }
 sub prop   {
 	die "Null has no properties, not even one named $_[1]"
 }
-sub props  { die } # ~~~ implement exception-handling later 
-                   #     These need to throw a ReferenceError
 sub delete { JE::Boolean->new(${$_[0]}, 1) }
 sub method { die }
 sub value  { undef }

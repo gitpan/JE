@@ -1,6 +1,6 @@
 package JE::String;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 
 use strict;
@@ -12,6 +12,7 @@ use overload fallback => 1,
 
 use Carp;
 use Memoize;
+use Scalar::Util 'blessed';
 memoize 'desurrogify'; #, LIST_CACHE => 'MERGE';  # If a memoised func-
 memoize 'surrogify'; #,  LIST_CACHE => 'MERGE';  # tion is  called  in
                                                # list context the first
@@ -39,11 +40,11 @@ require Exporter;
 
 sub new {
 	my($class, $global, $val) = @_;
-	UNIVERSAL::isa($global,'UNIVERSAL')
+	defined blessed $global
 	   or croak "First argument to JE::String->new is not an object";
 
 	my $self;
-	if(UNIVERSAL::isa($val,'UNIVERSAL') and $val->can('to_string')) {
+	if(defined blessed $val and $val->can('to_string')) {
 		$self = bless [$val->to_string->[0], $global], $class;
 	}
 	else {
@@ -66,9 +67,9 @@ sub prop {
 	JE::Object::String->new($$self[1], $self)->prop(@_);
 }
 
-sub props {
+sub keys {
 	my $self = shift;
-	$$self[1]->prop('String')->prop('prototype')->props;
+	$$self[1]->prop('String')->prop('prototype')->keys;
 }
 
 sub delete {

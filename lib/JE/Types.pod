@@ -98,22 +98,25 @@ thus resulting in a TypeError).
 Gets or sets a property. Setting a property returns the new
 value. The new value will be converted to a JS value
 automatically if it is not one already. (See
-L</UPGRADING VALUES>.) See also the S<< C<prop({ ... })> >> usage below.
+L</UPGRADING VALUES>.) The return value will be a Perl undef if the
+property does not exist. See also the S<< C<prop({ ... })> >> usage below.
 
-=item props
+=item keys
 
 Returns a list of the names of enumerable properties. This is a list of
 Perl strings, not JE::Strings.
 
-B<WARNING:> I might just rename this and call it C<keys>, since that seems
-more intuitive.
-
 =item delete($name)
+
+=item delete($name, $even_if_its_undeletable)
 
 Deletes the property named $name, if it is deletable. If the property did 
 not exist or it was deletable, then
 true is returned. If the property exists and could not be deleted, false
 is returned.
+
+If the second argument is given and is true, the property will be deleted
+even if it is marked is undeletable, if the object supports it.
 
 The return value is a Perl scalar, not a JE::Boolean.
 
@@ -165,7 +168,7 @@ The rest of these are mostly for internal use:
 The C<@args> are in the same order that they are passed to the constructor
 function in JavaScript (for objects, not primitives. For primitive classes, 
 there should be only two
-arguments, the global object and the value.
+arguments, the global object and the value).
 
 Some object classes also provide a hash ref syntax. See each object class's
 respective man page.
@@ -198,8 +201,10 @@ property name is C<length>.
 
 =item exists($property_name)
 
-Returns a boolean indicating whether the property exists. Used by 
-C<Object.prototype.hasOwnProperty>. (C<hasProperty> checks to see whether
+Returns a boolean indicating whether the property exists and is not
+inherited from a prototype. Used by 
+C<Object.prototype.hasOwnProperty>. (The C<in> operator checks to see 
+whether
 the return value of C<prop> is defined.)
 
 B<To do:> Make C<hasOwnProperty> use the C<exists> method. Right
@@ -229,7 +234,9 @@ by the JS C<typeof> operator.
 
 =item class
 
-This applies to object classes only (though this may change). It returns a 
+This applies to object classes only (though is going to change, so that
+primitives can pretend to be objects). It returns 
+a 
 Perl string containing
 the type of object. This is only used by the defoult JavaScript C<toString>
 method. If you create your own object class without subclassing JE::Object,

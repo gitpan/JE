@@ -1,6 +1,6 @@
 package JE::Number;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 use strict;
 use warnings;
@@ -40,6 +40,8 @@ use overload fallback => 1,
 	'0+' => 'value',
 	 cmp =>  sub { "$_[0]" cmp $_[1] };
 
+use Scalar::Util 'blessed';
+
 require JE::String;
 require JE::Boolean;
 require JE::Object::Number;
@@ -51,7 +53,7 @@ require JE::Object::Number;
 sub new    {
 	my ($class,$global,$val) = @_;
 	
-	if(UNIVERSAL::isa($val, 'UNIVERSAL') and can $val 'to_number') {
+	if(defined blessed $val and can $val 'to_number') {
 		my $new_val = $val->to_number;
 		ref $new_val eq $class and return $new_val;
 		eval { $new_val->isa(__PACKAGE__) } and
@@ -81,9 +83,9 @@ sub prop {
 	JE::Object::Number->new($$self[1], $self)->prop($name);
 }
 
-sub props {
+sub keys {
 	my $self = shift;
-	JE::Object::Number->new($$self[1], $self)->props;
+	JE::Object::Number->new($$self[1], $self)->keys;
 }
 
 sub delete {
@@ -102,7 +104,15 @@ sub value {
 
 
 sub typeof    { 'number' }
-sub id        { 'num:' . shift->value }
+sub id        { 
+	my $value = shift->value;
+	# This should (I hope) take care of systems that stringify nan and
+	# inf oddly:
+	'num:' . ($value eq   nan ?  'nan' : 
+	          $value ==   inf ?  'inf' :
+	          $value == -+inf ? '-inf' :
+	          $value)
+}
 sub primitive { 1 }
 
 sub to_primitive { $_[0] }

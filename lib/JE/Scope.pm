@@ -1,6 +1,6 @@
 package JE::Scope;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 use strict;
 use warnings;
@@ -30,22 +30,32 @@ sub var {
 
 sub new_var {
 	my ($self,$var) = (shift,shift);
-	if (defined $$self[-1]->prop($var)) {
-		$$self[-1]->prop($var, shift) if @_;
+	my $var_obj;
+	for(reverse @$self[1..$#$self]) { # Object  0  can't  be  a  call 
+	                                 # object. Omitting it should the-
+	                               # oretically make  things  margin-
+	                            # ally faster.
+		ref $_ eq 'JE::Object::Function::Call' and
+			$var_obj = $_,
+			last;
+	}
+	defined $var_obj or $var_obj = $$self[0];
+
+	if (defined $var_obj->prop($var)) {
+		$var_obj->prop($var, shift) if @_;
 	}
 	else {
-		$$self[-1]->prop($var, @_ ? shift :
+		$var_obj->prop($var, @_ ? shift :
 			$$self[0]->undefined);
+
+		# This is very naughty code, but it works.	
+		$JE::Code::Expression::_eval or $var_obj->prop({
+			name => $var,
+			dontdel => 1,
+		});
 	}
 
-	# This is very naughty code, but it works.	
-	$JE::Code::Expression::_eval or $$self[-1]->prop({
-		name => $var,
-		dontdel => 1,
-	});
-
-
-	return new JE::LValue $self->[-1], $var
+	return new JE::LValue $var_obj, $var
 		unless not defined wantarray;
 }
 
@@ -54,7 +64,11 @@ sub AUTOLOAD { # This delegates the method to the global object
 
 	 # deal with DESTROY, etc. # ~~~ Am I doing the right
 	                           #     thing?
-	return if $method =~ /^[A-Z]+\z/;
+	if($method =~ /^[A-Z]+\z/) {
+		substr($method,0,0) = 'SUPER::';
+		local $@;
+		return eval { shift->$method(@_) };
+	}
 
 	shift->[0]->$method(@_); # ~~~ Maybe I should use goto
 	                         #     to remove AUTOLOAD from
@@ -106,14 +120,12 @@ variable.
 =item new_var($name)
 
 This method creates (and optionally sets the value of) a new
-variable on the nearest end of the scope chain (the top of the scope 
-stack) and returns an lvalue.
+variable in the variable object and returns an lvalue.
 
-B<To do:> Correct this method such that it creates the variable in the
-first (topmost) object on the scope chain that is a call object, or uses
-C<< $scope->[0] >> if none is found. (C<with> and C<catch> are not supposed 
-to
-affect which object C<var> adds properties to.)
+The variable object is the first object in the scope chain 
+(searching from the top of the 
+stack) that is a call object, or C<< $scope->[0] >> if no call object is 
+found.
 
 =head1 CONSTRUCTOR
 

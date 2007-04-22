@@ -11,9 +11,10 @@ use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 use Encode qw< decode_utf8 encode_utf8 FB_CROAK >;
+use Scalar::Util 'blessed';
 
 our @ISA = 'JE::Object';
 
@@ -46,7 +47,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.007 (alpha release)
+Version 0.008 (alpha release)
 
 =head1 SYNOPSIS
 
@@ -57,10 +58,10 @@ Version 0.007 (alpha release)
   $j->eval('({"this": "that", "the": "other"}["this"])');
   # returns "that"
 
-  $compiled = $j->compile('new Array(1,2,3)');
+  $parsed = $j->parse('new Array(1,2,3)');
  
-  $rv = $compiled->execute; # returns a JE::Object::Array
-  $rv->value;               # returns a Perl array ref
+  $rv = $parsed->execute; # returns a JE::Object::Array
+  $rv->value;             # returns a Perl array ref
 
   $obj = $j->eval('new Object');
   # create a new object
@@ -71,16 +72,21 @@ Version 0.007 (alpha release)
 
   $j->method(alert => "text"); # invoke a method
 
-  # create global functions:
-  $j->new_function(correct => sub {
-          my $x = shift;
-          $x =~ y/AEae/EAea/;
-          substr($x,1,3) =~ y/A-Z/a-z/;
-          return $x;
-  } );
+
+  # create global function from a Perl subroutine:
   $j->new_function(print => sub { print @_, "\n" } );
 
-  $j->eval('print(correct("ECMAScript"))'); # :-)
+  $j->eval(<<'--end--');
+          function correct(s) {
+                  s = s.replace(/[EA]/g, function(s){
+                          return ['E','A'][+(s=='E')]
+                  })
+                  return s.charAt(0) +
+                         s.substring(1,4).toLowerCase() +
+                         s.substring(4)
+          }
+          print(correct("ECMAScript")) // :-)
+  --end--
   
 =head1 DESCRIPTION
 
@@ -322,14 +328,24 @@ sub new {
 			scope    => $self,
 			name     => 'eval',
 			argnames => ['x'],
-			function_args => [qw< scope args >],
+			function_args => [qw< args >],
 			function => sub {
-				my($scope,$code) = @_;
-				return $code if class $code ne 'String'; # ~~~ I think this is wrong. (should be typeof $code eq 'string')
-				$scope->eval($code);
-				# ~~~ Find out what the spec means by
-				#     'if the completion value is empty'
-				# ~~~ Add exception handling
+				my($code) = @_;
+				return $self->undefined unless defined
+					$code;
+				return $code if typeof $code ne 'string';
+				my $old_at = $@;
+				defined (my $tree = $self->parse($code))
+					or die;
+				my $ret = execute $tree
+					$JE::Code::Expression::_this,
+					$JE::Code::Expression::_scope, 1;
+
+				ref $@ ne '' and die;
+				
+				$@ = $old_at; # local $@ doesn't work
+				              # properly inside an eval
+				$ret;
 			},
 			no_proto => 1,
 		}),
@@ -604,10 +620,14 @@ die JE::Object::Error::URIError->new(
 
 
 
-=item $j->compile( STRING )
+=item $j->parse( STRING )
 
-C<compile> parses the code contained in C<STRING> and returns a parse
+C<parse> parses the code contained in C<STRING> and returns a parse
 tree (a JE::Code object).
+
+If the syntax is not valid, C<undef> will be returned and C<$@> will 
+contain an
+error message. Otherwise C<$@> will be a null string.
 
 The JE::Code class provides the method 
 C<execute> for executing the 
@@ -615,8 +635,8 @@ pre-compiled syntax tree.
 
 =cut
 
-sub compile {
-	JE::Code::parse(@_);
+sub parse {
+	goto &JE::Code::parse;
 }
 
 
@@ -631,7 +651,7 @@ If an error occurs, C<undef> will be returned and C<$@> will contain the
 error message. If no error occurs, C<$@> will be a null string.
 
 This is actually just
-a wrapper around C<compile> and the C<execute> method of the
+a wrapper around C<parse> and the C<execute> method of the
 C<JE::Code> class.
 
 If the JavaScript code evaluates to an lvalue, a JE::LValue object will be
@@ -649,7 +669,7 @@ latter would throw an error if the variable did not exist.
 =cut
 
 sub eval {
-	my $code = shift->compile(shift);
+	my $code = shift->parse(shift);
 	$@ and return;
 
 	$code->execute;
@@ -662,34 +682,29 @@ sub eval {
 
 =item $j->new_function(sub { ... })
 
-This creates and returns a new function written in Perl. If $name is given,
+This creates and returns a new function object. If $name is given,
 it will become a property of the global object.
+
+Use this to make a Perl subroutine accessible from JavaScript.
 
 For more ways to create functions, see L<JE::Object::Function>.
 
-B<To do:> Make this a method of JE::Object so it is more versatile. It will
-still be accessible the same way as before, since JE inherits from 
-JE::Object.
+This is actually a method of JE::Object, so you can use it on any object:
 
-=cut
-
-sub new_function {
-	my $self = shift;
-	my $f = JE::Object::Function->new({
-		scope   => $self,
-		function   => pop,
-		function_args => ['args'],
-		@_ ? (name => $_[0]) : ()
-	});
-	@_ and $self->prop({
-		name => shift,
-		value=>$f,
-		dontdel=>1
-	});
-	$f;
-}
+  $j->prop('Math')->new_function(double => sub { 2 * shift });
 
 
+=item $j->new_method($name, sub { ... })
+
+This is just like C<new_function>, except that, when the function is
+called, the subroutine's first argument (number 0) will be the object
+with which the function is called. E.g.:
+
+  $j->eval('String.prototype')->new_method(
+          reverse => sub { scalar reverse shift }
+  );
+  # ... then later ...
+  $j->eval(q[ 'a string'.reverse() ]); # returns 'gnirts a'
 
 
 =item $j->upgrade( @values )
@@ -705,13 +720,12 @@ is subject to change, so don't do that.
 
 =cut
 
-sub upgrade { # ~~~ I need correct the use of the object constructor, once
-              #     I've fixed that.
+sub upgrade {
 	my @__;
 	my $self = shift;
 	for (@_) {
 		push @__,
-		  UNIVERSAL::isa($_, 'UNIVERSAL')
+		  defined blessed $_
 		?	$_
 		: !defined()
 		?	$self->undefined
@@ -796,11 +810,19 @@ Functions objects do not always stringify properly. The body of the
 function is
 missing. This produces warnings, too.
 
-The JE::LValue and JE::Scope classes, which have C<AUTOLOAD> subs that 
-delegate methods to the objects to which they refer, do not yet implement 
-the C<can> method, so if you call $thing->can('to_string') on one of these
-you will get a false return value, even though these objects I<can>
+The JE::Scope class, which has an C<AUTOLOAD> sub that 
+delegates methods to the global object, does not yet implement 
+the C<can> method, so if you call $scope->can('to_string')
+you will get a false return value, even though scope objects I<can>
 C<to_string>.
+
+NaN and Infinity currently stringify in Perl as 'nan' and 'inf'. This is
+unintentional, and is going to change.
+
+NaN was not working properly on some systems (e.g., OpenBSD).
+I think I've fixed it, but I can't test it myself, so I'll have to wait
+till the CPAN testers get their hands on it before removing it from this
+list.
 
 The documentation is a bit incoherent. It probably needs a rewrite.
 
@@ -808,8 +830,8 @@ The documentation is a bit incoherent. It probably needs a rewrite.
 
 perl 5.8.0 or later
 
-B<Note:> JE may end up with other dependencies. It is too soon to say for
-sure.
+B<Note:> JE will probably end up with Date::Parse and Unicode::Collate in
+the list of dependencies.
 
 =head1 AUTHOR, COPYRIGHT & LICENSE
 
@@ -823,7 +845,11 @@ it under the same terms as perl.
 
 Thanks to Max Maischein [ webmasterE<nbsp>E<nbsp>corion net ] for letting
 me use
-his tests.
+his tests,
+
+to Andy Armstrong [ andyE<nbsp>E<nbsp>hexten net ] for his suggestions,
+
+and to the CPAN Testers for their helpful bug reports.
 
 =head1 SEE ALSO
 

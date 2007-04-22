@@ -2,6 +2,8 @@
 
 # Tests lvalues (aka 'references')
 
+BEGIN { require './t/test.pl' }
+
 use Test::More tests => 9;
 use strict;
 use utf8;

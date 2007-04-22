@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 
 use strict;
@@ -10,6 +10,8 @@ sub surrogify($);
 sub desurrogify($);
 
 our @ISA = 'JE::Object';
+
+use Scalar::Util 'blessed';
 
 require JE::Object                 ;
 require JE::Object::Error::TypeError;
@@ -56,7 +58,7 @@ sub new {
 	});
 
 	$$$self{value} = defined $val
-		? UNIVERSAL::isa($val, 'UNIVERSAL')
+		? defined blessed $val
 		  && $val->can('to_string')
 			? $val->to_string->[0]
 			: surrogify $val
@@ -433,8 +435,8 @@ sub _new_constructor {
 					    JE::String->new($global,
 					        substr $str, $-[0],
 					            $+[0] - $-[0]),
-					    JE::String->new($global,
-					        map $$_, 1..$#+),
+					    map(JE::String->new($global,
+					        $$_), 1..$#+),
 					    JE::Number->new($global,
 					        $-[0]),
 					    $je_str
@@ -443,8 +445,8 @@ sub _new_constructor {
 					    JE::String->new($global,
 					        substr $str, $-[0],
 					            $+[0] - $-[0]),
-					    JE::String->new($global,
-					        map $$_, 1..$#+),
+					    map(JE::String->new($global,
+					        $$_), 1..$#+),
 					    JE::Number->new($global,
 					        $-[0]),
 					    $je_str
@@ -579,6 +581,12 @@ atomic group: /(?> ... )/
 Perl automatically behaves as though something similar to the following is
 appended to the regexp: (?(?{ $pos == pos })(?!)|(?{ $pos = pos }))
 
+But I also need to make sure that a null match does not occur at the end of
+a string. Since a successful match that begins at the end of a string can-
+not but be a zero-length match, this should take care of that:
+
+/(?!\z)(?> ... )/
+
 
 join ',', split /a*?/, 'aardvark'       gives ',,r,d,v,,r,k'
 'aardvark'.split(/a*?/).toString()      gives 'a,a,r,d,v,a,r,k'
@@ -607,9 +615,9 @@ my($str, $sep, $limit) = @_;
 $str = $str->to_string->[0];
 
 if(!defined $limit || $limit->id eq 'undef') {
-	$limit = 4294967295;
+	$limit = -2;
 }
-else {
+elsif(defined $limit) {
 	$limit = int($limit->to_number->value) % 2 ** 32;
 	$limit = $limit == $limit && $limit;  # Nan --> 0
 }
@@ -631,11 +639,12 @@ my $pos = 0;
 if (!ref $sep) { $sep = quotemeta $sep }
 elsif ($sep !~ /^\(\?-\w*:(?:\(\?\w*:\))?\)\z/ # empty regex
       ) {
-	$sep = qr/(?>$sep)/;
+	$sep = qr/(?!\z)(?>$sep)/;
 }
 
+my @split = split $sep, $str, $limit+1;
 JE::Object::Array->new($global,
-	[(split $sep, $str, $limit+1)[0..$limit-1]]);
+	$limit == -2 ? @split : @split[0..$limit-1]);
 
 			},
 		}),
@@ -664,11 +673,11 @@ if (defined $start) {
 else { $start =  0; }
 
 
-if (!defined $end && $end->id eq 'undef') {
+if (!defined $end || $end->id eq 'undef') {
 	$end = $length;
 }
 else {
-	$end = int $start->to_number->value;
+	$end = int $end->to_number->value;
 	$end >= 0 or $end = 0;
 }
 

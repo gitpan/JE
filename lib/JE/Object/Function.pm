@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 
 use strict;
@@ -29,8 +29,7 @@ JE::Function - JavaScript function class
   # simple constructors:
 
   $f = new JE::Object::Function $scope, @argnames, $function;
-  $f = new JE::Object::Function $scope, sub { ... };
-  #$f = new_method JE::Object::Function $scope, sub { ... };
+  $f = new JE::Object::Function $scope, $function;
 
   # constructor that lets you do anything:
 
@@ -68,7 +67,7 @@ a C<constructor> property that refers to the function itself.
 The return value of the function will be upgraded if necessary (see 
 L<UPGRADING VALUES|JE::Types/UPGRADING VALUES> in the JE::Types man page),
 which is why C<new> I<has> to be given a reference to the global object
-or the scope chain. (But see also L<JE/new_function>.)
+or the scope chain. (But see also L<JE/new_function> and L<JE/new_method>.)
 
 A function written in Perl can return an lvalue if it wants to. Use
 S<< C<new JE::LValue($object, 'property name')> >> to create it. To create 
@@ -76,9 +75,13 @@ an lvalue
 that
 refers to a variable visible within the function's scope, use
 S<< C<<< $scope->var('varname') >>> >> (this assumes that you have
-shifted the scope object off C<@_> and called it C<$scope>).
+shifted the scope object off C<@_> and called it C<$scope>; you also need
+to call C<new> with hashref syntax and specify the C<function_args> [see
+below]).
 
 =item new JE::Object::Function $scope_or_global, @argnames, $function;
+
+=item new JE::Object::Function $scope_or_global, $function;
 
 C<$scope_or_global> is one of the following:
 
@@ -92,35 +95,6 @@ $function is one of
   - a string containing the body of the function (JavaScript code)
   - a JE::Code object
   - a coderef
-
-If C<$function> is a coderef (Perl subroutine), the arguments passed to it
-when the function is invoked will be (B<this is likely to change>)
-
-  0) a scope chain object (see L<JE::Scope>)
-  1) the invocant (the object through which the function is invoked)
-  2..) the arguments
-
-The function object itself can be accessed via
-C<< $_[0]->var('arguments')->prop('callee') >> (though I admit that is a
-bit much to type).
-
-
-=item new JE::Object::Function $scope_or_global, sub { ... };
-
-In this case, the subroutine will be called with the arguments the function
-is invoked with, but with no invocant or scope chain.
-
-
-=item new_method JE::Object::Function $scope_or_global, sub { ... };
-
-(not yet implemented; in fact, I might make this a method of JE::Object
-instead, since it seems far more useful there)
-
-If you are writing a method in Perl and are not interested in the scope, 
-use this method. The first argument to the sub will be the invocant.
-The remaining arguments will be those with which JavaScript called the
-function.
-
 
 =item new JE::Object::Function { ... };
 
@@ -177,9 +151,7 @@ as follows:
           arguments)
   [args]  the arguments passed to the function (as an array ref)
 
-If C<function_args> is omitted, the first argument will be the scope chain,
-followed by the invocant, and then the arguments (as individual
-elements in C<@_>, not as an array ref). B<This is subject to change.>
+If C<function_args> is omitted, 'args' will be assumed.
 
 =item constructor
 
@@ -198,8 +170,11 @@ passed to the function will be returned otherwise.
 
 Like C<function_args>, but the C<'this'> string does not apply. If 
 C<constructor_args> is
-omitted, but C<constructor> is not, the arg list will be set to
+omitted, the arg list will be set to
 C<[ qw( scope args ) ]> (B<this might change>).
+
+This is completely ignored if C<constructor> is
+omitted.
 
 =item downgrade (not yet implemented)
 
@@ -223,8 +198,6 @@ property.
 
 =item new JE::Object::Function
 
-=item new_method JE::Object::Function (not yet implemented)
-
 See L<OBJECT CREATION>.
 
 =cut
@@ -239,9 +212,9 @@ sub new {
 		$scope = $opts{scope};
 	}
 	else {
-		%opts = ref($_[0]) eq 'CODE'
-		? 	( function      => shift,
-			  function_args => ['args'], )
+		%opts = @_ == 0  # bypass param-parsing for the sake of
+		                 # efficiency
+		? 	( function => shift )
 		: 	( argnames => do {
 				my $src = '(' . join(',', @_[0..$#_-1]) .
 					')';
@@ -252,12 +225,11 @@ sub new {
 				$@ and die $@;
 				$params;
 			  },
-			  function => pop,
-			  function_args => [qw<scope this args>] )
+			  function => pop )
 		;
 	}
 
-	UNIVERSAL::isa($scope,'UNIVERSAL')
+	defined blessed $scope
 	    or croak "The 'scope' passed to JE::Object::Function->new ($scope) is not an object";
 
 	ref $scope ne 'JE::Scope' and $scope = bless [$scope], 'JE::Scope';
@@ -310,7 +282,7 @@ sub new {
 	$$guts{func_args} = [
 		ref $opts{function_args} eq 'ARRAY'
 		? @{$opts{function_args}} :
-		('scope', 'this', 'args')
+		'args'
 	];
 
 	if(exists $opts{constructor}) {
@@ -318,6 +290,7 @@ sub new {
 		$$guts{constructor_args} = [
 			ref $opts{constructor_args} eq 'ARRAY'
 			? @{$opts{constructor_args}} : ('scope', 'args')
+				# ~~~ what is the most useful default here?
 		];
 	}
 	if(exists $opts{name}) {
@@ -326,10 +299,6 @@ sub new {
 	 	
 	$self;
 }
-
-#sub new_method {
-# ~~~
-#}
 
 
 
@@ -411,8 +380,8 @@ sub apply { # ~~~ we need to upgrade the args passed to apply, but still
 	my ($self, $obj) = (shift, shift);
 	my $guts = $$self;
 
-	if(!blessed $obj or $obj->id =~ /^(?:null|undef)\z/
-	    or ref $obj eq 'JE::Object::Function::Call') {
+	if(!blessed $obj or ref $obj eq 'JE::Object::Function::Call' 
+	    or $obj->id =~ /^(?:null|undef)\z/) {
 		$obj = $$guts{global};
 	}
 	else {
@@ -436,12 +405,21 @@ sub apply { # ~~~ we need to upgrade the args passed to apply, but still
 			?	[@_] # ~~~ downgrade if wanted
 			: 	undef;
 		}
-		return $$guts{global}->upgrade($$guts{function}->(@args));
+		return $$guts{global}->upgrade(
+			scalar $$guts{function}->(@args)
+			# ~~~ Add support for list context once I've
+			#     figured out the exact behaviour--if it makes
+			#     sense.
+		);
 	}
 	elsif ($$guts{function}) {
-		$$guts{function}->execute($obj, _init_scope($self, 
-			$$guts{scope}, $$guts{func_argnames}, @_
-		) );
+		my $at = $@;
+		my $ret = $$guts{function}->execute($obj, _init_scope(
+			$self, $$guts{scope}, $$guts{func_argnames}, @_
+		), 2 );
+		defined $ret or die;
+		$@ = $at;
+		return $ret;
 	}
 	else {
 		return $$guts{global}->undefined;
@@ -548,8 +526,9 @@ sub _init_proto {
 			function => sub {
 				my($self,$obj,$args) = @_;
 
-				local $@;
+				my $at = $@;
 
+				no warnings 'uninitialized';
 				if(defined $args and
 				   ref $args ne 
 					'JE::Object::Function::Arguments'
@@ -559,13 +538,13 @@ sub _init_proto {
 					      . "'apply' is of type '" . 
 					      (eval{$args->class} ||
 					       eval{$args->typeof} ||
-					       'unknown') .
+					       ref $args) .
 					      "', not 'Arguments' or " .
 					      "'Array'");
 				}
-				$args = $args->value;
-				$self->apply($obj,
-					defined $args ? @$args : ());
+				$@ = $at;
+				$self->apply($obj, defined $args ?
+					@{$args->value} : ());
 			},
 		}),
 		dontenum  => 1,
@@ -610,27 +589,28 @@ sub _init_proto {
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
 
 	my($class,$opts) = @_;
 	my @args = @{$$opts{args}};
-	my %self = map {
-		my $arg_val =shift @args;
-		$_ => defined $arg_val ? $arg_val :
+	my(%self,$arg_val);
+	for(@{$$opts{argnames}}){
+		$arg_val = shift @args;
+		$self{-dontdel}{$_} = 1;
+		$self{$_} = defined $arg_val ? $arg_val :
 			$$opts{global}->undefined;
-	} @{$$opts{argnames}};
+	}
+
+	$self{-dontdel}{arguments} = 1;
 
 	$self{'-global'}  = $$opts{global};
 	# A call object's properties can never be accessed via bracket
 	# syntax, so '-global' cannot conflict with properties, since the
-	# latter have to be valid identifiers.
-	# ~~~ Except that I'm lax with regard to \uHHHH escapes,
-	#     so I have to make the parser more strict by disal-
-	#     lowing '-' (in escaped form) at the beginning of
-	#     an identifier.
+	# latter have to be valid identifiers. Same 'pplies to dontdel, o'
+	# course.
 	
 
 	unless (exists $self{arguments}) {
@@ -650,9 +630,13 @@ sub new {
 sub prop {
 	my ($self, $name)  =(shift,shift);
 
-	# This very naughty line assumes it's being called by
-	# JE::Scope::new_var:
-	return if ref $name eq 'HASH';
+	if(ref $name eq 'HASH') {
+		my $opts = $name;
+		$name = $$opts{name};
+		@_ = exists($$opts{value}) ? $$opts{value} : ();
+		$$self{'-dontdel'}{$name} = !!$$opts{dontdel}
+			if exists $$opts{dontdel};
+	}
 
 	if (@_ ) {
 		return $$self{$name} = $$self{'-global'}->upgrade(shift);
@@ -665,10 +649,16 @@ sub prop {
 	return
 }
 
-sub delete { # ~~~ Can delete be called on a property of a call object?
-             #     If so, does the arguments object still retain that prop?
-	# 'arguments' has an attribute of 'dontdel'
-
+sub delete {
+	my ($self,$varname) = @_;
+	unless($_[2]) { # if $_[2] is true we delete it anyway
+		exists $$self{-dontdel}{$varname}
+			&& $$self{-dontdel}{$varname}
+			&& return !1;
+	}
+	delete $$self{-dontdel}{$varname};
+	delete $$self{$varname};
+	return 1;
 }
 
 
@@ -676,7 +666,7 @@ sub delete { # ~~~ Can delete be called on a property of a call object?
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 our @ISA = 'JE::Object';
 
@@ -694,7 +684,7 @@ sub new {
 	});
 	$self->prop({
 		name => 'length',
-		value => scalar @args,
+		value => JE::Number->new($global, scalar @args),
 		dontenum => 1,
 	});
 	$$guts{args_length} = @args; # in case the length prop
@@ -702,7 +692,8 @@ sub new {
 
 =begin pseudocode
 
-Go through the named args one by one in reverse order.
+Go through the named args one by one in reverse order, starting from $#args
+if $#args < $#params
 
 If an arg with the same name as the current one has been seen
 	Create a regular numbered property for that arg.
@@ -714,7 +705,7 @@ Else
 =cut
 
 	my (%seen,$name,$val);
-	for (reverse 0..$#$argnames) {
+	for (reverse 0..($#args,$#$argnames)[$#$argnames < $#args]) {
 		($name,$val) = ($$argnames[$_], $args[$_]);
 		if($seen{$name}++) {
 			$self->prop({

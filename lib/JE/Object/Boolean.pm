@@ -1,12 +1,14 @@
 package JE::Object::Boolean;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 
 use strict;
 use warnings;
 
 our @ISA = 'JE::Object';
+
+use Scalar::Util 'blessed';
 
 require JE::Boolean;
 require JE::Object::Error::TypeError;
@@ -52,7 +54,7 @@ sub new {
 	});
 
 	$$$self{value} = defined $val
-		? UNIVERSAL::isa($val, 'UNIVERSAL')
+		? defined blessed $val
 		  && $val->can('to_boolean')
 			? $val->to_boolean->[0]
 			: !!$val

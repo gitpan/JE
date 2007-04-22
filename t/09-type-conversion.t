@@ -1,5 +1,7 @@
 #!perl -T
 
+BEGIN { require './t/test.pl' }
+
 use Test::More tests => 300;
 use strict;
 use utf8;

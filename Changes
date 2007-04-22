@@ -1,5 +1,80 @@
 Revision history for JE
 
+0.008   22 April, 2007
+        New features and API changes in this release:
+        - Added JE::LValue's can method
+        - new_function has been moved from JE to JE::Object, to make
+          it more versatile
+        - new_method has been written as a method of JE::Object
+        - Changed the interface of JE::Code's 'execute' method, so that
+          the third arg has three possible values  for  indicating  the
+          type of code, and is no longer a boolean
+        - Changed the delete method of JS values to support a second
+          arg (see JE::Types)
+        - Renamed the 'props' method to 'keys'
+        - Renamed JE::compile to JE::parse
+        - Added the 'exists' and 'class' methods to JE::Boolean
+        - Added numification overloading to JE::Boolean
+        Bug fixes:
+        - Fixed the ~ operator so it works on 64-bit platforms
+        - Changed most calls to 'UNIVERSAL::isa($thing, UNIVERSAL)' to
+         'defined Scalar::Util::blessed $thing', since the former also 
+          works with strings containing package names  (and  does  not
+          necessarily tell whether something is blessed). This bug was
+          causing strange errors.
+        - Fixed a bug that was making errors thrown by JS  functions
+          called from within JavaScript cause lots of warnings and a
+          nonsensical ReferenceError.
+        - String.prototype.substring now works instead of
+          always dying.
+        - function and var declarations now work in else blocks and
+          labelled statements
+        - continue <label> now works within a labelled switch or iter-
+          ation statement
+        - JS functions now return undefined when there is no  explicit
+         'return'  statement.  Before,  the return value of  the  last
+          statement that returned one was being  used,  as  with  JS's
+         'eval' function (oops!). This required changing the interface
+          of JE::Code slightly.
+        - function declarations now clobber attributes of
+          existing vars
+        - Code run by JS's eval now inherits the scope chain from the
+          caller (before, it was getting its own,  just like the body
+          of a JS function)
+        - var declarations no longer make existing vars undeletable
+        - JE::Scope::new_var now looks for the first  object  in  the
+          scope chain that is a call object (it used to use the first
+          object, whatever it was)
+        - Calling an lvalue that has a call (activation) object as its
+          base object now works instead of just dying.
+        - arguments.length is now a number, not a string
+        - arguments objects are no longer given extra properties  cor-
+          responding to the function's parameters if there aren't that
+          many args.
+        - Functions written in Perl that return  an  empty  list  now
+          return 'undefined' to JS, instead of producing lots of warn-
+          ings and dying.  In fact, they are called in scalar context
+          now, rather than list context.
+        - Fixed array literals so that elided elements do not exist.
+          (Before, they would exist, but still be undefined.)
+        - Hopefully fixed the bug that was causing isNaN to fail
+          on OpenBSD.
+        - Corrected the comma, assignment, conditional (? :), || and
+          && operators so they no longer return lvalues.
+        - Function.prototype.apply now puts its error in $@ when it
+          dies. It used to leave $@ empty. It no longer dies when
+          called with just one argument.
+        - Fixed Array.prototype.toString and Array.prototype.
+          toLocaleString such that they produce a sensible error mes-
+          sage when invoked upon an object other than an array, rather
+          than the nonsensical 'Can't locate object method "prop" via
+          package "Object is not an Array"'
+        - String.prototype.split now actually works.
+        - JE::Code::parse now  stringifies  its  input,  avoiding  the
+          potential problem of pos() being unreliable on a stringified
+          object,  and solving the problem with  $obj =~ /(...)/  man-
+          gling $1 in perl 5.8.5.
+
 0.007   April Fool's Day, 2007
 	Alpha release. New features/fixes:
         - Added the RegExp constructor and RegExp.prototype.exec

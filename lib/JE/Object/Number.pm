@@ -1,6 +1,6 @@
 package JE::Object::Number;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 
 use strict;
@@ -9,6 +9,8 @@ use warnings;
 use constant inf => 9**9**9;
 
 our @ISA = 'JE::Object';
+
+use Scalar::Util 'blessed';
 
 require JE::Number;
 require JE::Object;
@@ -56,7 +58,7 @@ sub new {
 	});
 
 	$$$self{value} = defined $val
-		? UNIVERSAL::isa($val, 'UNIVERSAL')
+		? defined blessed $val
 		  && $val->can('to_number')
 			? $val->to_number->[0]
 			: 0+$val

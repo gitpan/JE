@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 
 use strict;
@@ -9,6 +9,7 @@ use warnings;
 use overload fallback => 1,
 	'""'=> 'value';
 
+use Scalar::Util 'blessed';
 
 our @ISA = 'JE::Object';
 
@@ -179,7 +180,7 @@ sub new {
 
 	my $qr;
 
-	if(UNIVERSAL::isa($re, 'UNIVERSAL')) {
+	if(defined blessed $re) {
 		if ($re->isa(__PACKAGE__)) {
 			defined $flags && eval{$flags->id} ne 'undef' and
 				die JE::Object::Error::TypeError->new(
@@ -201,7 +202,7 @@ sub new {
 		defined $re or $re = '';
 	}
 
-	if(UNIVERSAL::isa($flags, 'UNIVERSAL')) {
+	if(defined blessed $flags) {
 		if(can $flags 'id' and $flags->id eq 'undef') {
 			$flags = '';
 		}
@@ -386,6 +387,18 @@ results in Perl and JS.)
 sub value {
 	$${$_[0]}{value};
 }
+
+
+
+
+=item class
+
+Returns the string 'RegExp'.
+
+=cut
+
+sub class { 'RegExp' }
+
 
 
 sub new_constructor {
