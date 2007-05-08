@@ -40,9 +40,13 @@ t/11.02-left-expressions.t
 t/11.03-postfix.t
 t/11.04-unary.t
 t/11.05-multiplicative.t
+t/11.06-additive.t
+t/11.07-bitshift.t
+t/11.08-relational.t
 t/15.01-global-object.t
 t/15.03-function-objects.t
 t/15.04-array-objects.t
+t/15.11-error-objects.t
 t/je-boolean.t
 t/je-lvalue.t
 t/je-number.t

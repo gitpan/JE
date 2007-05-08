@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 use strict;
 use warnings;

@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 15;
+use Test::More tests => 16;
 use strict;
 
 #--------------------------------------------------------------------#
@@ -28,6 +28,7 @@ isa_ok( my $code = $j->parse( <<'--end--' ), 'JE::Code');
   k = "\x20\b\f\n\r\t\v\s"
 
   JE = 'JE'
+
 --end--
 
 
@@ -38,7 +39,7 @@ $code->execute;
 is($@, '', 'execute code');
 
 #--------------------------------------------------------------------#
-# Tests 4-14: Check side-effects
+# Tests 4-15: Check side-effects
 
 is( $j->prop('a'), 'Hello World', 'single quotes'  );
 is( $j->prop('b'), 'Hello World',  'double quotes'       );
@@ -53,3 +54,17 @@ is( $j->prop('j'), " \b\f\n\r\t\cKs",    'single with wack escapes'     );
 is( $j->prop('k'), " \b\f\n\r\t\cKs",  'double with wack escapes'     );
 is( $j->prop('JE'), "JE",           'name of existing Perl package' );
        # Yes, that last one *was* failing at one time.
+
+#--------------------------------------------------------------------#
+# Test 16: Make sure surrogates escape sequences in string literals do not
+#          warn
+
+$SIG{__WARN__} = sub {
+	warn @_;
+	fail 'surrogates escape sequences should not warn';
+	exit;
+};
+
+no warnings 'utf8';
+is $j->eval(q/ '\udf00' /), "\x{df00}",
+	'surrogate escape sequence in string literal';

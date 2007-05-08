@@ -1,6 +1,6 @@
 package JE::Number;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 use strict;
 use warnings;
@@ -37,8 +37,19 @@ use constant nan => sin 9**9**9;
 use constant inf => 9**9**9;
 
 use overload fallback => 1,
-	'0+' => 'value',
-	 cmp =>  sub { "$_[0]" cmp $_[1] };
+	'""' => sub {
+		my $value = $_[0][0];
+		$value ==   inf  ?  'Infinity' :
+		$value == -+inf  ? '-Infinity' :
+		$value == $value ? $value :
+		'NaN'
+	 },
+	'0+'  => 'value',
+	 bool =>  sub {
+		my $value = $_[0][0];
+		$value && $value == $value;
+	 },
+	 cmp  =>  sub { "$_[0]" cmp $_[1] };
 
 use Scalar::Util 'blessed';
 
@@ -65,8 +76,6 @@ sub new    {
 	if ($val =~ /^\s*([+-]?)(inf|nan)/i) {
 		$val = lc $2 eq 'nan' ? nan :
 			$1 eq '-' ? -(inf) : inf;
-		# perl complains about 'Ambiguous use of -inf' without
-		# the parens. Beats me.
 	}
 	else { $val+=0 }
 
@@ -102,8 +111,10 @@ sub value {
 	shift->[0]
 }
 
+sub exists { !1 }
 
 sub typeof    { 'number' }
+sub class     { 'Number' }
 sub id        { 
 	my $value = shift->value;
 	# This should (I hope) take care of systems that stringify nan and
@@ -169,21 +180,28 @@ number
 I<objects,> while this module implements the I<primitive> values.
 
 Right now, this module simply uses Perl numbers underneath for storing
-the JavaScript numbers. I do not
-know whether Perl numbers are in accord with the IEEE 754 standard that
-ECMAScript uses. Could someone knowledgeable please inform me?
+the JavaScript numbers. It seems that whether Perl numbers are in accord with the IEEE 754 standard that
+ECMAScript uses is system-dependent. If anyone requires IEEE 754 
+compliancy,
+a patch would be welcome. :-)
 
-The C<new> method accepts a global (JE) object and a Perl scalar as its 
-two arguments. The latter is numerified Perl-style, so 'nancy' becomes NaN
+The C<new> method accepts a global (JE) object and a number as its 
+two arguments. If the latter is an object with a C<to_number> method whose
+return value isa JE::Number, that object's internal value
+will be used. Otherwise the arg itself is used. (The precise details of
+the behaviour of C<new> when the second arg is a object are subject to
+change.) It is numified Perl-style,
+so 'nancy' becomes NaN
 and 'information' becomes Infinity.
 
 The C<value> method produces a Perl scalar. The C<0+> numeric operator is
 overloaded and produces the same.
 
-B<To do:> Add support for negative zero, which the specification requires.
-This makes a difference in very few cases (C<x/-0> is the only one I can
-think of). Does
-anyone actually use this?
+Stringification and boolification are overloaded and produce the same
+results as in JavaScript
+
+The C<typeof> and C<class> methods produce the strings 'number' and 
+'Number', respectively.
 
 =head1 SEE ALSO
 

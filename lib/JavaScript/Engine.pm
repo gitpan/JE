@@ -1,6 +1,6 @@
 package JavaScript::Engine;
 
-our $VERSION = "0.0106"; # We'll increase the fourth decimal place by one
+our $VERSION = "0.0108"; # We'll increase the fourth decimal place by one
                          # each time JE's third decimal place increases,
                          # until the latter catches up. Then this will be
                          # the same as JE's thenceforth.
@@ -24,7 +24,7 @@ shell or when looking under modules/by-module/JavaScript/ on the CPAN.
 
 =head1 AUTHOR
 
-Father Chrysostomos, C<< <sprout at cpan.org> >>
+Father Chrysostomos <sprout at cpan.org>
 
 =cut
 

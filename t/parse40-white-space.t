@@ -15,7 +15,7 @@ BEGIN { use_ok('JE') };
 my $j = new JE;
 
 isa_ok( my $code = $j->parse( <<"--end--" ), 'JE::Code');
-var\tt4\ck=\f4//comment
+/* comment at start of code */var\tt4\ck=\f4//comment
 var t5\xa0=\x{2001}5/*
 */var\nt6\r=\x{2028}6
 var\x{2029}t7=7

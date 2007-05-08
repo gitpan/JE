@@ -1,12 +1,13 @@
 package JE::Null;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 
 use strict;
 use warnings;
 
 use overload fallback => 1,
+	'0+' =>  sub { 0 },
 	'""' => 'id',
 	 cmp =>  sub { "$_[0]" cmp $_[1] },
 	bool =>  sub { undef };
@@ -42,26 +43,18 @@ JE::Null - JavaScript null value
 This class implements the JavaScript "null" type. There really
 isn't much to it.
 
-Null stringifies to 'null', and is false as a boolean.
+Null stringifies to 'null', numifies to 0, and is false as a boolean.
 
 =cut
 
 #use Carp;
 sub new    { bless \do{my $thing = $_[1]}, $_[0] }
-sub prop   {
-	die "Null has no properties, not even one named $_[1]"
-}
-sub delete { JE::Boolean->new(${$_[0]}, 1) }
-sub method { die }
 sub value  { undef }
-sub call   { die }
-sub apply  { die }
-sub construct { die }
 sub typeof { 'object' }
 sub id     { 'null' }
 sub primitive { 1 }
 sub to_primitive { $_[0] }
-sub to_boolean { JE::String->new(${+shift}, '') };
+sub to_boolean { JE::Boolean->new(${+shift}, '') };
 sub to_string { JE::String->new(${+shift}, 'null') };
 sub to_number { JE::Number->new(${+shift}, 0) }
 sub global { ${$_[0]} }

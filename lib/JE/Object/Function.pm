@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 
 use strict;
@@ -589,7 +589,7 @@ sub _init_proto {
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -666,7 +666,7 @@ sub delete {
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 our @ISA = 'JE::Object';
 

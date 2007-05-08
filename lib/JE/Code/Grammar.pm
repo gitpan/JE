@@ -1,6 +1,6 @@
 package JE::Code::Grammar;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 use strict;
 use warnings;
@@ -76,6 +76,7 @@ sub  str() {
 	        "((?>(?:[^"\\] | \\.)*))"  )/xcgs or return;
 
 	no re 'taint'; # I need eval "qq-..." to work
+	no warnings 'utf8'; # for surrogates
 	(my $yarn = $+) =~ s/\\(?:
 		u([0-9a-fA-F]{4})
 		 |

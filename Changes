@@ -1,5 +1,37 @@
 Revision history for JE
 
+0.009   8 May, 2007
+        Yet another alpha release. Here are the usual lists:
+        New features/API changes:
+        - Added numeric overloading to JE::Null.
+        - Added compile as an alias for parse.
+        - Added the 'exists' and 'class' methods to JE::Number
+        Fixes:
+        - JE::LValue's overloading was very buggy with anything other
+          than  simple  conversion.  I've  fixed  it  and  written  a
+          test script.
+        - Corrected the bitshift operators such that numbers > 31 for
+          the right operand now have % 32 applied, and are no longer
+          simply treated as 31.
+        - Corrected JE::Null->to_boolean so it returns a JE::Boolean,
+          not a JE::String.
+        - Stopped surrogate escape sequences in string literals from
+          producing warnings.
+        - Corrected JE::Number's stringification overloading to match
+          the stringification in JavaScript  (for NaN  and  Infinity)
+        - A JE::Number that has a value of NaN now boolifies in Perl
+          as false, as in JavaScript.
+        - Fixed the constructors for the various subclasses of Error,
+          so that they no longer throw TypeErrors when called  ('new
+          TypeError'  would actually cause the whole script to  die)
+        - Corrected 'instanceof' so it throws an error if its right
+          operand is an object but not a function
+        - Corrected the  'prototype'  properties of the various sub-
+          classes of Error such that they now actually inherit from
+          Error.prototype instead of directly from Object.prototype.
+        - Fixed the << operator so it now works correctly on
+          64-bit machines
+
 0.008   22 April, 2007
         New features and API changes in this release:
         - Added JE::LValue's can method

@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 use strict;
 use warnings;
@@ -121,7 +121,7 @@ sub execute {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 use subs qw'_create_vars _eval_term';
 use List::Util 'first';
@@ -528,7 +528,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 # See the comments in Number.pm for how I found out these constant values.
 use constant nan => sin 9**9**9;
@@ -682,9 +682,21 @@ our($_scope,$_this,$_global);
 			: int($num) % 2**32;
 		$num -= 2**32 if $num >= 2**31;
 
-		use integer;
-		new JE::Number $_global,
-			$num << (shift->to_number->value & 0x1f);
+		my $shift_by = shift->to_number->value;
+		$shift_by = 
+			$shift_by != $shift_by || abs($shift_by) == inf
+			? 0
+			: int($shift_by) % 32;
+
+		my $ret = ($num << $shift_by) % 2**32;
+		$ret -= 2**32 if $ret >= 2**31;
+
+		new JE::Number $_global, $ret;
+
+		# Fails on 64-bit:
+		#use integer;
+		#new JE::Number $_global,
+		#	$num << $shift_by;
 	};
 	*{'in>>'} = sub {
 		my $num = shift->to_number->value;
@@ -694,9 +706,15 @@ our($_scope,$_this,$_global);
 			: int($num) % 2**32;
 		$num -= 2**32 if $num >= 2**31;
 
+		my $shift_by = shift->to_number->value;
+		$shift_by = 
+			$shift_by != $shift_by || abs($shift_by) == inf
+			? 0
+			: int($shift_by) % 32;
+
 		use integer;
 		new JE::Number $_global,
-			$num >> (shift->to_number->value & 0x1f);
+			$num >> $shift_by;
 	};
 	*{'in>>>'} = sub {
 		my $num = shift->to_number->value;
@@ -705,8 +723,14 @@ our($_scope,$_this,$_global);
 			? $num = 0
 			: int($num) % 2**32;
 
+		my $shift_by = shift->to_number->value;
+		$shift_by = 
+			$shift_by != $shift_by || abs($shift_by) == inf
+			? 0
+			: int($shift_by) % 32;
+
 		new JE::Number $_global,
-			$num >> (shift->to_number->value & 0x1f);
+			$num >> $shift_by;
 	};
 	*{'in<'} = sub {
 		my($x,$y) = map to_primitive $_, @_[0,1];
@@ -745,8 +769,13 @@ our($_scope,$_this,$_global);
 		die new JE::Object::Error::TypeError $_global,
 			"$func is not an object"
 			if $func->primitive;
-		return new JE::Boolean $_global, 0 if $obj->primitive;
+
+		die new JE::Object::Error::TypeError $_global,
+			"$func is not a function"
+			if $func->typeof ne 'function';
 		
+		return new JE::Boolean $_global, 0 if $obj->primitive;
+
 		my $proto_id = $func->prop('prototype');
 		!defined $proto_id || $proto_id->primitive and die new
 		   JE::Object::Error::TypeError $_global,
@@ -1112,7 +1141,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1124,7 +1153,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 sub list {
 	my $self = shift;
@@ -1167,7 +1196,7 @@ The first argument
 will be the 'this' value of the execution context. The global object will
 be used if it is omitted or undef.
 
-The second argument is a scope chain.
+The second argument is the scope chain.
 A scope chain containing just the global object will be used if it is
 omitted or undef.
 
@@ -1182,6 +1211,9 @@ eval code can be deleted, whereas such variables in global or function
 code cannot. A value of B<2> means function code, which requires an 
 explicit C<return>
 statement for a value to be returned.
+
+If an error occurs, C<undef> will be returned and C<$@> will contain the
+error message. If no error occurs, C<$@> will be a null string.
 
 =head1 THE FUNCTION
 

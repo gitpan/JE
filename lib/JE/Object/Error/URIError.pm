@@ -1,6 +1,6 @@
 package JE::Object::Error::URIError;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 
 use strict;
@@ -41,7 +41,7 @@ See L<JE::Types> and L<JE::Object::Error>.
 sub class { 'URIError' }
 
 sub new_constructor {
-	shift->SUPER::new_constructor(shift,
+	shift->JE::Object::new_constructor(shift,
 		sub {
 			__PACKAGE__->new(@_);
 		},

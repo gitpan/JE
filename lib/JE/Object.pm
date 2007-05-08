@@ -1,6 +1,6 @@
 package JE::Object;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 
 use strict;
@@ -543,7 +543,7 @@ sub new_constructor {
 		function_args    => ['scope','args'],
 		constructor      => sub {
 			no strict 'refs';
-			&{"$package\::new"}($package, @_);
+			$package->new(@_);
 		},
 		constructor_args => ['scope','args'],
 	});

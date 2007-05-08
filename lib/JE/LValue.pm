@@ -1,12 +1,15 @@
 package JE::LValue;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 use strict;
 use warnings;
 
 use List::Util 'first';
 use Scalar::Util 'blessed';
+
+require JE::Object::Error::TypeError;
+require JE::Object::Error::ReferenceError;
 
 
 # ~~~ Make 'call' use ->method instead of ->apply???
@@ -15,37 +18,51 @@ use Scalar::Util 'blessed';
 our $ovl_infix = join ' ', @overload::ops{qw[
 	with_assign assign num_comparison 3way_comparison str_comparison	binary
 ]};
-our $ovl_prefix = join ' ', @overload::ops{qw[ mutators func ]};
+our $ovl_prefix = join ' ', grep !/^(?:neg|atan2)\z/,
+	map split(/ /), @overload::ops{qw[ unary mutators func ]};
 
-use overload eq => sub {  # 'eq' is not campatible with 'nomethod' in
-	                  # perl 5.8.8
-			# ~~~ I need to learn more about 'fallback', to
-			#    see whether that can fix the problem.
-	$_[0]->get eq $_[1];
-}, nomethod => sub {
-	local $@;
+use overload
+fallback => !1,
+nomethod => sub {
+	my $at = $@;
 	my ($self, $other, $reversed, $symbol) = @_;
+	return $self if $symbol eq '=';
 	$self = $self->get;
+	my $sym_regexp = qr/(?:^| )\Q$symbol\E(?:$| )/;
 	my $val;
-	if ($overload::ops{conversion} =~ /(?:^| )$symbol(?:$| )/) {
+	if ($overload::ops{conversion} =~ $sym_regexp) {
 		return $self;
 	}
-	elsif($ovl_infix =~ /(?:^| )$symbol(?:$| )/) {
+	elsif($ovl_infix =~ $sym_regexp) {
 		$val = eval( $reversed ? "\$other $symbol \$self"
 		                       : "\$self $symbol \$other" );
 	}
-	elsif($symbol eq 'neg') {
-		$val = eval { -$self };
-	}
-	elsif($ovl_prefix =~ /(?:^| )$symbol(?:$| )/) {
+	elsif($ovl_prefix =~ $sym_regexp) {
 		$val = eval "$symbol \$self";
 	}
+	elsif($symbol eq 'neg') {
+		return -$self;
+	}
+	elsif($symbol eq 'atan2') {
+		return atan2 $self, $other;
+	}
+	elsif($symbol eq '<>') {
+		return <$self>;
+	}
+	else {
+		die "Oh no! Something is terribly wrong with " .
+		    "JE::LValue's overloading mechanism. It can't deal " .
+		    "with < $symbol >. Please send a bug report.";
+	}
 	$@ and die $@;
+	$@ = $at;
 	return $val;
-}, '@{}' => sub {
+},
+'@{}' => sub {
 	caller eq __PACKAGE__ and return shift;	
 	$_[0]->get;
-}, '%{}' => 'get', '&{}' => 'get', '*{}' => 'get';
+},
+'%{}' => 'get', '&{}' => 'get', '*{}' => 'get', '${}' => 'get';
 
 sub new {
 	my ($class, $obj, $prop) = @_; # prop is a string
@@ -78,9 +95,8 @@ sub set {
 }
 
 sub call {
-	# ~~~ What happens here if $bose_obj is not blessed?
 	my $base_obj = (my $self = shift)->[0];
-	my $prop = $self->get;
+	my $prop = $self->get; # dies here if $base_obj is not blessed
 	$prop->apply($base_obj, @_);
 }
 
@@ -151,12 +167,7 @@ you really know what you are doing.
 Similarly, if you try to use an overloaded operator, it will be passed on 
 to
 the object that the lvalue references, such that C<!$lvalue> is the same
-as calling C<< !$lvalue->get >>. Note, however, that this does I<not> apply 
-to
-the iterator (C<< <> >>) operator, the scalar dereference op (C<${}>) nor 
-to 
-the special copy operator (C<=>). (See L<overload> for more info on what
-that last one is).
+as calling C<< !$lvalue->get >>.
 
 =over 4
 

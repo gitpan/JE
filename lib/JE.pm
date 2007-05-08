@@ -11,7 +11,7 @@ use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 use Encode qw< decode_utf8 encode_utf8 FB_CROAK >;
 use Scalar::Util 'blessed';
@@ -633,11 +633,16 @@ The JE::Code class provides the method
 C<execute> for executing the 
 pre-compiled syntax tree.
 
+=item $j->compile( STRING )
+
+Just an alias for C<parse>.
+
 =cut
 
 sub parse {
 	goto &JE::Code::parse;
 }
+*compile = \&parse;
 
 
 =item $j->eval ( STRING )
@@ -776,6 +781,11 @@ sub null { # ~~~ This needs to be made more efficient.
 
 
 
+=back
+
+=cut
+
+
 
 #----------------PRIVATE METHODS/SUBS------------------------#
 
@@ -793,7 +803,6 @@ __END__
 - decimal interpretation of parseInt's argument
 - numbers not necessarily acc. to spec
 - typo in 'for' and 'try' algorithms in spec
-- ||  &&  ? :  =  return lvalues
 - behaviour of 'break' and 'continue' outside of loops
 - behaviour of 'return' outside of subs
 - Array.prototype.toLocaleString uses ',' as the separator
@@ -803,8 +812,7 @@ __END__
 
 =head1 BUGS
 
-Apart from the fact that the core object classes are incomplete, here are 
-some known bugs:
+The RegExp class is incomplete. The Date class is still nonexistent.
 
 Functions objects do not always stringify properly. The body of the 
 function is
@@ -815,14 +823,6 @@ delegates methods to the global object, does not yet implement
 the C<can> method, so if you call $scope->can('to_string')
 you will get a false return value, even though scope objects I<can>
 C<to_string>.
-
-NaN and Infinity currently stringify in Perl as 'nan' and 'inf'. This is
-unintentional, and is going to change.
-
-NaN was not working properly on some systems (e.g., OpenBSD).
-I think I've fixed it, but I can't test it myself, so I'll have to wait
-till the CPAN testers get their hands on it before removing it from this
-list.
 
 The documentation is a bit incoherent. It probably needs a rewrite.
 
@@ -853,7 +853,24 @@ and to the CPAN Testers for their helpful bug reports.
 
 =head1 SEE ALSO
 
-All the other C<JE::> modules, esp. C<JE::Object> and C<JE::Types>.
+The other JE man pages, especially the following (the rest are listed on
+the L<JE::Types> page):
+
+=over 4
+
+=item L<JE::Types>
+
+=item L<JE::Object>
+
+=item L<JE::Object::Function>
+
+=item L<JE::LValue>
+
+=item L<JE::Scope>
+
+=item L<JE::Code>
+
+=back
 
 I<ECMAScript Language Specification> (ECMA-262)
 
@@ -863,9 +880,8 @@ L<http://www.ecma-international.org/publications/files/ecma-st/ECMA-262.pdf>
 
 =back
 
-=back
-
-C<JavaScript.pm> and C<JavaScript::SpiderMonkey>--both interfaces to
+L<JavaScript.pm|JavaScript> and L<JavaScript::SpiderMonkey>--both 
+interfaces to
 Mozilla's open-source SpiderMonkey JavaScript engine.
 
 =cut
