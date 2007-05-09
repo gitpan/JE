@@ -1,5 +1,14 @@
 Revision history for JE
 
+0.010   9 May, 2007
+        Added two features:
+        - &{} overloading for JE::Object::Function
+        - numeric overloading for JE::Object
+        - 'exists' method for JE::Object and JE::Object::Array
+        One bug fix:
+        - JE::Object::Array's is_enum now correctly returns false for
+          the length property
+
 0.009   8 May, 2007
         Yet another alpha release. Here are the usual lists:
         New features/API changes:

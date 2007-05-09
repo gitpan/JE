@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.009';
+our $VERSION = '0.010';
 
 use strict;
 use warnings;
@@ -44,7 +44,7 @@ JE::Object - JavaScript Array object class
 This module implements JavaScript Array objects.
 
 The C<@{}> (array ref) operator is overloaded and returns the array that
-the object uses underneath.
+the object uses underneath. (B<This is subject to change.>)
 
 =head1 METHODS
 
@@ -134,7 +134,7 @@ sub prop {
 
 sub is_enum {
 	my ($self,$name) = @_;
-	$name eq 'length' and return 1;
+	$name eq 'length' and return !1;
 	if ($name =~ /^(?:0|[1-9]\d*)\z/ and $name < 4294967295) {
 		my $array = $$$self{array};
 		return $name < @$array && defined $$array[$name];
@@ -173,12 +173,26 @@ sub delete {  # array indices are deletable; length is not
 
 This returns a reference to an array ref. This is the actual array that
 the object uses internally, so you can modify the Array object by modifying
-this array.
+this array. (B<This is going to change.>)
 
 =cut
 
 sub value { $${+shift}{array} };
 
+
+sub exists {
+	my ($self, $name) =  (shift, @_);
+	my $guts = $$self;
+
+	if ($name eq 'length') {
+		return 1
+	}
+	elsif ($name =~ /^(?:0|[1-9]\d*)\z/ and $name < 4294967295) {
+		return exists $$guts{array}[$name]
+		    && defined $$guts{array}[$name];
+	}
+	$self->SUPER::exists(@_);
+}
 
 sub class { 'Array' }
 

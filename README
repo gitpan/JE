@@ -1,4 +1,4 @@
-JE, version 0.008
+JE, version 0.010
 
 JE is a pure-Perl ECMAScript (JavaScript) engine.
 
@@ -13,17 +13,10 @@ reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-Some API changes/improvements:
-- new_function is now a method of any object (not just the
-  global object)
-- new_method has been added as well
-- JE's 'compile' method has been renamed to 'parse'
-- The 'props' method has been renamed to 'keys'
-- A few other changes
+JE::Object::Function now has code dereference overloading
+JE::Object now has numeric overloading
 
-Fixed more bugs
-
-See the 'Changes' file for more details
+See the 'Changes' file for more.
 
 
 TO DO

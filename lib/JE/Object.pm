@@ -1,6 +1,6 @@
 package JE::Object;
 
-our $VERSION = '0.009';
+our $VERSION = '0.010';
 
 
 use strict;
@@ -9,6 +9,7 @@ use warnings;
 use overload fallback => 1,
 	'%{}'=>  \&value, # a method call won't work here
 	'""' => 'to_string',
+        '0+' => 'to_number',
 	 cmp =>  sub { "$_[0]" cmp $_[1] },
 	bool =>  sub { 1 };
 
@@ -287,6 +288,10 @@ sub prop {
 }
 
 
+sub exists { # = hasOwnProperty
+	my($self,$name) = @_;
+	exists $$$self{props}{$name};
+}
 
 
 sub is_readonly { # See JE::Types for a description of this.
@@ -298,14 +303,14 @@ sub is_readonly { # See JE::Types for a description of this.
 	if( exists $$props{$name}) {
 		my $read_only_list = $$guts{prop_readonly};
 		return exists $$read_only_list{$name} ?
-			$$read_only_list{$name} : 0;
+			$$read_only_list{$name} : !1;
 	}
 
 	if(my $proto = $self->prototype) {
 		return $proto->is_readonly(@_);
 	}
 
-	return 0;
+	return !1;
 }
 
 

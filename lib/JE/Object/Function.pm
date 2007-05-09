@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.009';
+our $VERSION = '0.010';
 
 
 use strict;
@@ -8,6 +8,10 @@ use warnings;
 
 use Carp                 ;
 use Scalar::Util 'blessed';
+
+use overload
+	fallback => 1,
+	'&{}' => sub { my $self = shift; sub { $self->call(@_) } };
 
 our @ISA = 'JE::Object';
 
@@ -20,7 +24,7 @@ require JE::Scope                      ;
 
 =head1 NAME
 
-JE::Function - JavaScript function class
+JE::Object::Function - JavaScript function class
 
 =head1 SYNOPSIS
 
@@ -568,7 +572,18 @@ sub _init_proto {
 
 #----------- THE REST OF THE DOCUMENTATION ---------------#
 
-=pod
+=back
+
+=head1 OVERLOADING
+
+You can use a JE::Object::Function as a coderef. The sub returned simply
+invokes the C<call> method, so the following are equivalent:
+
+  $function->call(@args)
+  $function->(@args)
+
+The stringification, numification, boolification, and hash dereference ops
+are also overloaded. See L<JE::Object>, which this class inherits from.
 
 =head1 SEE ALSO
 
@@ -589,7 +604,7 @@ sub _init_proto {
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.009';
+our $VERSION = '0.010';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -666,7 +681,7 @@ sub delete {
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.009';
+our $VERSION = '0.010';
 
 our @ISA = 'JE::Object';
 
