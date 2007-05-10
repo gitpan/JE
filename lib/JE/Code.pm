@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.010';
+our $VERSION = '0.011';
 
 use strict;
 use warnings;
@@ -121,7 +121,7 @@ sub execute {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.010';
+our $VERSION = '0.011';
 
 use subs qw'_create_vars _eval_term';
 use List::Util 'first';
@@ -528,7 +528,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.010';
+our $VERSION = '0.011';
 
 # See the comments in Number.pm for how I found out these constant values.
 use constant nan => sin 9**9**9;
@@ -1141,7 +1141,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.010';
+our $VERSION = '0.011';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1153,7 +1153,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.010';
+our $VERSION = '0.011';
 
 sub list {
 	my $self = shift;

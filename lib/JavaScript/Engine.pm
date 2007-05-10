@@ -1,12 +1,7 @@
 package JavaScript::Engine;
 
-our $VERSION = "0.0109"; # We'll increase the fourth decimal place by one
-                         # each time JE's third decimal place increases,
-                         # until the latter catches up. Then this will be
-                         # the same as JE's thenceforth.
+our $VERSION = '0.011';
 
-                         # Well, I've learnt my lesson. Now I'll think
-                         # before setting version numbers.
 
 =head1 NAME
 

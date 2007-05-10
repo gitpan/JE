@@ -1,4 +1,4 @@
-JE, version 0.010
+JE, version 0.011
 
 JE is a pure-Perl ECMAScript (JavaScript) engine.
 
@@ -13,10 +13,10 @@ reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-JE::Object::Function now has code dereference overloading
-JE::Object now has numeric overloading
-
-See the 'Changes' file for more.
+A JE::Object can now be treated as a hash ref and modified that way,
+thanks to tying magic
+JE::Object::Function's 'apply' method now upgrades the func-
+tion's arguments
 
 
 TO DO

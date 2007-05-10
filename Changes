@@ -1,5 +1,13 @@
 Revision history for JE
 
+0.011   10 May, 2007
+        Oh no! Another alpha release!
+        - JE::Object::Function's 'apply' method now upgrades the argu-
+          ments to the function
+        - JE::Object's %{} overloading now returns a tied hash that
+          can be used to modify the object (untested and still a
+          bit buggy).
+
 0.010   9 May, 2007
         Added two features:
         - &{} overloading for JE::Object::Function

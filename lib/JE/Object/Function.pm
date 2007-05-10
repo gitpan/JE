@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.010';
+our $VERSION = '0.011';
 
 
 use strict;
@@ -381,6 +381,8 @@ Calls the function with $obj as the invocant and @args as the args.
 sub apply { # ~~~ we need to upgrade the args passed to apply, but still
             #     retain the unupgraded values to pass to the function *if*
             #     the function wants them downgraded
+		# Right now _init_scope takes care of upgrading them. That
+		# might need to be moved to this sub.
 	my ($self, $obj) = (shift, shift);
 	my $guts = $$self;
 
@@ -436,7 +438,7 @@ sub _init_scope { # initialise the new scope for the function call
 	bless([ @$scope, JE::Object::Function::Call->new({
 		global   => $scope,
 		argnames => $argnames,
-		args     => [@args],
+		args     => [$scope->upgrade(@args)],
 		function => $self,
 	})], 'JE::Scope');
 }
@@ -604,7 +606,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.010';
+our $VERSION = '0.011';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -681,7 +683,7 @@ sub delete {
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.010';
+our $VERSION = '0.011';
 
 our @ISA = 'JE::Object';
 

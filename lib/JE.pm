@@ -11,7 +11,7 @@ use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.010';
+our $VERSION = '0.011';
 
 use Encode qw< decode_utf8 encode_utf8 FB_CROAK >;
 use Scalar::Util 'blessed';
@@ -47,7 +47,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.010 (alpha release)
+Version 0.011 (alpha release)
 
 =head1 SYNOPSIS
 

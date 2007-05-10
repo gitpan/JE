@@ -1,13 +1,13 @@
 package JE::Object;
 
-our $VERSION = '0.010';
+our $VERSION = '0.011';
 
 
 use strict;
 use warnings;
 
 use overload fallback => 1,
-	'%{}'=>  \&value, # a method call won't work here
+	'%{}'=>  \&_get_tie,
 	'""' => 'to_string',
         '0+' => 'to_number',
 	 cmp =>  sub { "$_[0]" cmp $_[1] },
@@ -15,7 +15,7 @@ use overload fallback => 1,
 
 use Scalar::Util qw'refaddr blessed';
 use List::Util 'first';
-use Data::Dumper;
+#use Data::Dumper;
 
 
 require JE::Object::Function;
@@ -69,8 +69,10 @@ of the
 C<Function> class (C<JE::Object::Function>).
 
 This class overrides the stringification operator by calling
-C<< $obj->method('toString') >>. The C<%{}> (hashref) operator is also
-overloaded and returns a hash of enumerable properties.
+C<< $obj->method('toString') >> (B<To do:> rewrite this sentence; it's not
+precise). The C<%{}> (hashref) operator is also
+overloaded and returns a hash that can be used to modify the object. (This
+is a tied hash; there are some issues with it that I have yet to document.)
 
 See also L<JE::Types> for descriptions of most of the methods. Only what
 is specific to JE::Object is explained here.
@@ -702,6 +704,47 @@ sub _init_proto {
 	});
 }
 
+
+
+#----------- TYING MAGIC ---------------#
+
+# I'm putting the object itself behind the tied hash, so that no new object
+# has to be created.
+# Yes, that does mean that tied %$obj returns $obj.
+
+
+sub _get_tie {
+	my $self = shift;
+	my $guts = $$self;
+	$$guts{tie} or tie %{ $$guts{tie} }, __PACKAGE__, $self;	
+	$$guts{tie};
+}
+
+sub TIEHASH  { $_[1] }
+sub FETCH    { $_[0]->prop($_[1]) }
+sub STORE    { $_[0]->prop(@_[1..2]) }
+#sub CLEAR   {  }
+	# ~~~ have yet to implement this
+sub DELETE   { $_[0]->delete($_[1]) }
+	# ~~~ returns a boolean; this behaviour may change
+sub EXISTS   { $_[0]->exists($_[1]) }
+sub FIRSTKEY { ($_[0]->keys)[0] }
+sub NEXTKEY  { # ~~~ I hope this is always called in scalar context
+	my @keys = $_[0]->keys;
+	my $last = $_[1];
+	for (0..$#keys) {
+		if ($last eq $keys[$_]) {
+			return $keys[$_+1]
+		}
+	}
+
+	# ~~~ What *should* we do if the property has been
+	#     deleted?
+	# I think this means the iterator should have been reset (from the
+	# user's point of view), so we'll start from the beginning.
+
+	return $keys[0];
+}
 
 
 #----------- THE REST OF THE DOCUMENTATION ---------------#
