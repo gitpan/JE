@@ -1,15 +1,34 @@
 Revision history for JE
 
+0.012   13 May, 2007
+        Yes, another alpha release.
+        - JE::Object::Array's array dereference handler now returns a
+          tied array.
+        - JE::Object::Array's 'value' method now returns a copy of the
+          object's internal array, instead of the array itself.
+        - Functions created with new_function are now enumerable, just
+          like 'alert', et al. in web browsers.
+        Bug fixes:
+        - Fixed the JE::Object's tie handlers so that  autovivification
+          now works, and delete behaves the way it usually does in Perl.
+        - When $obj->prop({ ... }) creates a new property and dontenum
+          is not given, the property is now enumerable.
+        - Corrected Array.prototype.unshift so that it resets the
+          array's length.
+        - JE::Object::Function's 'apply' method now upgrades the argu-
+          ments to the function if the function is  written  in  Perl
+          (version 0.011 only half-fixed the problem)
+
 0.011   10 May, 2007
         Oh no! Another alpha release!
         - JE::Object::Function's 'apply' method now upgrades the argu-
           ments to the function
         - JE::Object's %{} overloading now returns a tied hash that
-          can be used to modify the object (untested and still a
+          can be used to modify the object  (untested and  still  a
           bit buggy).
 
 0.010   9 May, 2007
-        Added two features:
+        Added three features:
         - &{} overloading for JE::Object::Function
         - numeric overloading for JE::Object
         - 'exists' method for JE::Object and JE::Object::Array
@@ -28,7 +47,7 @@ Revision history for JE
           than  simple  conversion.  I've  fixed  it  and  written  a
           test script.
         - Corrected the bitshift operators such that numbers > 31 for
-          the right operand now have % 32 applied, and are no longer
+          the right operand now have % 32 applied, and are no  longer
           simply treated as 31.
         - Corrected JE::Null->to_boolean so it returns a JE::Boolean,
           not a JE::String.
@@ -36,12 +55,12 @@ Revision history for JE
           producing warnings.
         - Corrected JE::Number's stringification overloading to match
           the stringification in JavaScript  (for NaN  and  Infinity)
-        - A JE::Number that has a value of NaN now boolifies in Perl
+        - A JE::Number that has a value of NaN now boolifies in  Perl
           as false, as in JavaScript.
         - Fixed the constructors for the various subclasses of Error,
           so that they no longer throw TypeErrors when called  ('new
           TypeError'  would actually cause the whole script to  die)
-        - Corrected 'instanceof' so it throws an error if its right
+        - Corrected 'instanceof'  so it throws an error if its right
           operand is an object but not a function
         - Corrected the  'prototype'  properties of the various sub-
           classes of Error such that they now actually inherit from
@@ -106,8 +125,7 @@ Revision history for JE
           now, rather than list context.
         - Fixed array literals so that elided elements do not exist.
           (Before, they would exist, but still be undefined.)
-        - Hopefully fixed the bug that was causing isNaN to fail
-          on OpenBSD.
+        - Fixed the bug that was causing isNaN to fail on OpenBSD.
         - Corrected the comma, assignment, conditional (? :), || and
           && operators so they no longer return lvalues.
         - Function.prototype.apply now puts its error in $@ when it

@@ -20,6 +20,7 @@ lib/JE/Object/Number.pm
 lib/JE/Object/RegExp.pm
 lib/JE/Object/String.pm
 lib/JE/Object.pm
+lib/JE/Parser.pod
 lib/JE/Scope.pm
 lib/JE/String.pm
 lib/JE/Types.pod

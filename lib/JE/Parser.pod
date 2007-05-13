@@ -1,0 +1,82 @@
+=head1 NAME
+
+JE::Parser - Framework for customising JE's parser
+
+This is just a preliminary sketch of the API; none of this has been
+implemented yet.
+
+=head1 SYNOPSIS
+
+  use JE;
+  use JE::Parser;
+
+  $je = new JE;
+  $p = new JE::Parser $je; # or: $p = $je->custom_parser
+
+  $p->delete_statement('for', 'while', 'do'); # disable loops
+  $p->add_statement(try => \&parser); # replace existing 'try' statement
+
+=head1 DESCRIPTION
+
+This will allow one to change the list of statement types that the parser
+looks for. For instance, one could disable loops for a mini-JavaScript, or
+add extensions to the language, such as the 'catch-if' clause of a C<try> 
+statement.
+
+I have no plans to provide an API for extending expressions, because of the
+complications caused by the 'new' operator. If anyone else wants to have a
+go at it, be my guest. :-)
+
+=head1 METHODS
+
+=over 4
+
+=item $p = new JE::Parser
+
+Creates a new parser object.
+
+=item $p->add_statement($name, \&parser);
+
+If a statement type called $name already exists, it will be replaced.
+Otherwise, the new statement type will be added to the top of the list.
+
+&parser will need to parse code contained in C<$_> starting at C<pos()>, then either
+return an object with an C<eval> method (that will execute the statement)
+and set C<pos()> to just after the code that was parsed, or, if it 
+could not
+parse anything, return undef and reset C<pos()> to its initial value if it
+changed.
+
+I still need to explain in more detail how the parser sub should behave, 
+and
+what methods/vars are available to it.
+
+I need to provide the option of indicating that a statement has an optional
+trailing semicolon.
+
+=item $p->statements
+
+Returns an array ref of the various statement types. You can rearrange this
+list. The statement types in the list will be tried in order.
+
+Hmm. Maybe I should provide methods instead, or a tied array.
+
+=item $p->parse($code)
+
+Parses the C<$code> and returns a parse tree (JE::Code object).
+
+=item $p->eval($code)
+
+Shorthand for $p->parse($code)->execute;
+
+=back
+
+=head1 SEE ALSO
+
+L<JE> and L<JE::Code>.
+
+=cut
+
+
+
+

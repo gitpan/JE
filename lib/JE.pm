@@ -11,7 +11,7 @@ use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.011';
+our $VERSION = '0.012';
 
 use Encode qw< decode_utf8 encode_utf8 FB_CROAK >;
 use Scalar::Util 'blessed';
@@ -67,8 +67,11 @@ Version 0.011 (alpha release)
   # create a new object
 
   $j->prop(document => $obj); # set property
-  $j->prop(document => {});   # same thing (more or less)
   $j->prop('document'); # get a property
+  # Also:
+  $j->{document} = $obj;
+  $j->{document} = {}; # gets converted to a JE::Object
+  $j->{document}{location}{href}; # autovivification
 
   $j->method(alert => "text"); # invoke a method
 
@@ -87,8 +90,10 @@ Version 0.011 (alpha release)
           }
           print(correct("ECMAScript")) // :-)
   --end--
-  
+
 =head1 DESCRIPTION
+
+This description I<definitely> needs to be rewritten.
 
 This is a pure-Perl JavaScript engine. All JavaScript values  are actually 
 Perl objects underneath. When you create a new C<JE> object, you are 
@@ -781,6 +786,13 @@ sub null { # ~~~ This needs to be made more efficient.
 
 
 
+=item $j->custom_parser
+
+B<Not yet implemented.>
+
+This will return a parser object (see L<JE::Parser>) which allows you to
+customise the way statements are parsed and executed.
+
 =back
 
 =cut
@@ -874,11 +886,13 @@ it under the same terms as perl.
 
 =head1 ACKNOWLEDGEMENTS
 
-Thanks to Max Maischein [ webmasterE<nbsp>E<nbsp>corion net ] for letting
+Thanks to Max Maischein S<< [ webmasterE<nbsp>E<nbsp>corion net ] >> for 
+letting
 me use
 his tests,
 
-to Andy Armstrong [ andyE<nbsp>E<nbsp>hexten net ] for his suggestions,
+to Andy Armstrong S<< [ andyE<nbsp>E<nbsp>hexten net ] >> and Yair Lenga
+S<< [ yair lengaE<nbsp>E<nbsp>gmail com ] >> for their suggestions,
 
 and to the CPAN Testers for their helpful bug reports.
 
@@ -900,6 +914,8 @@ the L<JE::Types> page):
 =item L<JE::Scope>
 
 =item L<JE::Code>
+
+=item L<JE::Parser>
 
 =back
 

@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 104;
+use Test::More tests => 103;
 use strict;
 use utf8;
 
@@ -13,15 +13,10 @@ BEGIN { use_ok('JE') };
 my $j = new JE;
 
 
-# Tests 2-3: Bind the ok and diag functions
-isa_ok( $j->new_function( ok  => \&ok   ), 'JE::Object::Function' );
-isa_ok( $j->new_function( diag => \&diag ), 'JE::Object::Function' );
-
-# Tests 4-5: Couple more functions I need
-isa_ok $j->new_function( start_todo => sub { $::TODO = shift } ), 
-	'JE::Object::Function';
-isa_ok $j->new_function( end_todo => sub { undef $::TODO } ), 
-	'JE::Object::Function';
+# Tests 2-4: Bind some functions
+isa_ok $j->new_function( ok  => \&ok   ), 'JE::Object::Function';
+isa_ok $j->new_function( diag => \&diag ), 'JE::Object::Function';
+isa_ok $j->new_function( skip  => \&skip ), 'JE::Object::Function';
 
 
 # JS tests
@@ -35,7 +30,7 @@ function is_nan(n) { // sees whether something is *identical* to NaN
 // 11.6.1 +
 // ===================================================
 
-/* Tests 6-54: +'s type conversion (also takes care of string + string) */
+/* Tests 5-53: +'s type conversion (also takes care of string + string) */
 
 ok(is_nan(void 0 + void 0),                 "undefined + undefined")
 ok(is_nan(void 0 + null),                      "undefined + null")
@@ -92,7 +87,7 @@ ok(new Number(34.2) +  new Number(34.2) === 68.4,
 
 
 // ---------------------------------------------------
-/* Tests 55-74: number + number (11.6.3) */
+/* Tests 54-73: number + number (11.6.3) */
 
 ok(is_nan( NaN      + 322),             'NaN + anything')
 ok(is_nan( 2389     + NaN),             'anything + NaN')
@@ -116,18 +111,18 @@ ok(-75       +  75       ===  0,        '-x + x')
 //     supports gradual underflow, whatever that is
 ok(3+4.8 === 7.8, '3+4.8')
 
-start_todo('not yet IEEE754-compliant');
-// these test fail only on some 64-bit systems; I'm not sure why
-ok( 9e+307 +  9e+307 ===  Infinity, 'positive overflow with +')
-ok(-9e+307 + -9e+307 === -Infinity, 'negative overflow with +')
-end_todo()
+try{
+	skip('not yet IEEE754-compliant', 2);
+	ok( 9e+307 +  9e+307 ===  Infinity, 'positive overflow with +')
+	ok(-9e+307 + -9e+307 === -Infinity, 'negative overflow with +')
+}catch(y){}
 
 
 // ===================================================
 // 11.6.2 -
 // ===================================================
 
-/* Tests 75-84: -'s type conversion */
+/* Tests 74-83: -'s type conversion */
 
 ok(is_nan(void 0 - 2), 'undefined - number')
 ok(null   - 3 === -3,  'null - number')
@@ -142,7 +137,7 @@ ok(is_nan(2 - {}),     'number - object')
 
 
 // ---------------------------------------------------
-/* Tests 85-104: number - number (11.6.3) */
+/* Tests 84-103: number - number (11.6.3) */
 
 ok(is_nan( NaN      - 322),             'NaN - anything')
 ok(is_nan( 2389     - NaN),             'anything - NaN')
@@ -166,11 +161,12 @@ ok(-75       - -75       ===  0,        '-x - x')
 //     supports gradual underflow, whatever that is
 ok(3-4.8 === -1.8, '3-4.8')
 
-start_todo('not yet IEEE754-compliant');
-// these test fail only on some 64-bit systems; I'm not sure why
-ok( 9e+307 - -9e+307 ===  Infinity, 'positive overflow with -')
-ok(-9e+307 -  9e+307 === -Infinity, 'negative overflow with -')
-end_todo()
+try{
+	skip('not yet IEEE754-compliant', 2);
+	// these test fail only on some 64-bit systems; I'm not sure why
+	ok( 9e+307 - -9e+307 ===  Infinity, 'positive overflow with -')
+	ok(-9e+307 -  9e+307 === -Infinity, 'negative overflow with -')
+}catch(y){}
 
 
 --end--

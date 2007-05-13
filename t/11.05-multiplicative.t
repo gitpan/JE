@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 106;
+use Test::More tests => 105;
 use strict;
 use utf8;
 
@@ -13,15 +13,10 @@ BEGIN { use_ok('JE') };
 my $j = new JE;
 
 
-# Tests 2-3: Bind the ok and diag functions
-isa_ok( $j->new_function( ok  => \&ok   ), 'JE::Object::Function' );
-isa_ok( $j->new_function( diag => \&diag ), 'JE::Object::Function' );
-
-# Tests 4-5: Couple more functions I need
-isa_ok $j->new_function( start_todo => sub { $::TODO = shift } ), 
-	'JE::Object::Function';
-isa_ok $j->new_function( end_todo => sub { undef $::TODO } ), 
-	'JE::Object::Function';
+# Tests 2-4: Bind some functions
+isa_ok $j->new_function( ok  => \&ok   ), 'JE::Object::Function';
+isa_ok $j->new_function( diag => \&diag ), 'JE::Object::Function';
+isa_ok $j->new_function( skip  => \&skip ), 'JE::Object::Function';
 
 
 # JS tests
@@ -31,7 +26,7 @@ defined $j->eval( <<'--end--' ) or die;
 // 11.5.1 *
 // ===================================================
 
-/* Tests 6-15: *'s type conversion */
+/* Tests 5-14: *'s type conversion */
 
 ok(isNaN(void 0 * 2), 'undefined * number')
 ok(null   * 3 ===  0, 'null * number')
@@ -46,7 +41,7 @@ ok(isNaN(2 * {}),     'number * object')
 
 
 // ---------------------------------------------------
-/* Tests 16-37: number * number */
+/* Tests 15-36: number * number */
 
 ok(isNaN(NaN  * 322),                   'NaN * anything')
 ok(isNaN(2389 * NaN),                   'anything * NaN')
@@ -70,20 +65,20 @@ ok( Infinity * -3.54     === -Infinity, 'inf * -finite')
 //     supports gradual underflow, whatever that is
 ok(3*4.8 === 14.4, '3*4.8')
 
-start_todo('not yet IEEE754-compliant');
-// these test fail only on some 64-bit systems; I'm not sure why
-ok( 9e+300 * 9e+300 ===  Infinity, 'positive overflow with *')
-ok(-9e+300 * 9e+300 === -Infinity, 'negative overflow with *')
-ok( 9e-300 * 9e-300 ===  0,        'positive underflow with *')
-ok(-9e-300 * 9e-300 ===  0,        'negative underflow with *')
-end_todo()
+try{
+	skip('not yet IEEE754-compliant', 4);
+	ok( 9e+300 * 9e+300 ===  Infinity, 'positive overflow with *')
+	ok(-9e+300 * 9e+300 === -Infinity, 'negative overflow with *')
+	ok( 9e-300 * 9e-300 ===  0,        'positive underflow with *')
+	ok(-9e-300 * 9e-300 ===  0,        'negative underflow with *')
+}catch(y){}
 
 
 // ===================================================
 // 11.5.2 /
 // ===================================================
 
-/* Tests 38-47: /'s type conversion */
+/* Tests 37-46: /'s type conversion */
 
 ok(isNaN(void 0 / 2),       'undefined / number')
 ok(null   / 3 ===  0,       'null / number')
@@ -98,7 +93,7 @@ ok(isNaN(2 / {}),           'number / object')
 
 
 // ---------------------------------------------------
-/* Tests 48-78: number / number */
+/* Tests 47-77: number / number */
 
 // The tests that use '=== -0' are equivalent to '=== 0' in JS. If I ever
 // get round to implementing -0, I need to come up with a way to test for
@@ -135,20 +130,21 @@ ok(-3.54 /  0        === -Infinity, '-finite / 0')
 //     supports gradual underflow, whatever that is
 ok(3/4.8 === .625, '3/4.8')
 
-start_todo('not yet IEEE754-compliant');
-// these test fail only on some 64-bit systems; I'm not sure why
-ok( 9e+300 / 9e-300 ===  Infinity, 'positive overflow with /')
-ok(-9e+300 / 9e-300 === -Infinity, 'negative overflow with /')
-ok( 9e-300 / 9e+300 ===  0,        'positive underflow with /')
-ok(-9e-300 / 9e+300 ===  0,        'negative underflow with /')
-end_todo()
+try{
+	skip('not yet IEEE754-compliant', 4);
+	// these test fail only on some 64-bit systems; I'm not sure why
+	ok( 9e+300 / 9e-300 ===  Infinity, 'positive overflow with /')
+	ok(-9e+300 / 9e-300 === -Infinity, 'negative overflow with /')
+	ok( 9e-300 / 9e+300 ===  0,        'positive underflow with /')
+	ok(-9e-300 / 9e+300 ===  0,        'negative underflow with /')
+}catch(y){}
 
 
 // ===================================================
 // 11.5.3 %
 // ===================================================
 
-/* Tests 79-88: %'s type conversion */
+/* Tests 78-87: %'s type conversion */
 
 ok(isNaN(void 0 % 2), 'undefined % number')
 ok(null   % 3 === 0,  'null % number')
@@ -163,7 +159,7 @@ ok(isNaN(2 % {}),     'number % object')
 
 
 // ---------------------------------------------------
-/* Tests 89-106: number % number */
+/* Tests 88-105: number % number */
 
 ok(isNaN(NaN  % 322),               'NaN % anything')
 ok(isNaN(2389 % NaN),               'anything % NaN')

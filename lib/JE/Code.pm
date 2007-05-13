@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.011';
+our $VERSION = '0.012';
 
 use strict;
 use warnings;
@@ -121,7 +121,7 @@ sub execute {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.011';
+our $VERSION = '0.012';
 
 use subs qw'_create_vars _eval_term';
 use List::Util 'first';
@@ -528,7 +528,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.011';
+our $VERSION = '0.012';
 
 # See the comments in Number.pm for how I found out these constant values.
 use constant nan => sin 9**9**9;
@@ -1061,7 +1061,7 @@ sub eval {  # evalate (sub)expression
 		for (2..$#$expr) {
 			if(ref $$expr[$_] eq 'comma') {
 				ref $$expr[$_-1] eq 'comma' || $_ == 2
-				and push @ary, undef
+				and ++$#ary
 			}
 			else {
 				push @ary, _eval_term $$expr[$_];
@@ -1069,9 +1069,10 @@ sub eval {  # evalate (sub)expression
 		}
 
 		my $ary = new JE::Object::Array $_global;
-		@{ $ary->value } = @ary; # injecting it like this makes
-		                         # 'undef' elements non-existent,
-		                         # rather than undefined
+		$$$ary{array} = \@ary; # sticking it in like this
+		                       # makes 'undef' elements non-
+		                       # existent, rather
+		                       # than undefined
 		return $ary;
 	}
 	if($type eq 'hash') {
@@ -1141,7 +1142,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.011';
+our $VERSION = '0.012';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1153,7 +1154,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.011';
+our $VERSION = '0.012';
 
 sub list {
 	my $self = shift;

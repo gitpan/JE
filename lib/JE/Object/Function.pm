@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.011';
+our $VERSION = '0.012';
 
 
 use strict;
@@ -216,7 +216,7 @@ sub new {
 		$scope = $opts{scope};
 	}
 	else {
-		%opts = @_ == 0  # bypass param-parsing for the sake of
+		%opts = @_ == 1  # bypass param-parsing for the sake of
 		                 # efficiency
 		? 	( function => shift )
 		: 	( argnames => do {
@@ -385,14 +385,17 @@ sub apply { # ~~~ we need to upgrade the args passed to apply, but still
 		# might need to be moved to this sub.
 	my ($self, $obj) = (shift, shift);
 	my $guts = $$self;
+	my $global = $$guts{global};
 
 	if(!blessed $obj or ref $obj eq 'JE::Object::Function::Call' 
 	    or $obj->id =~ /^(?:null|undef)\z/) {
-		$obj = $$guts{global};
+		$obj = $global;
 	}
 	else {
 		$obj = $obj->to_object;
 	}
+
+	@_ = $global->upgrade(@_);
 
 	if(ref $$guts{function} eq 'CODE') {
 		my @args;
@@ -411,7 +414,7 @@ sub apply { # ~~~ we need to upgrade the args passed to apply, but still
 			?	[@_] # ~~~ downgrade if wanted
 			: 	undef;
 		}
-		return $$guts{global}->upgrade(
+		return $global->upgrade(
 			scalar $$guts{function}->(@args)
 			# ~~~ Add support for list context once I've
 			#     figured out the exact behaviour--if it makes
@@ -428,7 +431,7 @@ sub apply { # ~~~ we need to upgrade the args passed to apply, but still
 		return $ret;
 	}
 	else {
-		return $$guts{global}->undefined;
+		return $global->undefined;
 	}
 }
 
@@ -438,7 +441,7 @@ sub _init_scope { # initialise the new scope for the function call
 	bless([ @$scope, JE::Object::Function::Call->new({
 		global   => $scope,
 		argnames => $argnames,
-		args     => [$scope->upgrade(@args)],
+		args     => [@args],
 		function => $self,
 	})], 'JE::Scope');
 }
@@ -606,7 +609,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.011';
+our $VERSION = '0.012';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -683,7 +686,7 @@ sub delete {
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.011';
+our $VERSION = '0.012';
 
 our @ISA = 'JE::Object';
 

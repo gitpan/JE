@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 102;
+use Test::More tests => 142;
 use Scalar::Util 'refaddr';
 use strict;
 use utf8;
@@ -276,9 +276,9 @@ is refaddr $j, refaddr global $a1, '->global';
 
 
 #--------------------------------------------------------------------#
-# Tests 94-102: Overloading
+# Tests 94-7: Overloading
 
-cmp_ok \@$a1, '==', value $a1, '@{}';  # same array -- this will change
+# @{} and %{} are dealt with further down
 
 is !$a1,  '',         '!$a1';
 
@@ -286,10 +286,91 @@ cmp_ok 0+$a1, '!=', 0+$a1,  '0+$a1';
 cmp_ok 0+$a2, '!=', 0+$a2,  '0+$a2';
 cmp_ok 0+$a3, '!=', 0+$a3,  '0+$a3';
 
-my %hash = %$a1;
-is join('-', sort keys %hash), '0-1-thing', 'keys %{}';
-is $hash{0}, 'an', '$a1->{0}';
-is $hash{1}, 'array', '$a1->{1}';
-is $hash{thing}, 'undefined', '$a1->{thing}';
+
+#--------------------------------------------------------------------#
+# Tests 98-122: Array ties
+
+our @a;
+*a = \@$a1; # for convenience' sake
+is $a[0], 'an', 'array FETCH';
+$a[0] = 'and';
+is $a1->prop(0), 'and', 'array STORE';
+is @a, 3, 'FETCHSIZE';
+$#a = 3;
+is $a1->prop('length'), 4, 'STORESIZE';
+ok  exists $a[0], 'EXISTS';
+ok !exists $a[2], 'EXISTS (nonexistent)';
+is delete $a[0], 'and', 'DELETE returns the deleted value';
+is_deeply $a1->prop(0), undef, 'DELETE works';
+is push(@a, 'Χριστὸς ἀνέστη!'), 5, 'PUSH';
+is $a1->prop('length'), 5, 'PUSH modified the length property';
+is $a1->prop(4), 'Χριστὸς ἀνέστη!', 'PUSH assigned the pushed value';
+is pop @a, 'Χριστὸς ἀνέστη!', 'POP';
+is $a1->prop('length'), 4, 'POP modified the length property';
+$a1->prop(0,'Ἀληθῶς ἀνέστη!');
+is shift @a, 'Ἀληθῶς ἀνέστη!', 'SHIFT';
+is $a1->prop('length'), 3, 'SHIFT adjusts the length';
+is unshift(@a, 'I'), 4, 'UNSHIFT';
+is $a1->prop('length'), 4, 'UNSHIFT changes the length';
+is_deeply [splice @a, 2, 2, qw/myself in it./], [(undef)x2],
+	'SPLICE';
+is_deeply \@a, [qw/I array myself in it./], 'result of SPLICE';
+
+eval {
+	@a = ();
+};
+like $@, qr/^Can't locate object method/, '@$a1 = () dies';
+delete $a[0];
+$a[0]{1} = 3;
+isa_ok $a[0], 'JE::Object', '$a[0] (after []{} autovivifcation)';
+is $a[0]{1}, 3, '$a[0]{1} after []{} autovivification';
+delete $a[0];
+$a[0][1] = 3;
+isa_ok $a[0], 'JE::Object::Array', '$a[0] (after [][] autovivifcation)';
+is $a[0][1], 3, '$a[0][1] after [][] autovivification';
+delete $a[0];
+$a[0] = \@@;
+ok !tied @@,
+	'explicit array assignment is not confused with autovivification';
 
 
+
+#--------------------------------------------------------------------#
+# Tests 123-42: Hash ties
+
+our %h;
+*h = \%$a1;
+$a1->delete(0);
+
+is_deeply $h{0}, undef, '$a1->{0} (FETCH)';
+is $h{1}, 'array', '$a1->{1} (FETCH)';
+is $h{thing}, 'undefined', '$a1->{thing} (FETCH)';
+$h{1} = 3;
+is $a1->prop(1), 3, 'STORE array elem';
+$h{aoeu} = 'htns';
+is $a1->prop('aoeu'), 'htns', 'STORE property';
+is delete $h{1}, 3, 'return value of DELETE (hash)';
+is_deeply $a1->prop(1), undef, 'hash DELETE works';
+ok !exists $h{1}, 'hash EXISTS nonexistent elem';
+ok  exists $h{2}, 'hash EXISTS(elem)';
+ok !exists $h{snth}, 'hash EXISTS(nonexistent prop)';
+ok  exists $h{thing}, 'hash EXISTS(prop)';
+ok  exists $h{length}, 'hash EXISTS(length)';
+ok !exists $h{toString}, 'hash EXISTS(inherited prop)';
+is join('-', keys %h), '2-3-4-thing-aoeu', 'keys %{}';
+
+eval {
+	%h = ();
+};
+like $@, qr/^Can't locate object method/, '%$a1 = () dies';
+$h{0}{1} = 3;
+isa_ok $h{0}, 'JE::Object', '$h{0} (after {}{} autovivifcation)';
+is $h{0}{1}, 3, '$h{0}{1} after {}{} autovivification';
+delete $h{0};
+$h{0}[1] = 3;
+isa_ok $h{0}, 'JE::Object::Array', '$h{0} (after {}[] autovivifcation)';
+is $h{0}[1], 3, '$h{0}[1] after {}[] autovivification';
+delete $h{0};
+$h{0} = \%@;
+ok !tied(%@),
+	'explicit hash assignment is not confused with autovivification';

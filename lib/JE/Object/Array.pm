@@ -1,12 +1,12 @@
 package JE::Object::Array;
 
-our $VERSION = '0.011';
+our $VERSION = '0.012';
 
 use strict;
 use warnings;
 
 use overload fallback => 1,
-	'@{}'=> 'value';
+	'@{}'=> \&_get_tie;
 
 
 use List::Util qw/min max/;
@@ -43,8 +43,10 @@ JE::Object - JavaScript Array object class
 
 This module implements JavaScript Array objects.
 
-The C<@{}> (array ref) operator is overloaded and returns the array that
-the object uses underneath. (B<This is subject to change.>)
+The C<@{}> (array ref) operator is overloaded and returns a tied array that
+you can use to modify the array object itself. The limitations and caveats 
+mentioned in
+C<JE::Object/"USING AN OBJECT AS A HASH"> apply here, too.
 
 =head1 METHODS
 
@@ -53,11 +55,11 @@ is specific to JE::Object::Array is explained here.
 
 =over 4
 
-=item $a = JE::Object::Array->new($global, \@elements)
+=item $a = JE::Object::Array->new($global_obj, \@elements)
 
-=item $a = JE::Object::Array->new($global, $length)
+=item $a = JE::Object::Array->new($global_obj, $length)
 
-=item $a = JE::Object::Array->new($global, @elements)
+=item $a = JE::Object::Array->new($global_obj, @elements)
 
 This creates a new Array object.
 
@@ -171,13 +173,13 @@ sub delete {  # array indices are deletable; length is not
 
 =item $a->value
 
-This returns a reference to an array ref. This is the actual array that
-the object uses internally, so you can modify the Array object by modifying
-this array. (B<This is going to change.>)
+This returns a reference to an array. This is a copy of the Array object's
+internal array. If you want an array through which you can modify the
+object, use C<@$a>.
 
 =cut
 
-sub value { $${+shift}{array} };
+sub value { [@{$${+shift}{array}}] };
 
 
 sub exists {
@@ -668,7 +670,7 @@ sub _unshift {
 
 	my $length = $self->prop('length')->to_number->value % 2**32;
 	$length == $length or $length = 0;
-	
+
 	my $val;
 	for (reverse 0..$length-1) {
 		defined ($val = $self->prop($_))
@@ -679,9 +681,33 @@ sub _unshift {
 	for (0..$#_) {
 		$self->prop($_ => $_[$_]);
 	}
+	$self->prop(length => $length += @_);
 
-	return JE::Number->new($self->global, $length + @_);
+	return JE::Number->new($self->global, $length);
 }
+
+
+#----------- TYING MAGIC ---------------#
+
+sub _get_tie {
+	my $self = shift;
+	my $guts = $$self;
+	$$guts{array_tie} or tie @{ $$guts{array_tie} }, __PACKAGE__,
+		$self;	
+	$$guts{array_tie};
+}
+
+# The qw/FETCH EXISTS DELETE/ methods are inherited from JE::Object.
+
+sub TIEARRAY  { $_[1] }
+sub FETCHSIZE { $_[0]->prop('length') }
+sub STORESIZE { $_[0]->prop('length' => $_[1]) }
+sub PUSH      { shift->method(push => @_) }
+sub POP       { $_[0]->method('pop') }
+sub SHIFT     { $_[0]->method('shift') }
+sub UNSHIFT   { shift->method(unshift => @_) }
+sub SPLICE    { @{ shift->method(splice  => @_)->value } }
+
 
 =back
 

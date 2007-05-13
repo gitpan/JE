@@ -1,4 +1,4 @@
-JE, version 0.011
+JE, version 0.012
 
 JE is a pure-Perl ECMAScript (JavaScript) engine.
 
@@ -13,14 +13,17 @@ reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-A JE::Object can now be treated as a hash ref and modified that way,
-thanks to tying magic
-JE::Object::Function's 'apply' method now upgrades the func-
-tion's arguments
+A JE::Object::Array can now be treated as an array ref and modified
+that way
+Functions created with new_function are now enumerable, just like
+'alert', et al. in web browsers.
+
+See the 'Changes' file for more.
 
 
 TO DO
 
+- Make the parser extensible/customisable
 - Finish the core object classes
 - Add helpful error messages
 - Provide a way to bind Perl classes to JS
@@ -78,7 +81,8 @@ ACKNOWLEDGEMENTS
 Thanks to Max Maischein [ webmaster  corion net ] for letting me use
 his tests,
 
-to Andy Armstrong [ andy  hexten net ] for his suggestions,
+to Andy Armstrong [ andy        hexten net ] and
+   Yair Lenga     [ yair lenga  gmail com  ] for their suggestions,
 
 and to the CPAN Testers for their helpful bug reports.
 

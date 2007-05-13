@@ -1,6 +1,6 @@
 package JE::Object;
 
-our $VERSION = '0.011';
+our $VERSION = '0.012';
 
 
 use strict;
@@ -15,6 +15,7 @@ use overload fallback => 1,
 
 use Scalar::Util qw'refaddr blessed';
 use List::Util 'first';
+use B 'svref_2object';
 #use Data::Dumper;
 
 
@@ -45,18 +46,23 @@ JE::Object - Base class for all JavaScript objects
 
   $obj->prop('property1', $new_value);  # sets the property
   $obj->prop('property1');              # returns $new_value;
+  $obj->{property1} = $new_value;       # or use it as a hash
+  $obj->{property1};                    # ref like this
 
   $obj->keys; # returns a list of the names of enumerable property
+  keys %$obj;
 
   $obj->delete('property_name');
+  delete $obj->{property_name};
 
   $obj->method('method_name', 'arg1', 'arg2');
     # calls a method with the given arguments
 
   $obj->value ;    # returns a value useful in Perl (a hashref)
 
-  "$obj"; # "[object Object]"
-          # same as $obj->to_string->value
+  "$obj";  # "[object Object]" -- same as $obj->to_string->value
+  0+$obj"; #  nan -- same as $obj->to_number->value
+  # etc.
 
 =head1 DESCRIPTION
 
@@ -68,11 +74,10 @@ its properties. A method is a property that happens to be an instance
 of the
 C<Function> class (C<JE::Object::Function>).
 
-This class overrides the stringification operator by calling
-C<< $obj->method('toString') >> (B<To do:> rewrite this sentence; it's not
-precise). The C<%{}> (hashref) operator is also
-overloaded and returns a hash that can be used to modify the object. (This
-is a tied hash; there are some issues with it that I have yet to document.)
+JE::Object objects can be used in Perl as a number, string or boolean. The 
+result will be the same as in JavaScript. The C<%{}> (hashref) operator is 
+also overloaded and returns a hash that can be used to modify the object.
+See L<"USING AN OBJECT AS A HASH">.
 
 See also L<JE::Types> for descriptions of most of the methods. Only what
 is specific to JE::Object is explained here.
@@ -172,7 +177,8 @@ sub ______new { # not according to spec. What *was* I thinking???
 =item $j->new_function(sub { ... })
 
 This creates and returns a new function object. If $name is given,
-it will become a property of the object. As with built-in JS functions, the property will not be enumerable.
+it will become a property of the object. The function is enumerable, like
+C<alert> I<et al.> in web browsers.
 
 For more ways to create functions, see L<JE::Object::Function>.
 
@@ -189,7 +195,6 @@ sub new_function {
 	@_ and $self->prop({
 		name => shift,
 		value=>$f,
-		dontenum=>1
 	});
 	$f;
 }
@@ -202,7 +207,10 @@ sub new_function {
 =item $j->new_method(sub { ... })
 
 This is the same as C<new_function>, except that the subroutine's first
-argument will be the object with which the function is called.
+argument will be the object with which the function is called, and that the 
+property created will not be enumerable. This allows one to add methods to
+C<Object.prototype>, for instance, without making every for-in loop list
+that method.
 
 For more ways to create functions, see L<JE::Object::Function>.
 
@@ -237,6 +245,9 @@ sub prop {
 			exists $$opts{$_}
 				and $$guts{"prop_$_"}{$name} = $$opts{$_};
 		}
+
+		my $props = $$guts{props};
+
 		my $dontenum;
 		if(exists $$opts{dontenum}) {
 			if($$opts{dontenum}) {
@@ -249,7 +260,10 @@ sub prop {
 			    	unless first {$_ eq $name} @{$$guts{keys}};
 			}
 		}
-		my $props = $$guts{props};
+		elsif(!exists $$guts{$name}) { # new property
+			push @{ $$guts{keys} }, $name
+		}
+		
 		if(exists $$opts{value}) {
 			return $$props{$name} =
 				$$guts{global}->upgrade($$opts{value});
@@ -387,7 +401,9 @@ sub class { 'Object' }
 
 =item $obj->value
 
-This returns a hash ref of the object's enumerable properties.
+This returns a hash ref of the object's enumerable properties. This is a 
+copy of the object's properties. Modifying it does not modify the object
+itself.
 
 =cut
 
@@ -450,6 +466,8 @@ sub to_object { $_[0] }
 
 sub global { ${+shift}->{global} }
 
+
+=begin to delete
 
 =item I<Class>->new_constructor( $global, \&function, \&prototype_init );
 
@@ -537,6 +555,8 @@ do what you want.
 B<To do:> Make this exportable, for classes that don't feel like inheriting
 from JE::Object (maybe this is not necessary, since one can say
 S<< C<<< __PACKAGE__->JE::Object::new_constructor >>> >>).
+
+=end to delete
 
 =cut
 
@@ -710,7 +730,7 @@ sub _init_proto {
 
 # I'm putting the object itself behind the tied hash, so that no new object
 # has to be created.
-# Yes, that does mean that tied %$obj returns $obj.
+# That means that tied %$obj returns $obj.
 
 
 sub _get_tie {
@@ -722,14 +742,29 @@ sub _get_tie {
 
 sub TIEHASH  { $_[1] }
 sub FETCH    { $_[0]->prop($_[1]) }
-sub STORE    { $_[0]->prop(@_[1..2]) }
+sub STORE    {
+	my($self, $key, $val) = @_;
+	if(ref $val eq 'HASH' && !blessed $val
+  	   && !%$val && svref_2object($val)->REFCNT == 2) {
+		$val = tie %$val, __PACKAGE__, __PACKAGE__->new(
+			$$$self{global});
+	} elsif (ref $val eq 'ARRAY' && !blessed $val && !@$val && 
+	         svref_2object($val)->REFCNT == 2) {
+		$val = tie @$val, 'JE::Object::Array',
+			JE::Object::Array->new($$$self{global});
+	}
+	$self->prop($key => $val)
+}
 #sub CLEAR   {  }
 	# ~~~ have yet to implement this
-sub DELETE   { $_[0]->delete($_[1]) }
-	# ~~~ returns a boolean; this behaviour may change
+sub DELETE   {
+	my $val = $_[0]->prop($_[1]);
+	$_[0]->delete($_[1]);
+	$val;
+}
 sub EXISTS   { $_[0]->exists($_[1]) }
 sub FIRSTKEY { ($_[0]->keys)[0] }
-sub NEXTKEY  { # ~~~ I hope this is always called in scalar context
+sub NEXTKEY  {
 	my @keys = $_[0]->keys;
 	my $last = $_[1];
 	for (0..$#keys) {
@@ -749,7 +784,57 @@ sub NEXTKEY  { # ~~~ I hope this is always called in scalar context
 
 #----------- THE REST OF THE DOCUMENTATION ---------------#
 
-=pod
+=head1 USING AN OBJECT AS A HASH
+
+Note first of all that C<\%$obj> is I<not> the same as C<< $obj->value >>.
+The C<value> method creates a new hash containing just the enumerable
+properties of the object and its prototypes. It's just a plain hash--no
+ties, no magic. C<%$obj>, on the other hand, is another creature...
+
+C<%$obj> returns a magic hash which only lists enumerable properties
+when you write C<keys %$obj>, but still provides access to the rest.
+
+Using C<exists> on this hash will check to see whether it is the object's
+I<own> property, and not a prototype's.
+
+Assignment to the hash itself currently
+throws an error:
+
+  %$obj = (); # no good!
+
+This is simply because I have not yet figured out what it should do. If
+anyone has any ideas, please let me know.
+
+Autovivification works, so you can write
+
+  $obj->{a}{b} = 3;
+
+and the 'a' element will be created if did not already exist. Note that,
+if the property C<did> exist but was undefined (from JS's point of view),
+this throws an error.
+
+One potential problem with this is that, when perl autovivifies in the 
+example
+above, it first calls C<FETCH> and, when it sees that the result is not
+defined, then calls C<STORE> with C<{}> as the value. It then uses that
+same hash that it passed to C<STORE>, and does I<not> make a second call to
+C<FETCH>. This means that, for autovivification to work, the empty hash
+that perl automatically assigns has to be tied to the new JE::Object that
+is created. Now, the same sequence of calls to tie 
+handlers can be triggered by the following lines:
+
+  my %h;
+  $obj->{a};
+  $h{b} = 3;
+
+And, of course, you don't want your %h hash transmogrified and tied to a 
+JE::Object, do you? (Normally
+hashes and arrays are copied by STORE.) So the only feasible way (I can 
+think of) to
+make the distinction is to use reference counts (which is what I'm using), 
+but they may change
+between versions of Perl.
+
 
 =head1 INNARDS
 
