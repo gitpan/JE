@@ -11,32 +11,22 @@ use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.012';
+our $VERSION = '0.013';
 
 use Encode qw< decode_utf8 encode_utf8 FB_CROAK >;
 use Scalar::Util 'blessed';
+#use SelfLoader; # ~~~ I'll get to this
 
 our @ISA = 'JE::Object';
 
-require JE::Code    ;
+require JE::Code;
 require JE::Null     ;
 require JE::Number     ;
-require JE::Object       ;
-require JE::Object::Array   ;
-require JE::Object::Boolean   ;
-require JE::Object::Error        ;
-require JE::Object::Error::RangeError;
-require JE::Object::Error::ReferenceError;
-require JE::Object::Error::SyntaxError      ;
-require JE::Object::Error::TypeError          ;
-require JE::Object::Error::URIError            ;
-require JE::Object::Function                   ;
-require JE::Object::Math                       ;
-require JE::Object::Number                     ;
-require JE::Object::RegExp                      ;
-require JE::Object::String                      ;
-require JE::Scope                              ;
-require JE::String                           ;
+require JE::Object      ;
+require JE::Object::Function;
+require JE::Parser                             ;
+require JE::Scope                             ;
+require JE::String                          ;
 require JE::Undefined                     ;
 
 =head1 NAME
@@ -47,7 +37,12 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.011 (alpha release)
+Version 0.013 (alpha release)
+
+The API is still subject to change. If you have the time and the interest, 
+please experiment with this module.
+If you have any ideas for the API, or would like to help with development,
+please e-mail the author.
 
 =head1 SYNOPSIS
 
@@ -93,29 +88,45 @@ Version 0.011 (alpha release)
 
 =head1 DESCRIPTION
 
-This description I<definitely> needs to be rewritten.
+JE is a pure-Perl JavaScript engine. Here are some of its
+strengths:
 
-This is a pure-Perl JavaScript engine. All JavaScript values  are actually 
-Perl objects underneath. When you create a new C<JE> object, you are 
-basically 
-creating
-a new JavaScript "world," the C<JE> object itself being the global object. 
-To
-add properties and methods to it from Perl, and to access those properties, 
-see 
-L<< C<JE::Types> >> and L<< C<JE::Object> >>, which this
-class inherits from.
+=over 4
 
-If you want to create your own global object class (such as a web browser
-window), inherit from JE.
+=item -
+
+Easy to install (no C compiler necessary)
+
+=item -
+
+Compatible with Data::Dump::Streamer, so the runtime environment
+can be serialised
+
+=item -
+
+The parser can be extended/customised to support extra (or
+fewer) language features (not yet complete)
+
+=item -
+
+All JavaScript datatypes can be manipulated directly from Perl (they all
+have overloaded operators)
+
+=back
+
+JE's greatest weakness is that it's slow (well, what did you expect?).
 
 =head1 METHODS
+
+See also L<< C<JE::Object> >>, which this
+class inherits from, and L<< C<JE::Types> >>.
 
 =over 4
 
 =item $j = JE->new
 
-This class method constructs and returns a new global scope (C<JE> object).
+This class method constructs and returns a new JavaScript environment, the
+JE object itself being the global object.
 
 =cut
 
@@ -244,64 +255,81 @@ sub new {
 	# E 15.1.4
 	$self->prop({
 		name => 'Array',
-		value => JE::Object::Array->new_constructor($self),
+		autoload =>
+			'require JE::Object::Array;
+			 JE::Object::Array->new_constructor($global)',
 		dontenum => 1,
 	});
 	$self->prop({
 		name => 'String',
-		value => JE::Object::String::_new_constructor($self),
+		autoload =>
+			'require JE::Object::String;
+			JE::Object::String::_new_constructor($global)',
 		dontenum => 1,
 	});
 	$self->prop({
 		name => 'Boolean',
-		value => JE::Object::Boolean::_new_constructor($self),
+		autoload =>
+		    'require JE::Object::Boolean;
+		    JE::Object::Boolean::_new_constructor($global)',
 		dontenum => 1,
 	});
 	$self->prop({
 		name => 'Number',
-		value => JE::Object::Number::_new_constructor($self),
+		autoload =>
+			'require JE::Object::Number;
+			JE::Object::Number::_new_constructor($global)',
 		dontenum => 1,
 	});
 	# ~~~ Date
 	$self->prop({
 		name => 'RegExp',
-		value => JE::Object::RegExp->new_constructor($self),
+		autoload => 
+			'require JE::Object::RegExp;
+			 JE::Object::RegExp->new_constructor($global)',
 		dontenum => 1,
 	});
 	$self->prop({
 		name => 'Error',
-		value => JE::Object::Error->new_constructor($self),
+		autoload =>
+			'require JE::Object::Error;
+			 JE::Object::Error->new_constructor($global)',
 		dontenum => 1,
 	});
-	# ~~~ EvalError ?
+	# No EvalError
 	$self->prop({
 		name => 'RangeError',
-		value => JE::Object::Error::RangeError
-			->new_constructor($self),
+		autoload => 'require JE::Object::Error::RangeError;
+		             JE::Object::Error::RangeError
+		              ->new_constructor($global)',
 		dontenum => 1,
 	});
 	$self->prop({
 		name => 'ReferenceError',
-		value => JE::Object::Error::ReferenceError
-			->new_constructor($self),
+		autoload => 'require JE::Object::Error::ReferenceError;
+		             JE::Object::Error::ReferenceError
+		              ->new_constructor($global)',
 		dontenum => 1,
 	});
 	$self->prop({
 		name => 'SyntaxError',
-		value => JE::Object::Error::SyntaxError
-			->new_constructor($self),
+		autoload => 'require JE::Object::Error::SyntaxError;
+		             JE::Object::Error::SyntaxError
+		              ->new_constructor($global)',
 		dontenum => 1,
 	});
 	$self->prop({
 		name => 'TypeError',
-		value => JE::Object::Error::TypeError
-			->new_constructor($self),
+		autoload => 'require JE::Object::Error::TypeError;
+		             JE::Object::Error::TypeError
+		              ->new_constructor($global)',
 		dontenum => 1,
 	});
 	$self->prop({
 		name => 'URIError',
-		value => JE::Object::Error::URIError
-			->new_constructor($self),
+		autoload => 'require JE::Object::Error::URIError;
+		             JE::Object::Error::URIError
+		              ->new_constructor($global)',
 		dontenum => 1,
 	});
 
@@ -339,17 +367,16 @@ sub new {
 				return $self->undefined unless defined
 					$code;
 				return $code if typeof $code ne 'string';
-				my $old_at = $@;
+				my $old_at = $@; # hope it's not tied
 				defined (my $tree = $self->parse($code))
 					or die;
 				my $ret = execute $tree
-					$JE::Code::Expression::_this,
-					$JE::Code::Expression::_scope, 1;
+					$JE::Code::this,
+					$JE::Code::scope, 1;
 
 				ref $@ ne '' and die;
 				
-				$@ = $old_at; # local $@ doesn't work
-				              # properly inside an eval
+				$@ = $old_at;
 				$ret;
 			},
 			no_proto => 1,
@@ -615,7 +642,8 @@ die JE::Object::Error::URIError->new(
 	# E 15.1.5 / 15.8
 	$self->prop({
 		name  => 'Math',
-		value => JE::Object::Math->new($self),
+		autoload => 'require JE::Object::Math;
+		             JE::Object::Math->new($global)',
 		dontenum  => 1,
 	});
 
@@ -627,7 +655,7 @@ die JE::Object::Error::URIError->new(
 
 =item $j->parse( STRING )
 
-C<parse> parses the code contained in C<STRING> and returns a parse
+C<parse> parses the code contained in STRING and returns a parse
 tree (a JE::Code object).
 
 If the syntax is not valid, C<undef> will be returned and C<$@> will 
@@ -645,14 +673,16 @@ Just an alias for C<parse>.
 =cut
 
 sub parse {
-	goto &JE::Code::parse;
+	my $self = shift;
+	JE::Code::_new($self, JE::Parser::_parse(program =>
+		shift, $self));
 }
 *compile = \&parse;
 
 
 =item $j->eval ( STRING )
 
-C<eval> evaluates the JavaScript code contained in string. E.g.:
+C<eval> evaluates the JavaScript code contained in STRING. E.g.:
 
   $j->eval('[1,2,3]') # returns a JE::Object::Array which can be used as
                       # an array ref
@@ -662,7 +692,7 @@ error message. If no error occurs, C<$@> will be a null string.
 
 This is actually just
 a wrapper around C<parse> and the C<execute> method of the
-C<JE::Code> class.
+JE::Code class.
 
 If the JavaScript code evaluates to an lvalue, a JE::LValue object will be
 returned. You can use this like any other return value (e.g., as an array
@@ -786,12 +816,21 @@ sub null { # ~~~ This needs to be made more efficient.
 
 
 
-=item $j->custom_parser
+=item $j->new_parser
 
 B<Not yet implemented.>
 
 This will return a parser object (see L<JE::Parser>) which allows you to
 customise the way statements are parsed and executed.
+
+=cut
+
+sub new_parser {
+	JE::Parser->new(shift);
+}
+
+
+
 
 =back
 
@@ -823,6 +862,13 @@ __END__
 =end for me
 
 =head1 BUGS
+
+=over 4
+
+=item *
+
+JE is not necessarily IEEE 754-compliant. It depends on the OS. For this
+reason the Number.MIN_VALUE and Number.MAX_VALUE properties do not exist.
 
 =item *
 
@@ -868,6 +914,8 @@ C<hasOwnProperty> does not work properly with arrays and arguments objects.
 =item *
 
 The documentation is a bit incoherent. It probably needs a rewrite.
+
+=back
 
 =head1 PREREQUISITES
 

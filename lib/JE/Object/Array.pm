@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.012';
+our $VERSION = '0.013';
 
 use strict;
 use warnings;
@@ -707,7 +707,11 @@ sub POP       { $_[0]->method('pop') }
 sub SHIFT     { $_[0]->method('shift') }
 sub UNSHIFT   { shift->method(unshift => @_) }
 sub SPLICE    { @{ shift->method(splice  => @_)->value } }
-
+sub DDS_freeze {
+	my $self = shift;
+	delete $$$self{array_tie};
+	SUPER::DDS_freeze $self;
+}
 
 =back
 

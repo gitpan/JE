@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.012';
+our $VERSION = '0.013';
 
 
 use strict;
@@ -16,9 +16,9 @@ use overload
 our @ISA = 'JE::Object';
 
 require JE::Code         ;
-require JE::Code::Grammar     ;
-require JE::Object                ;
-require JE::Object::Error::TypeError ;
+require JE::Object             ;
+require JE::Object::Error::TypeError;
+require JE::Parser                    ;
 require JE::Scope                      ;
 
 
@@ -223,7 +223,7 @@ sub new {
 				my $src = '(' . join(',', @_[0..$#_-1]) .
 					')';
 				$src =~ s/\p{Cf}//g;
-				my $params = JE::Code::Grammar::parse(
+				my $params = JE::Parser::_parse(
 					params => $src, $scope
 				);
 				$@ and die $@;
@@ -264,7 +264,7 @@ sub new {
 	: length $opts{function} ?
 		(
 		  $$guts{func_src} = $opts{function},
-		  JE::Code::parse($scope, $opts{function})
+		  parse $global $opts{function}
 		)
 	: ($$guts{func_src} = '');
 
@@ -609,7 +609,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.012';
+our $VERSION = '0.013';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -686,7 +686,7 @@ sub delete {
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.012';
+our $VERSION = '0.013';
 
 our @ISA = 'JE::Object';
 

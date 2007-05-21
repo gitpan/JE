@@ -1,6 +1,6 @@
 package JE::String;
 
-our $VERSION = '0.012';
+our $VERSION = '0.013';
 
 
 use strict;

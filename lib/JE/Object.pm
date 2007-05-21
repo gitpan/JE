@@ -1,7 +1,10 @@
 package JE::Object;
 
-our $VERSION = '0.012';
+our $VERSION = '0.013';
 
+# This has to come before any pragmas and sub declarations.
+sub evall { my $global = shift; eval shift }
+# I'm using shift rather than $_[0] in case someone assigns to $_[0]
 
 use strict;
 use warnings;
@@ -118,6 +121,11 @@ Though it may be easier to write:
 The former is what C<upgrade> itself uses.
 
 =cut
+
+# ~~~ Perhaps I should eliminate the hash ref syntax and have new()
+#     check to see if $j->exists($class->class), and use that as the
+#     prototype. That would make the other constructors simpler, but would
+#     it make it harder to control JE and customise host objects?
 
 sub new {
 	my($class, $global, $value) = @_;
@@ -265,9 +273,17 @@ sub prop {
 		}
 		
 		if(exists $$opts{value}) {
-			return $$props{$name} =
-				$$guts{global}->upgrade($$opts{value});
+			return $$props{$name} = 
+			    $$guts{global}->upgrade($$opts{value});
 		}
+		elsif(exists $$opts{autoload}) {
+			my $auto = $$opts{autoload};
+			$$props{$name} = ref $auto eq 'CODE' ? $auto :
+				"$auto";
+			return # ~~~ Figure out what this should
+			       #     return, if anything
+		}
+
 		return exists $$props{$name} ? $$props{$name} : undef;
 	}
 
@@ -287,15 +303,23 @@ sub prop {
 
 			$$props{$name} = $new_val;
 			push @{ $$guts{keys} }, $name
-			    unless $exists ||
-				first {$_ eq $name} @{ $$guts{keys} }; 
+			    unless $exists; 
 
 			return $new_val;
 		}
+		elsif (exists $$props{$name}) {
+			my $val = $$props{$name};
+			ref $val eq 'CODE' ?
+				$val = $$props{$name} = &$val() :
+			defined $val && ref $val eq '' &&
+				($val = $$props{$name} =
+					evall $$guts{global}, $val
+				);
+			return $val;
+		}
 		else {
-			my $proto;
-			return exists $$props{$name} ? $$props{$name} :
-				($proto = $self->prototype) ?
+			my $proto = $self->prototype;
+			return $proto ?
 				$proto->prop($name) :
 				undef;
 		}	
@@ -780,6 +804,8 @@ sub NEXTKEY  {
 
 	return $keys[0];
 }
+
+sub DDS_freeze { my $self = shift; delete $$$self{tie}; $self }
 
 
 #----------- THE REST OF THE DOCUMENTATION ---------------#

@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 51;
+use Test::More tests => 46;
 use strict;
 use Scalar::Util 'refaddr';
 use utf8;
@@ -77,23 +77,18 @@ isa_ok +($result = $code->execute), 'JE::LValue';
 isa_ok get $result, 'JE::Object::Function';
 
 #--------------------------------------------------------------------#
-# Tests 30-41: various js ops
+# Tests 30-6: various js ops
 
 ok $j->eval('x = 5')          eq '5';
-ok $j->eval('6.7 - .5')          eq '6.2';
-ok $j->eval('-3>>1')                 eq '-2';
-ok $j->eval('3>>1')                      eq '1';
-ok $j->eval('-3>>>1')                         eq '2147483646';
 ok $j->eval('!true ? x = 3 : y = "do\tenut"; y')    eq "do\tenut";
 ok $j->eval('true ? x = 3 : y = "do\tenut"; x')          eq '3';
-ok $j->eval('({"this"    : "that", "the":"other"}["this"])') eq 'that'; 
 ok $j->eval("new(String)('𝄐').length")                          eq '2'; 
 ok $j->eval("new String.prototype.constructor('A𝄫').length")      eq '3'; 
 ok !defined $j->eval('{ a = 6; b= tru\u003d; }');
 ok $j->eval("{ a = 6; b= 7; }")                                     eq '7'; 
 
 #--------------------------------------------------------------------#
-# Tests 42-51: more complicated js stuff
+# Tests 37-46: more complicated js stuff
 
 isa_ok $j->new_function(ok => \&ok), 'JE::Object::Function';
 

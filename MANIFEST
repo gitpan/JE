@@ -1,7 +1,6 @@
 Changes
 lib/JavaScript/Engine.pm
 lib/JE/Boolean.pm
-lib/JE/Code/Grammar.pm
 lib/JE/Code.pm
 lib/JE/LValue.pm
 lib/JE/Null.pm
@@ -20,7 +19,7 @@ lib/JE/Object/Number.pm
 lib/JE/Object/RegExp.pm
 lib/JE/Object/String.pm
 lib/JE/Object.pm
-lib/JE/Parser.pod
+lib/JE/Parser.pm
 lib/JE/Scope.pm
 lib/JE/String.pm
 lib/JE/Types.pod
@@ -44,6 +43,7 @@ t/11.05-multiplicative.t
 t/11.06-additive.t
 t/11.07-bitshift.t
 t/11.08-relational.t
+t/11.09-equality.t
 t/15.01-global-object.t
 t/15.03-function-objects.t
 t/15.04-array-objects.t

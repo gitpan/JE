@@ -1,5 +1,19 @@
 Revision history for JE
 
+0.013   20 May, 2007
+        Features and API changes:
+        - JavaScript properties can now be autoloaded.
+        - &JE::Scope::var has been renamed to &JE::Scope::get_var,
+          since it was too easily confused with JavaScript's 'var'
+          keyword, which does something different.
+        - Started work on parser customisation
+        Bug fixes:
+        - '==' and '!=' were not correctly determining which type of
+           comparison to do  when  the  two  operands  were  of  dif-
+           ferent types.
+        -  throw now requires an expression, as it always should
+           have done.
+
 0.012   13 May, 2007
         Yes, another alpha release.
         - JE::Object::Array's array dereference handler now returns a

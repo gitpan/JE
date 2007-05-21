@@ -6,7 +6,7 @@ This is just documentation, not a module.
 
 =head1 DESCRIPTION
 
-The various JavaScript types and objects are represented by
+The various JavaScript types and objects are represented by Perl
 classes in JE. Each class provides whichever methods listed
 below apply.
 
@@ -26,7 +26,9 @@ representing a JavaScript value. This is done by the C<upgrade> method of
 the global object.
 
 If the value to be upgraded is a blessed reference, it is
-left alone (we assume you know what you are doing). Otherwise the
+left alone (we assume you know what you are doing--but this will change
+slightly when support is provided for binding Perl classes to JS). 
+Otherwise the
 conversion is as follows:
 
   From            To
@@ -42,13 +44,14 @@ B<WARNING:> The 'upgrading' of simple scalars (strings/numbers) and regexps
 is still 
 subject to change.
 
+B<To do:> Make &JE::upgrade detect whether a simple scalar is a string or 
+number.
+
 =head1 WHICH CLASSES ARE WHICH
 
 Each built-in JavaScript class or primitive type is a Perl class 
 underneath. Here 
-is the (not
-yet)
-complete list of object classes:
+is the complete list of object classes:
 
   JavaScript   Perl
   -----------------
@@ -75,10 +78,14 @@ And here are the primitive types:
   null            JE::Null
   undefined       JE::Undefined
 
-And I might also mention a couple of special cases:
+And I might also mention a few special cases:
 
   Global          JE
   Math            JE::Object::Math
+  Arguments       JE::Object::Function::Arguments
+  Function call   JE::Object::Function::Call
+
+The last two are for internal use. 
   
 
 =head1 METHODS
@@ -108,7 +115,7 @@ Perl strings, not JE::Strings.
 
 =item delete($name)
 
-=item delete($name, $even_if_its_undeletable)
+=item delete($name, $even_if_it's_undeletable)
 
 Deletes the property named $name, if it is deletable. If the property did 
 not exist or it was deletable, then
@@ -178,8 +185,8 @@ those that come with JE. They can do whatever they like.
 
 =item prop({ ... })
 
-The C<prop> method can be  called with a hash ref as its argument. In this
-case, the prototype chain is I<not> searched, and values are not upgraded.
+The C<prop> method can be called with a hash ref as its argument. In this
+case, the prototype chain is I<not> searched.
 The elements of the hash are as follows:
 
   name      property name
@@ -187,16 +194,27 @@ The elements of the hash are as follows:
   dontenum  whether this property is unenumerable
   dontdel   whether this property is undeletable
   readonly  whether this property is read-only
+  autoload  see below
 
 If any of the last three is given, the attribute in question will be set.
 If C<value> is given, the value of the property will be set, regardless of
 the attributes.
 
-This is not supported by Arguments objects. It does not work on Array
+C<autoload> can be a string or a coderef. It will be called/evalled the
+first time the property is accessed (accessing it with a hash ref as
+described here does not count). If it is a string, it will be
+evaluated in a scope that has a variable name C<$global>, containing a 
+reference to the global object. The result will become the
+property's value. The value returned is not currently upgraded. The behaviour when a simple scalar or unblessed reference is returned is
+undefined. C<autoload> will be
+ignored completely if C<value> is also given.
+
+This hash ref calling convention is not supported by Arguments objects. It 
+does not work on Array
 objects when the property name is C<length> or an array index (a 
 non-negative integer 
 below
-4,294,967,295). It does not work on strings or String objects if the
+4294967295). It does not work on strings or String objects if the
 property name is C<length>.
 
 =item exists($property_name)

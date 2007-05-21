@@ -29,11 +29,11 @@ ok(
 
 // test 4
 try {
-	throw
-	up
+	eval('throw\nup')
 }
 catch (fire) {
-	ok( fire === undefined, '"throw\\nup" throws undefined');
+	ok( fire instanceof SyntaxError,
+		'"throw\\nup" throws a SyntaxError');
 }
 
 

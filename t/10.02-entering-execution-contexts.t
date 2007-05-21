@@ -37,7 +37,7 @@ defined $j->eval( <<'--end--' ) or die;
 // These line breaks would cause a syntax error according to spec.
 // JE supports line breaks in string literals. Don't tell anyone.
 peval('
-	my @scope = @$JE::Code::Expression::_scope; # Don\'t do this at 
+	my @scope = @$JE::Code::scope; # Don\'t do this at 
 	                                           # home--I mean in pro-
 	                                         # duction  code!  These
 	                                      # internal details are sub-
@@ -62,7 +62,7 @@ var obj = Object();
 with(obj) {
 	obj.f = function(){
 		peval('
-			my @scope = @$JE::Code::Expression::_scope;
+			my @scope = @$JE::Code::scope;
 			my @fscope = @{$${$j->eval("obj.f")->get}{scope}};
 			ok @scope  == 3, q/@scope == 3/;
 			ok @fscope == 2, q/@fscope == 2/;
@@ -78,7 +78,7 @@ with(obj) {
 		');
 
 		var thing;
-		ok(peval('exists $JE::Code::Expression::_scope->[-1]{thing}
+		ok(peval('exists $JE::Code::scope->[-1]{thing}
 			'), "activation object is the variable object")
 		ok(!delete thing,
 			'vars declared in function code are undeletable')
@@ -94,7 +94,7 @@ obj.f()
 eval("
 
 peval('
-	my @scope = @$JE::Code::Expression::_scope;
+	my @scope = @$JE::Code::scope;
 	ok @scope == 1,
 		\"scope chain in global-eval code contains one object\";
 	ok refaddr $scope[0] == refaddr $j,
@@ -119,7 +119,7 @@ with(obj2) {
 		eval("
 
 		peval('
-			my @scope = @$JE::Code::Expression::_scope;
+			my @scope = @$JE::Code::scope;
 			my @fscope =
 				@{$${$j->eval(\"obj2.f\")->get}{scope}};
 			ok @scope  == 3, q/@scope == 3 (function-eval)/;
@@ -138,7 +138,7 @@ with(obj2) {
 		');
 
 		var thing;
-		ok(peval('exists $JE::Code::Expression::_scope->[-1]{thing}
+		ok(peval('exists $JE::Code::scope->[-1]{thing}
 			'), \"activation object is the variable object \" +
 			    \"in function-eval code\")
 		ok(delete thing,

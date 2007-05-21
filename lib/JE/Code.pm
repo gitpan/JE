@@ -1,41 +1,31 @@
 package JE::Code;
 
-our $VERSION = '0.012';
+our $VERSION = '0.013';
 
 use strict;
 use warnings;
 
-use Data::Dumper;
+#use Data::Dumper;
 
 require JE::Object::Error::ReferenceError;
 require JE::Object::Error::SyntaxError;
 require JE::Object::Error::TypeError;
 require JE::Object::Array;
-require JE::Code::Grammar;
 require JE::Boolean;
 require JE::Object;
+require JE::Parser;
 require JE::Number;
 require JE::LValue;
 require JE::String;
 require JE::Scope;
 
 
-sub parse {
-	my($global) = shift;
+sub _new {
+	my($global, $src, $tree) = @_;
 
-	my $src = shift;
-	$src = "$src"; # We *hafta* stringify it, because it could be an
-	               # object with overloading (e.g., JE::String) and
-	               # we need to rely on its pos(), which simply cannot
-	               # be done with an object. Furthermore, perl5.8.5
-	               # is a bit buggy and sometimes mangles the contents
-	               # of $1 when one does $obj =~ /(...)/.
-
-	# remove unicode format chrs
-	$src =~ s/\p{Cf}//g;
-
-	my $tree = JE::Code::Grammar::parse(program => $src, $global);
-	$@ and return;
+	$@ and return; # Every subroutine that calls &JE::Parser::_parse is
+	               # expected to call this routine *immediately*, so $@
+	               # should still be intact.
 
 #print Dumper $tree;
 
@@ -65,8 +55,8 @@ sub execute {
 	eval {
 		# passing these values around is too
 		# cumbersome
-		local $JE::Code::Expression::_this   = $this;
-		local $JE::Code::Expression::_scope  = $scope;
+		local $JE::Code::this   = $this;
+		local $JE::Code::scope  = $scope;
 		local $JE::Code::Expression::_global = $global;
 		local $JE::Code::Expression::_eval   = $code_type == 1;
 		local $JE::Code::Statement::_created_vars = 0 ;
@@ -121,16 +111,16 @@ sub execute {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.012';
+our $VERSION = '0.013';
 
 use subs qw'_create_vars _eval_term';
 use List::Util 'first';
 
-our($_created_vars, $_scope, $_global,$_label,$_return);
+our($_created_vars, $scope, $_global,$_label,$_return);
 
 *_eval_term = *JE::Code::Expression::_eval_term;
 *_global    = *JE::Code::Expression::_global;
-*_scope     = *JE::Code::Expression::_scope;
+*scope     = *JE::Code::scope;
 
 
 # Note: each statement object is an array ref. The elems are:
@@ -197,7 +187,7 @@ sub eval {  # evaluate statement
 	if ($type eq 'var') {
 		for (@$stm[2..$#$stm]) {
 			@$_ == 2 and
-				$_scope->var($$_[0], _eval_term $$_[1]);
+			    $scope->get_var($$_[0], _eval_term $$_[1]);
 		}
 		return;
 	}
@@ -282,7 +272,7 @@ sub eval {  # evaluate statement
 				# in which case it's been deleted
 				
 				(ref $left_side ? $left_side->eval :
-					$_scope->var($left_side))
+					$scope->get_var($left_side))
 				  ->set(new JE::String $_global, $_);
 
 				defined ($returned = ref $$stm[5]
@@ -396,8 +386,8 @@ sub eval {  # evaluate statement
 		last RETURN;
 	}
 	if ($type eq 'with') {
-		local $_scope = bless [
-			@$_scope, $$stm[2]->eval->to_object
+		local $scope = bless [
+			@$scope, $$stm[2]->eval->to_object
 		], 'JE::Scope';
 		return $$stm[3]->eval;
 	}
@@ -443,8 +433,8 @@ sub eval {  # evaluate statement
 				value => $@,
 				dontdel => 1,
 			});
-			local $_scope = bless [
-				@$_scope, $new_obj
+			local $scope = bless [
+				@$scope, $new_obj
 			], 'JE::Scope';
 	
 			eval { # in case an error is thrown in the 
@@ -471,7 +461,7 @@ sub _create_vars {  # Process var and function declarations
 	my $type = $$_[1];
 	if ($type eq 'var' ) {
 		for (@$_[2..$#$_]) {
-			$_scope->new_var($$_[0]);
+			$scope->new_var($$_[0]);
 		}
 	}
 	elsif ($type eq 'statements') {
@@ -506,9 +496,9 @@ sub _create_vars {  # Process var and function declarations
 	elsif ($type eq 'function') {
 		# format: [[...], function=> 'name',
 		#          [ (params) ], $statements_obj] 
-		$_scope->[-1]->delete($$_[2], 1);
-		$_scope->new_var($$_[2], new JE::Object::Function {
-			scope    => $_scope,
+		$scope->[-1]->delete($$_[2], 1);
+		$scope->new_var($$_[2], new JE::Object::Function {
+			scope    => $scope,
 			name     => $$_[2],
 			argnames => $$_[3],
 			function => bless {
@@ -528,7 +518,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.012';
+our $VERSION = '0.013';
 
 # See the comments in Number.pm for how I found out these constant values.
 use constant nan => sin 9**9**9;
@@ -537,7 +527,10 @@ use constant inf => 9**9**9;
 use subs qw'_eval_term';
 use POSIX 'fmod';
 
-our($_scope,$_this,$_global);
+our($scope,$this,$_global);
+
+*scope = *JE::Code::scope;
+*this  = *JE::Code::this;
 
 #----------for reference------------#
 #sub _to_int {
@@ -814,14 +807,31 @@ our($_scope,$_this,$_global);
 			return new JE::Boolean $_global,
 				$xi eq 'null';
 
-		$xt eq 'number'  or $yt eq 'number'  or
-		$xt eq 'boolean' or $yt eq 'boolean' and
+		if($xt eq 'boolean') {
+			$x = to_number $x;
+			$xt = 'number';
+		}
+		elsif($yt eq 'boolean') {
+			$y = to_number $y;
+			$yt = 'number';
+		}
+
+		if($xt eq 'string' || $xt eq 'number' and !primitive $y)
+			{ $y = to_primitive $y; $yt = typeof $y }
+		elsif
+		  ($yt eq 'string' || $yt eq 'number' and !primitive $x)
+			{ $x = to_primitive $x; $xt = typeof $x }
+
+		($xt eq 'number' and $yt eq 'string' || $yt eq 'number')
+		  ||
+		($yt eq 'number' and $xt eq 'string' || $xt eq 'number')
+		  and
 			return new JE::Boolean $_global,
 			to_number $x->[0] == to_number $y->[0];
 
-		$xt eq 'string' or $yt eq 'string' and 
+		$xt eq 'string' && $yt eq 'string' and 
 			return new JE::Boolean $_global,
-			to_string $x->[0] eq to_string $y->[0];
+			$x->[0] eq $y->[0];
 		
 		new JE::Boolean $_global, 0;
 	};
@@ -1096,9 +1106,9 @@ sub eval {  # evalate (sub)expression
 		my($name,$params,$statements) = ref $$expr[2] ?
 			(undef, @$expr[2,3]) : @$expr[2..4];
 		my $func_scope = $name
-			? bless([@$_scope, new JE::Object $_global], 
+			? bless([@$scope, new JE::Object $_global], 
 				'JE::Scope')
-			: $_scope;
+			: $scope;
 		my $f = new JE::Object::Function {
 			scope    => $func_scope,
 			defined $name ? (name => $name) : (),
@@ -1134,7 +1144,7 @@ sub _eval_term {
 	#	"(this is a bug; please report it)";
 
 	ref $term ? $term : $term eq 'this' ?
-				$_this : $_scope->var($term);
+				$this : $scope->get_var($term);
 }
 
 
@@ -1142,7 +1152,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.012';
+our $VERSION = '0.013';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1154,7 +1164,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.012';
+our $VERSION = '0.013';
 
 sub list {
 	my $self = shift;
@@ -1216,17 +1226,24 @@ statement for a value to be returned.
 If an error occurs, C<undef> will be returned and C<$@> will contain the
 error message. If no error occurs, C<$@> will be a null string.
 
+=back
+
+
+=begin private
+
 =head1 THE FUNCTION
 
 Please don't use this. It is for internal use. It might get renamed,
 or change its behaviour without notice.
 Use JE's C<compile> and C<eval> methods instead.
 
-C<JE::Code::parse($global, $src)> parses JS code and returns a parse tree.
+C<JE::Code::_new($global, $src, $tree)> returns a JE::Code object.
 
-C<$global> is a global object. C<$src> is the source code.
+C<$global> is a global object. C<$src> is the source code. C<$tree> is a
+parse tree as returned by &JE::Parser::_parse
 
-=back
+=end private
+
 
 =head1 SEE ALSO
 

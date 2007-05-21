@@ -31,9 +31,9 @@ ok(eval('3+3; 4+4;') === 8,      'successful eval with return value')
 ok(eval('var x')     === void 0, 'successful eval with no return value')
 
 $catched = false;
-try { eval('throw') }
+try { eval('throw void 0') }
 catch(phrase) {	phrase === undefined && ($catched = true) }
-ok($catched, 'eval(\'throw\')')
+ok($catched, 'eval(\'throw\') (see whether errors propagate)')
 
 $catched = false;
 try { eval('Y@#%*^@#%*(^$') }

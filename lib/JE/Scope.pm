@@ -1,6 +1,6 @@
 package JE::Scope;
 
-our $VERSION = '0.012';
+our $VERSION = '0.013';
 
 use strict;
 use warnings;
@@ -11,7 +11,7 @@ our $AUTOLOAD;
 
 # ~~~ We need a C<can> method.
 
-sub var {
+sub get_var {
 	my ($self,$var) = @_;
 	my $lvalue;
 
@@ -102,25 +102,24 @@ of it as a stack.)
 
 =over 4
 
-=item var($name, $value)
+=item get_var($name, $value)
 
-=item var($name)
+=item get_var($name)
 
 This method searches through
 the scope chain, starting at the end of the array, until it 
 finds the
 variable named by the first argument. If the second argument is
 present, it sets the variable. It then returns an lvalue (a
-JE::LValue object) that references the variable. Note that, even though
-it has the same name as the C<var> JS keyword, it does I<not> create a new
-variable.
+JE::LValue object) that references the variable.
 
 =item new_var($name, $value)
 
 =item new_var($name)
 
 This method creates (and optionally sets the value of) a new
-variable in the variable object and returns an lvalue.
+variable in the variable object (the same thing that JavaScript's C<var>
+keyword does) and returns an lvalue.
 
 The variable object is the first object in the scope chain 
 (searching from the top of the 

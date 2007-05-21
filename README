@@ -1,6 +1,17 @@
-JE, version 0.012
+JE, version 0.013
 
-JE is a pure-Perl ECMAScript (JavaScript) engine.
+JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
+advantages:
+
+    - Easy to install (no C compiler necessary)
+    - Compatible with Data::Dump::Streamer, so the runtime environment
+      can be serialised
+    - The parser can be extended/customised to support extra (or
+      fewer) language features (not yet complete)
+    - All JavaScript datatypes can be manipulated directly from Perl
+      (they all have overloaded operators)
+
+JE's greatest weakness is that it's slow (well, what did you expect?).
 
 This is still an alpha release. The core objects are not yet complete,
 but as long as you don't need dates or regular expressions,  this mod-
@@ -13,10 +24,11 @@ reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-A JE::Object::Array can now be treated as an array ref and modified
-that way
-Functions created with new_function are now enumerable, just like
-'alert', et al. in web browsers.
+- Added support for 'autoloading' of JavaScript properties
+  &JE::Scope::var has been renamed to &JE::Scope::get_var, since it
+  was too easily confused with JavaScript's 'var' keyword, which does
+  something different.
+- Started work on parser customisation
 
 See the 'Changes' file for more.
 
@@ -34,15 +46,15 @@ TO DO
 - Make tainted JS code run safely
 - Deal with circular references somehow
 - Autoload built-in JS properties
-- Optimise JS functions by turning them into Perl subs (but run benchmarks
-  first to see whether this would actually speed things up) (I'm having
-  second thoughts about this one)
+- Optimise JS functions by turning them into Perl subs (but run bench-
+  marks first to see whether this would actually speed things up) (I'm
+  having second thoughts about this one)
 
 
 INSTALLATION
 
-The easiest way to install this module is to use the CPAN module or the
-cpan script:
+The easiest way to install this module is to use the CPAN module or
+the cpan script:
 
     [sudo] perl -MCPAN -e "install JE"
 
