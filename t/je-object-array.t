@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 142;
+use Test::More tests => 146;
 use Scalar::Util 'refaddr';
 use strict;
 use utf8;
@@ -374,3 +374,19 @@ delete $h{0};
 $h{0} = \%@;
 ok !tied(%@),
 	'explicit hash assignment is not confused with autovivification';
+
+
+#--------------------------------------------------------------------#
+# Tests 143-6: Freezing with ties present
+
+SKIP: {
+	eval 'require Data::Dump::Streamer' or
+		skip 'Data::Dump::Streamer not present', 4;
+	import Data::Dump::Streamer;
+
+	ok exists $$$a1{tie}, 'hash tie is present before freeze';
+	ok exists $$$a1{array_tie}, 'array tie is present before freeze';
+	{ my $black_hole = Dump($a1)->Out; }
+	ok !exists $$$a1{tie}, 'hash tie\'s gone';
+	ok !exists $$$a1{array_tie}, 'array tie\'s gone';
+}

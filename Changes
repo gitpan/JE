@@ -1,5 +1,22 @@
 Revision history for JE
 
+0.014   30 May, 2007
+        Features and API changes:
+        - Binding of Perl classes to JE with the new bind_class method
+        - JE::Parser's delete_statement method now takes mul-
+          tiple args.
+        Bug fixes:
+        - JS's eval function now uses the same parser if called from
+          code that was parsed with a custom parser.
+        - JE::Object's prop({...}) method used to infer  'dontenum =>
+          0' even if the property already existed.  Now it leaves the
+          enumerability of existing properties alone if 'dontenum' is
+          not specified explicitly.
+        - Fixed a problem with bus errors resulting from  'autoload'
+          handlers executing JS code when called from a tie handler
+        - The & ^ | operators now work correctly when the second oper-
+          and is outside the signed 32-bit range.
+
 0.013   20 May, 2007
         Features and API changes:
         - JavaScript properties can now be autoloaded.

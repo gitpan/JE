@@ -209,7 +209,8 @@ property's value. The value returned is not currently upgraded. The behaviour wh
 undefined. C<autoload> will be
 ignored completely if C<value> is also given.
 
-This hash ref calling convention is not supported by Arguments objects. It 
+This hash ref calling convention is not supported by Arguments objects or
+by the primitive classes. It 
 does not work on Array
 objects when the property name is C<length> or an array index (a 
 non-negative integer 

@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.013';
+our $VERSION = '0.014';
 
 use strict;  # :-(
 use warnings;# :-(
@@ -49,10 +49,17 @@ sub add_statement {
 }
 
 sub delete_statement {
-	my ($self, $name) = @_;
-	delete $$self{stm}{$name};
-	@{$$self{stm_names}} = grep $_ ne $name, @{$$self{stm_names}};
-	return; # likewise
+	my $self = shift;
+	for my $name (@_) {
+		delete $$self{stm}{$name};
+		@{$$self{stm_names}} =
+			grep $_ ne $name, @{$$self{stm_names}};
+	}
+	return $self;
+}
+
+sub statement_list {
+	$_[0]{stm_names};
 }
 
 sub parse {
@@ -62,8 +69,8 @@ sub parse {
 		push @{/^-/ ? \@_decls : \@_stms}, # times.
 			$_parser->{stm}{$_};
 	}
-	my $global = $_parser->{global};
-	JE::Code::_new($global, _parse(program => shift, $global));
+
+	JE::Code::parse($_parser->{global}, shift);
 }
 
 sub eval {
@@ -1515,8 +1522,9 @@ looks for. For instance, one could disable loops for a mini-JavaScript, or
 add extensions to the language, such as the 'catch-if' clause of a C<try> 
 statement.
 
-As yet, C<delete_statement> should work (untested), but I've not finished
-designing the API for C<add_statement>.
+As yet, C<delete_statement> works, but I've not finished
+designing the API for C<add_statement>. Currently, JavaScript's C<eval>
+function always uses the default parser, which will be fixed.
 
 I might provide an API for extending expressions, if I can resolve the
 complications caused by the 'new' operator. If anyone else wants to have a
@@ -1584,11 +1592,16 @@ the methods under item 1) and the values being coderefs; i.e.:
 
 =back
 
-=item $p->delete_statement($name);
+Maybe we need support for a JavaScript function to be called to handnle the
+statement.
 
-Deletes the given type of statement.
+=item $p->delete_statement(@names);
 
-=item $p->statements
+Deletes the given statement types and returns C<$p>.
+
+=item $p->statement_list
+
+B<(Not yet implemented.)>
 
 Returns an array ref of the names of the various statement types. You can 
 rearrange this
@@ -1648,7 +1661,7 @@ creation of functions.
 Since function expressions could still create functions, we need to remove
 the Function prototype object. Someone might then try to put it back with
 C<Function = parseInt.constructor>, so we'll overwrite Function with an
-undeletable read-only property.
+undeletable read-only undefined property.
 
   $j->prop({ name     => 'Function',
              value    => undef,

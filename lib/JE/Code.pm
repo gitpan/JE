@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.013';
+our $VERSION = '0.014';
 
 use strict;
 use warnings;
@@ -20,16 +20,19 @@ require JE::String;
 require JE::Scope;
 
 
-sub _new {
-	my($global, $src, $tree) = @_;
+sub parse {
+	my($global, $src) = @_;
 
-	$@ and return; # Every subroutine that calls &JE::Parser::_parse is
-	               # expected to call this routine *immediately*, so $@
-	               # should still be intact.
+	my $tree = JE::Parser::_parse(program => $src, $global);
+
+	$@ and return;
 
 #print Dumper $tree;
 
 	return bless { global     => $global,
+	               ( $JE::Parser::_parser
+	                 ? (parser => $JE::Parser::_parser)
+	                 : () ),
 	               source     => $src,
 	               tree       => $tree };
 	# ~~~ I need to add support for a name for the code--to be
@@ -57,6 +60,8 @@ sub execute {
 		# cumbersome
 		local $JE::Code::this   = $this;
 		local $JE::Code::scope  = $scope;
+		local $JE::Code::parser = $code->{parser}; # might be
+		                                           # undef
 		local $JE::Code::Expression::_global = $global;
 		local $JE::Code::Expression::_eval   = $code_type == 1;
 		local $JE::Code::Statement::_created_vars = 0 ;
@@ -89,9 +94,13 @@ sub execute {
 		} # end of RETURN
 
 		$rv = $JE::Code::Statement::_return;
-	};
 
-	FINISH:
+
+		FINISH:  # I have to  put  this  here  inside  the  eval,
+		         # because 'eval { goto label }; label:' causes a
+		         # a bus error in p5.8.8 if a tie handler  is  in
+		         # the call stack (fixed in 5.9.5).
+	};
 
 	if(ref $@ eq '' and $@ eq '') {
 		!defined $rv and $rv = $scope->undefined;
@@ -111,7 +120,7 @@ sub execute {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.013';
+our $VERSION = '0.014';
 
 use subs qw'_create_vars _eval_term';
 use List::Util 'first';
@@ -518,7 +527,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.013';
+our $VERSION = '0.014';
 
 # See the comments in Number.pm for how I found out these constant values.
 use constant nan => sin 9**9**9;
@@ -847,41 +856,66 @@ our($scope,$this,$_global);
 	*{'in!=='} = sub {
 		new JE::Boolean $_global, !&{'in==='}->[0];
 	};
+
+	# ~~~ These three bitwise operators are slower than molasses. There
+	# must be some way to speed them up, but I'm not sure the research
+	# is worth it. Does anyone actually use these in JS?
 	*{'in&'} = sub {
 		my $num = shift->to_number->[0];
 		$num = 
 			$num != $num || abs($num) == inf
-			? $num = 0
+			? 0
 			: int($num) % 2**32;
 		$num -= 2**32 if $num >= 2**31;
 
+		my $num2 = shift->to_number->[0];
+		$num2 = 
+			$num2 != $num2 || abs($num2) == inf
+			? 0
+			: int($num2) % 2**32;
+		$num2 -= 2**32 if $num2 >= 2**31;
+
 		use integer;
 		new JE::Number $_global,
-			$num & shift->to_number->[0];
+			$num & $num2;
 	};
 	*{'in^'} = sub {
 		my $num = shift->to_number->[0];
 		$num = 
 			$num != $num || abs($num) == inf
-			? $num = 0
+			? 0
 			: int($num) % 2**32;
 		$num -= 2**32 if $num >= 2**31;
 
+		my $num2 = shift->to_number->[0];
+		$num2 = 
+			$num2 != $num2 || abs($num2) == inf
+			? 0
+			: int($num2) % 2**32;
+		$num2 -= 2**32 if $num2 >= 2**31;
+
 		use integer;
 		new JE::Number $_global,
-			$num ^ shift->to_number->[0];
+			$num ^ $num2;
 	};
 	*{'in|'} = sub {
 		my $num = shift->to_number->[0];
 		$num = 
 			$num != $num || abs($num) == inf
-			? $num = 0
+			? 0
 			: int($num) % 2**32;
 		$num -= 2**32 if $num >= 2**31;
 
+		my $num2 = shift->to_number->[0];
+		$num2 = 
+			$num2 != $num2 || abs($num2) == inf
+			? 0
+			: int($num2) % 2**32;
+		$num2 -= 2**32 if $num2 >= 2**31;
+
 		use integer;
 		new JE::Number $_global,
-			$num | shift->to_number->[0];
+			$num | $num2;
 	};
 }
 
@@ -1152,7 +1186,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.013';
+our $VERSION = '0.014';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1164,7 +1198,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.013';
+our $VERSION = '0.014';
 
 sub list {
 	my $self = shift;

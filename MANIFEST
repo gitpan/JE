@@ -16,6 +16,7 @@ lib/JE/Object/Error.pm
 lib/JE/Object/Function.pm
 lib/JE/Object/Math.pm
 lib/JE/Object/Number.pm
+lib/JE/Object/Proxy.pm
 lib/JE/Object/RegExp.pm
 lib/JE/Object/String.pm
 lib/JE/Object.pm
@@ -44,6 +45,7 @@ t/11.06-additive.t
 t/11.07-bitshift.t
 t/11.08-relational.t
 t/11.09-equality.t
+t/11.10-binbit.t
 t/15.01-global-object.t
 t/15.03-function-objects.t
 t/15.04-array-objects.t
@@ -52,9 +54,11 @@ t/je-boolean.t
 t/je-lvalue.t
 t/je-number.t
 t/je-object-array.t
+t/je-object-boolean.t
 t/je-object-function.t
 t/je-object-string.t
 t/je-object.t
+t/je-parser.t
 t/je-scope.t
 t/je-string.t
 t/je.t

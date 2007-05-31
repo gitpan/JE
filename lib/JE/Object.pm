@@ -1,6 +1,6 @@
 package JE::Object;
 
-our $VERSION = '0.013';
+our $VERSION = '0.014';
 
 # This has to come before any pragmas and sub declarations.
 sub evall { my $global = shift; eval shift }
@@ -100,14 +100,14 @@ C<$value> is
 already a JS object, in which case it just returns it. The behaviour is the
 same as the C<Object> constructor in JavaScript.
 
-The <%options> are as follows:
+The C<%options> are as follows:
 
   prototype  the object to be used as the prototype for this
              object (Object.prototype is the default)
   value      the value to be turned into an object
 
-C<prototype> only applies when C<value> is omitted, C<undef>, C<undefined>
-or C<null>.
+C<prototype> only applies when C<value> is omitted, undef, undefined
+or null.
 
 To convert a hash into an object, you can use the hash ref syntax like
 this:
@@ -259,16 +259,15 @@ sub prop {
 		my $dontenum;
 		if(exists $$opts{dontenum}) {
 			if($$opts{dontenum}) {
-				$$guts{keys} = [
-					grep $_ ne $name, @{$$guts{keys}}
-				];
+				@{$$guts{keys}} = 
+					grep $_ ne $name, @{$$guts{keys}};
 			}
 			else {
 				push @{ $$guts{keys} }, $name
 			    	unless first {$_ eq $name} @{$$guts{keys}};
 			}
 		}
-		elsif(!exists $$guts{$name}) { # new property
+		elsif(!exists $$props{$name}) { # new property
 			push @{ $$guts{keys} }, $name
 		}
 		
@@ -839,6 +838,8 @@ and the 'a' element will be created if did not already exist. Note that,
 if the property C<did> exist but was undefined (from JS's point of view),
 this throws an error.
 
+=begin paranoia
+
 One potential problem with this is that, when perl autovivifies in the 
 example
 above, it first calls C<FETCH> and, when it sees that the result is not
@@ -858,9 +859,10 @@ JE::Object, do you? (Normally
 hashes and arrays are copied by STORE.) So the only feasible way (I can 
 think of) to
 make the distinction is to use reference counts (which is what I'm using), 
-but they may change
+but I don't know whether they will change
 between versions of Perl.
 
+=end paranoia
 
 =head1 INNARDS
 

@@ -11,11 +11,10 @@ use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.013';
+our $VERSION = '0.014';
 
 use Encode qw< decode_utf8 encode_utf8 FB_CROAK >;
-use Scalar::Util 'blessed';
-#use SelfLoader; # ~~~ I'll get to this
+use Scalar::Util qw'blessed refaddr';
 
 our @ISA = 'JE::Object';
 
@@ -37,7 +36,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.013 (alpha release)
+Version 0.014 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module.
@@ -368,7 +367,9 @@ sub new {
 					$code;
 				return $code if typeof $code ne 'string';
 				my $old_at = $@; # hope it's not tied
-				defined (my $tree = $self->parse($code))
+				defined (my $tree = 
+					($JE::Code::parser||$self)
+					->parse($code))
 					or die;
 				my $ret = execute $tree
 					$JE::Code::this,
@@ -673,9 +674,7 @@ Just an alias for C<parse>.
 =cut
 
 sub parse {
-	my $self = shift;
-	JE::Code::_new($self, JE::Parser::_parse(program =>
-		shift, $self));
+	goto &JE::Code::parse;
 }
 *compile = \&parse;
 
@@ -763,22 +762,33 @@ is subject to change, so don't do that.
 sub upgrade {
 	my @__;
 	my $self = shift;
+	my($classes,$proxy_cache);
 	for (@_) {
-		push @__,
-		  defined blessed $_
-		?	$_
-		: !defined()
-		?	$self->undefined
-		: ref($_) eq 'ARRAY'
-		?	JE::Object::Array->new($self, $_)
-		: ref($_) eq 'HASH'
-		?	JE::Object->new($self, { value => $_ })
-		: ref($_) eq 'CODE'
-		?	JE::Object::Function->new($self, $_)
-		: $_ eq '0' || $_ eq '-0'
-		?	JE::Number->new($self, 0)
-		:	JE::String->new($self, $_)
-		;
+		if (defined blessed $_) {
+			$classes or ($classes,$proxy_cache) =
+				@$$self{'classes','proxy_cache'};
+			my $ident = refaddr $_;
+			push @__, exists $$classes{+ref}
+			    ? exists $$proxy_cache{$ident}
+			        ? $$proxy_cache{$ident}
+			        : ($$proxy_cache{$ident} =
+			            JE::Object::Proxy->new($self,$_))
+			    : $_;
+		} else {
+			push @__,
+			  !defined()
+			?	$self->undefined
+			: ref($_) eq 'ARRAY'
+			?	JE::Object::Array->new($self, $_)
+			: ref($_) eq 'HASH'
+			?	JE::Object->new($self, { value => $_ })
+			: ref($_) eq 'CODE'
+			?	JE::Object::Function->new($self, $_)
+			: $_ eq '0' || $_ eq '-0'
+			?	JE::Number->new($self, 0)
+			:	JE::String->new($self, $_)
+			;
+		}
 	}
 	@__ > 1 ? @__ : @__ == 1 ? $__[0] : ();
 }
@@ -816,12 +826,292 @@ sub null { # ~~~ This needs to be made more efficient.
 
 
 
+=item $j->bind_class( LIST )
+
+=head2 Synopsis
+
+ $j->bind_class(
+     package => 'Net::FTP',
+     name    => 'FTP', # if different from package
+     constructor_name => 'FTP', # if different from name
+     constructor => 'new', # or sub { Net::FTP->new(@_) }
+     methods => [ 'login','get','put' ],
+     # OR:
+     methods => {
+         log_me_in => 'login', # or sub { shift->login(@_) }
+         chicken_out => 'quit',
+     }
+     static_methods => {
+         # etc. etc. etc.
+     }
+     to_primitive => \&to_primitive # or a method name
+     to_number    => \&to_number
+     to_string    => \&to_string
+     isa => 'Object',
+     # OR:
+     prototype => $j->{Object}{prototype},
+ );
+
+
+=head2 Description
+
+(Some of this is random order, and probably needs to be rearranged.)
+
+This method binds a Perl class to JavaScript. LIST is a hash-style list of 
+key/value pairs. The keys are as follows (only C<package> is required; the
+rest are optional):
+
+=over 4
+
+=item package
+
+The name of the Perl class.
+
+=item name
+
+The name the class will have in JavaScript. This is used by
+C<Object.prototype.toString>. If omitted, C<package> will be used.
+
+=item constructor_name
+
+The name the constructor will have. If omitted, C<name> will be used
+instead. This only applies if C<constructor> is specified.
+
+=item constructor => 'method_name'
+
+=item constructor => sub { ... }
+
+If C<constructor> is given a string, the constructor will treat it as the
+name of a class method of C<package>.
+
+If it is a coderef, it will be used as the constructor.
+
+If this is omitted, no constructor will be made.
+
+=item methods => [ ... ]
+
+=item methods => { ... }
+
+If an array ref is supplied, the named methods will be bound to JavaScript
+functions of the same names.
+
+If a hash ref is used, the keys will be the
+names of the methods from JavaScript's point of view. The values can be
+either the names of the Perl methods, or code references.
+
+=item static_methods
+
+Like C<methods> but they will become methods of the constructor itself, not
+of its C<prototype> property.
+
+=item to_primitive => sub { ... }
+
+=item to_primitive => 'method_name'
+
+When the object is converted to a primitive value in JavaScript, this
+coderef or method will be called. The first argument passed will, of
+course, be the object. The second argument will be the hint ('number' or
+'string') or will be omitted.
+
+If to_primitive is omitted, the usual valueOf and
+toString methods will be tried as with built-in JS
+objects. B<This may change.> (Perhaps we should see whether the class has
+overloading to determine this.)
+
+If C<< to_primitive => undef >> is specified, primitivisation
+without a hint (which happens with C<< < >> and C<==>) will throw a 
+TypeError.
+
+=item to_number
+
+If this is omitted, C<to_primitive($obj, 'number')> will be
+used.
+If set to undef, a TypeError will be thrown whenever the
+object is numified.
+
+=item to_string
+
+If this is omitted, C<to_primitive($obj, 'string')> will be
+used.
+If set to undef, a TypeError will be thrown whenever the
+object is strung.
+
+=item isa => 'ClassName'
+
+=item isa => $prototype_object
+
+(Maybe this should be renamed 'super'.)
+
+The name of the superclass. 'Object' is the default. To make this new
+class's prototype object have no prototype, specify
+C<undef>. Instead of specifying the name of the superclass, you 
+can
+provide the superclass's prototype object.
+
+=begin for later
+
+=item props
+
+     props => {
+         status => {
+             getter => sub { 'this var never changes' }
+             setter => sub { system 'say -vHysterical hah hah' }
+         },
+         # or:
+         status => \&getter, # in which case it will be read-only
+     }
+
+=end for later
+
+=back
+
+After binding a class, objects of the Perl class will, when passed
+to JavaScript (or the C<upgrade> method), appear as instances of the
+corresponding JS class. Actually, they are 'wrapped up' in a proxy object 
+(a JE::Object::Proxy 
+object), such that operators like C<typeof> and C<===> will work. If the 
+object is passed back to Perl, it is the I<proxy,>
+not the original object that is returned. The proxy's C<value> method will
+return the original object.
+
+Note that, if you pass a Perl object to JavaScript before binding its 
+class,
+JavaScript's reference to it (if any) will remain as it is, and will not be
+wrapped up inside a proxy object.
+
+All the arguments to C<bind_class> are optional except for C<package>. The
+minimal usage,
+
+  $j->bind_class( package => 'Net::FTP' );
+
+simply adds this package to the
+list of Perl classes that are automatically 'wrapped up' for JavaScript,
+nothing else.
+
+To use Perl's overloading within JavaScript, specify
+
+      to_string => sub { "$_[0]" }
+      to_number => sub { 0+$_[0] }
+
+=cut
+
+sub bind_class {
+	require JE::Object::Proxy;
+
+	my $self = shift;
+	my %opts = @_;
+
+	$$$self{proxy_cache} ||= {}; # &upgrade relies on this, because it
+	                             # takes the value of ->{proxy_cache},
+	                             # sticks it in a scalar, then modifies
+	                             # it through that scalar.
+
+	my $pack = "$opts{package}";
+	my $class =  exists $opts{name} ? $opts{name} : $pack;
+	my %class = ( name => $class );
+	$$$self{classes}{$pack} = \%class;
+
+	my ($constructor,$proto);
+	if (exists $opts{constructor}) {
+		my $c = $opts{constructor};
+
+		my $coderef = ref eq 'CODE'
+			? sub { $self->upgrade(&$c()) }
+			: sub { $self->upgrade($pack->$c) };
+
+		my $constructor_name = exists $opts{constructor_name} ?
+				$opts{constructor_name} : $class;
+		$proto = $self->prop({
+			name => $constructor_name,
+			value => $constructor = JE::Object::Function->new({
+				name => $constructor_name,
+				scope => $self,
+				function => $coderef, # ~~~ what should go
+				                      #     here ?
+				function_args => [],
+				constructor => $coderef,
+				constructor_args => [],
+			}),
+		})->prop('prototype');
+	}
+	else {
+		($proto = JE::Object->new($self))->prop(
+			constructor => undef
+		);
+	}
+	$class{prototype} = $proto;
+
+	if(exists $opts{isa}) {
+		my $isa = $opts{isa};
+		$proto->prototype(
+			!defined $isa || defined blessed $isa
+			        ? $isa
+			        : $self->prop($isa)->prop('prototype')
+		);
+		# ~~~ Slight problem: Because of the way this is
+		#     implemented, this is actually the constructor name,
+		#     not the class name, as the documentation says.
+		#     Maybe I should get rid of that distinction and force
+		#     constructor names to be the same as class names.
+		#     Of course, people can do 'constructor_name =
+		#     ClassName; delete ClassName', but in such cases they
+		#     can see clearly what they are doing.
+	}
+
+	if(exists $opts{methods}) {
+		my $methods = $opts{methods};
+		if (ref $methods eq 'ARRAY') { for my $m (@$methods) {
+			$proto->new_method(
+				$m => sub { shift->value->$m(@_) },
+			);
+		}} else { # it'd better be a hash!
+		while( my($name, $m) = each %$methods) {
+			$proto->new_method(
+				$name => ref $m eq 'CODE'
+					? sub {
+					    &$m($_[0]->value,@_[1..$#_])
+					}
+					: sub { shift->value->$m(@_) },
+			);
+		}}
+	}
+
+	if(exists $opts{static_methods} && defined $constructor) {
+		my $methods = $opts{static_methods};
+		if (ref $methods eq 'ARRAY') { for my $m (@$methods) {
+			$constructor->new_method(
+				$m => sub { $pack->$m(@_) },
+			);
+		}} else { # it'd better be a hash!
+		while( my($name, $m) = each %$methods) {
+			$constructor->new_function(
+				$name => ref $m eq 'CODE'
+					? sub {
+					    unshift @_, $pack;
+					    goto $m;
+					}
+					: sub { $pack->$m(@_) },
+			);
+			$constructor->prop({
+				name => $name, dontenum => 1
+			});
+		}}
+	}
+
+	for(qw/to_primitive to_string to_number/) {
+		exists $opts{$_} and $class{$_} = $opts{$_}
+	}
+
+	return # nothing
+}
+
+
+
 =item $j->new_parser
 
-B<Not yet implemented.>
-
-This will return a parser object (see L<JE::Parser>) which allows you to
-customise the way statements are parsed and executed.
+This returns a parser object (see L<JE::Parser>) which allows you to
+customise the way statements are parsed and executed (only partially
+implemented).
 
 =cut
 
@@ -913,7 +1203,7 @@ C<hasOwnProperty> does not work properly with arrays and arguments objects.
 
 =item *
 
-The documentation is a bit incoherent. It probably needs a rewrite.
+The documentation is a bit incoherent, and needs to be restructured.
 
 =back
 

@@ -1,4 +1,4 @@
-JE, version 0.013
+JE, version 0.014
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -11,7 +11,9 @@ advantages:
     - All JavaScript datatypes can be manipulated directly from Perl
       (they all have overloaded operators)
 
-JE's greatest weakness is that it's slow (well, what did you expect?).
+Here are its main weakness:
+    - It's slow (well, what did you expect?).
+    - It uses lots of memory.
 
 This is still an alpha release. The core objects are not yet complete,
 but as long as you don't need dates or regular expressions,  this mod-
@@ -24,13 +26,11 @@ reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-- Added support for 'autoloading' of JavaScript properties
-  &JE::Scope::var has been renamed to &JE::Scope::get_var, since it
-  was too easily confused with JavaScript's 'var' keyword, which does
-  something different.
-- Started work on parser customisation
+- Perl classes can now be easily bound to JavaScript with the new
+  bind_class method.
+- JE::Parser's delete_statement method now takes multiple args.
 
-See the 'Changes' file for more.
+And a few bug fixes. See the 'Changes' file for more details.
 
 
 TO DO
@@ -38,7 +38,6 @@ TO DO
 - Make the parser extensible/customisable
 - Finish the core object classes
 - Add helpful error messages
-- Provide a way to bind Perl classes to JS
 - Determine some logical way of dealing with locale settings (for
   String.prototype.localeCompare, et al.)
 - Write lots and lots and lots of tests, at the same time fixing all

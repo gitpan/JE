@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.013';
+our $VERSION = '0.014';
 
 
 use strict;
@@ -114,11 +114,7 @@ The name of the function. This is used only by C<toString>.
 
 =item scope
 
-A global object or scope chain object. If this is omitted, the
-body of the function (the C<function> element) must be a Perl coderef, and
-not a string of JS code, and it must return a JavaScript value or a simple
-scalar (not an unblessed array or hash ref). (B<To do:> check that this is
-correct. I think it always has to be a blessed reference.)
+A global object or scope chain object.
 
 =item length
 
@@ -609,7 +605,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.013';
+our $VERSION = '0.014';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -686,7 +682,7 @@ sub delete {
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.013';
+our $VERSION = '0.014';
 
 our @ISA = 'JE::Object';
 
