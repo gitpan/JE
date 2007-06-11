@@ -1,6 +1,6 @@
 package JE::Scope;
 
-our $VERSION = '0.014';
+our $VERSION = '0.015';
 
 use strict;
 use warnings;
@@ -11,7 +11,7 @@ our $AUTOLOAD;
 
 # ~~~ We need a C<can> method.
 
-sub get_var {
+sub find_var {
 	my ($self,$var) = @_;
 	my $lvalue;
 
@@ -102,9 +102,9 @@ of it as a stack.)
 
 =over 4
 
-=item get_var($name, $value)
+=item find_var($name, $value)
 
-=item get_var($name)
+=item find_var($name)
 
 This method searches through
 the scope chain, starting at the end of the array, until it 

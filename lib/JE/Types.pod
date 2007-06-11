@@ -25,9 +25,11 @@ to various other functions, it will be "upgraded" to a Perl object
 representing a JavaScript value. This is done by the C<upgrade> method of
 the global object.
 
-If the value to be upgraded is a blessed reference, it is
-left alone (we assume you know what you are doing--but this will change
-slightly when support is provided for binding Perl classes to JS). 
+If the value to be upgraded is a blessed reference, and the class into
+which it is blessed has been bound using JE's C<bind_class> method, it is
+wrapped up in a proxy object that provides the methods JS needs. A blessed
+reference whose class has not been bound will be
+left alone (we assume you know what you are doing). 
 Otherwise the
 conversion is as follows:
 
@@ -46,6 +48,9 @@ subject to change.
 
 B<To do:> Make &JE::upgrade detect whether a simple scalar is a string or 
 number.
+
+B<To do:> Convert Regexp objects to
+JE::Object::RegExp objects.
 
 =head1 WHICH CLASSES ARE WHICH
 
@@ -194,11 +199,33 @@ The elements of the hash are as follows:
   dontenum  whether this property is unenumerable
   dontdel   whether this property is undeletable
   readonly  whether this property is read-only
+  fetch     subroutine called when the property is fetched
+  store     subroutine called when the property is set
   autoload  see below
 
-If any of the last three is given, the attribute in question will be set.
+If C<dontenum>, C<dontdel> or C<readonly> is given, the attribute in 
+question will be set.
 If C<value> is given, the value of the property will be set, regardless of
 the attributes.
+
+C<fetch> and C<store>, if specified, must be subroutines for
+fetching/setting the value of the property. The 'fetch' subroutine will be
+called with ($object, $storage_space) as the arguments, where
+C<$storage_space> is a hash key inside the object that the two subroutines
+can use for storing the value (they can ignore it if they like). The
+'store' subroutine will be call with
+($object, $new_value, $storage_space) as
+the arguments. Values assigned to the storage space from within these 
+routines are I<not>
+upgraded, neither is the return value of C<fetch>. C<fetch> and C<store> do 
+not necessarily have to go
+together. If you only specify C<fetch>, then the value will be set as
+usual, but C<fetch> will be able to mangle the value when it is retrieved.
+Likewise, if you only specify C<store>, the value will be retrieved the
+usual way, so you can use this for validating or normalising the assigned
+value, for
+instance. B<Note:> Currently, a simple scalar or unblessed coderef in the
+storage space will cause autoloading, but that is subject to change.
 
 C<autoload> can be a string or a coderef. It will be called/evalled the
 first time the property is accessed (accessing it with a hash ref as
@@ -207,7 +234,7 @@ evaluated in a scope that has a variable name C<$global>, containing a
 reference to the global object. The result will become the
 property's value. The value returned is not currently upgraded. The behaviour when a simple scalar or unblessed reference is returned is
 undefined. C<autoload> will be
-ignored completely if C<value> is also given.
+ignored completely if C<value> or C<fetch> is also given.
 
 This hash ref calling convention is not supported by Arguments objects or
 by the primitive classes. It 

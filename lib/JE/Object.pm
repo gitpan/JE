@@ -1,10 +1,10 @@
 package JE::Object;
 
-our $VERSION = '0.014';
-
 # This has to come before any pragmas and sub declarations.
-sub evall { my $global = shift; eval shift }
-# I'm using shift rather than $_[0] in case someone assigns to $_[0]
+sub evall { my $global = shift; my $r = eval 'local *_;' . shift;
+            $@ and die; $r }
+
+our $VERSION = '0.015';
 
 use strict;
 use warnings;
@@ -160,6 +160,8 @@ sub new {
 	         keys      => [keys %hash]  }, $class;
 }
 
+=begin bad
+
 sub ______new { # not according to spec. What *was* I thinking???
 	my($class, $global, %hash, @keys) = (shift, shift);
 	my $key;
@@ -178,6 +180,7 @@ sub ______new { # not according to spec. What *was* I thinking???
 	         keys      => \@keys  }, $class;
 }
 
+=end bad
 
 
 =item $j->new_function($name, sub { ... })
@@ -270,12 +273,20 @@ sub prop {
 		elsif(!exists $$props{$name}) { # new property
 			push @{ $$guts{keys} }, $name
 		}
-		
+
+		if(exists $$opts{fetch}) {
+			$$guts{fetch_handler}{$name} = $$opts{fetch};
+			$$props{$name} = undef if !exists $$props{$name};
+		}
+		if(exists $$opts{store}) {
+			$$guts{store_handler}{$name} = $$opts{store};
+			$$props{$name} = undef if !exists $$props{$name};
+		}
 		if(exists $$opts{value}) {
 			return $$props{$name} = 
 			    $$guts{global}->upgrade($$opts{value});
 		}
-		elsif(exists $$opts{autoload}) {
+		elsif(!exists $$opts{fetch} && exists $$opts{autoload}) {
 			my $auto = $$opts{autoload};
 			$$props{$name} = ref $auto eq 'CODE' ? $auto :
 				"$auto";
@@ -283,7 +294,11 @@ sub prop {
 			       #     return, if anything
 		}
 
-		return exists $$props{$name} ? $$props{$name} : undef;
+		# ~~~ what should we return if fetch is given,
+		#     but not value?
+
+		return exists $$opts{fetch} ? () :
+		       exists $$props{$name} ? $$props{$name} : undef;
 	}
 
 	else { # normal use
@@ -300,13 +315,23 @@ sub prop {
 			my $exists = exists $$props{$name} &&
 				defined $$props{$name};
 
-			$$props{$name} = $new_val;
+			exists $$guts{store_handler}{$name}
+			? $$guts{store_handler}{$name}->(
+				$self, $new_val, $$props{$name})
+			: ($$props{$name} = $new_val);
+
 			push @{ $$guts{keys} }, $name
 			    unless $exists; 
 
 			return $new_val;
 		}
 		elsif (exists $$props{$name}) {
+			if(exists $$guts{fetch_handler}{$name}) {
+				return $$guts{fetch_handler}{$name}-> (
+					$self, $$props{$name}
+				);
+			}
+
 			my $val = $$props{$name};
 			ref $val eq 'CODE' ?
 				$val = $$props{$name} = &$val() :
@@ -329,7 +354,7 @@ sub prop {
 
 sub exists { # = hasOwnProperty
 	my($self,$name) = @_;
-	exists $$$self{props}{$name};
+	return exists $$$self{props}{$name}
 }
 
 

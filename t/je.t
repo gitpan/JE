@@ -4,7 +4,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 88;
+use Test::More tests => 127;
 use strict;
 use Scalar::Util 'refaddr';
 use utf8;
@@ -128,11 +128,12 @@ ok($_ === 'Just another ECMAScript hacker,\n')
 ---
 
 #--------------------------------------------------------------------#
-# Tests 41-50: Class bindings: constructor and class names
+# Tests 41-48: Class bindings: constructor and class names
 
 $j->bind_class(package => 'class1');
-is_deeply $j->{class1}, undef,
-	'binding a class without a constructor makes no constructor';
+eval { $j->{class1}->construct};
+ok $@,
+	'binding a class w/o a constructor makes a constructor that dies';
 {
 	my $prx = $j->upgrade(bless [], 'class1');
 	isa_ok $prx, 'JE::Object::Proxy', 'the proxy';
@@ -141,9 +142,11 @@ is_deeply $j->{class1}, undef,
 }
 
 $j->bind_class(package => 'class2', name => 'classroom2');
-is_deeply $j->{class2}, undef,
+eval { $j->{class2}->construct};
+ok $@,
 	'binding a class without a constructor (2)';
-is_deeply $j->{classroom2}, undef,
+eval { $j->{classroom2}->construct};
+ok $@,
 	'binding a class without a constructor (3)';
 is $j->upgrade(bless [], 'class2')->class, 'classroom2',
 	'class name that differs from the package name';
@@ -160,26 +163,9 @@ $j->bind_class(
 isa_ok $j->{fourth_class}, 'JE::Object::Function',
 	'constructor named after the class';
 
-$j->bind_class(
-	package => 'class5',
-	constructor_name => 'ClassFive',
-	constructor => 'middle-aged',
-);
-isa_ok $j->{ClassFive}, 'JE::Object::Function',
-	'idionymous constructor';
-
-$j->bind_class(
-	package => 'class6',
-	name => 'George',
-	constructor_name => 'Classics',
-	constructor => 'quinquagenarian',
-);
-isa_ok $j->{Classics}, 'JE::Object::Function',
-	'idionymous constructor (when a class name is present)';
-
 
 #--------------------------------------------------------------------#
-# Tests 51-65: Class bindings: construction and method calls
+# Tests 49-63: Class bindings: construction and method calls
 
 $j->new_function(is => \&is);
 
@@ -277,7 +263,7 @@ defined $j->eval(<<'----') or die;
 
 
 #--------------------------------------------------------------------#
-# Tests 66-84: Class bindings: primitivisation
+# Tests 64-82: Class bindings: primitivisation
 
 $j->{is} = \&is unless $j->{is};
 $j->{ok} = \&ok unless $j->{ok};
@@ -387,7 +373,7 @@ defined $j->eval(<<'})() ') or die;
 
 
 #--------------------------------------------------------------------#
-# Tests 85-7: Class bindings: inheritance
+# Tests 83-5: Class bindings: inheritance
 
 $j->bind_class(
 	package => 'HumptyDumpty',
@@ -417,10 +403,322 @@ is_deeply $j->upgrade(bless [], 'RunningOutOfWeirdIdeas')->prototype
 	->prototype, undef, 'isa => undef';
 
 #--------------------------------------------------------------------#
-# Test 88: Class bindings: proxy caching
+# Test 86: Class bindings: proxy caching
 
 {
 	my $thing = bless [], 'RunningOutOfWeirdIdeas';
 	is refaddr $j->upgrade($thing), refaddr $j->upgrade($thing),
 		'proxy caching';
 } 
+
+
+#--------------------------------------------------------------------#
+# Tests 87-126: Class bindings: properties
+
+$j->{is} ||= \&is;
+$j->{ok} ||= \&ok;
+
+{
+	package PropsArray;  # tests 'props => \@array'
+	sub knew { bless [] }
+	my($thing1,$thing2,$thing3,$thing4);
+	sub prop1 { ++$thing1 . ' $a_' . ref($_[0]) . '->prop1' }
+	sub prop2 { ++$thing2 . ' $a_' . ref($_[0]) . '->prop2' }
+	sub sprop1 { ++$thing3 . " $_[0]\->static"}
+	sub sprop2 { ++$thing4 . " $_[0]-\>another" }
+}
+$j->bind_class(
+	package => 'PropsArray',
+	constructor => 'knew',
+	props => [ 'prop1', 'prop2' ],
+	static_props => [ 'sprop1','sprop2' ],
+);
+
+{
+	package PropsHashMethod;  # tests 'props => { name => "method" }'
+	sub knew { bless [] }
+	my($thing1,$thing2,$thing3,$thing4);
+	sub prop1 { ++$thing1 . ' $a_' . ref($_[0]) . '->prop1' }
+	sub prop2 { ++$thing2 . ' $a_' . ref($_[0]) . '->prop2' }
+	sub sprop1 { ++$thing3 . " $_[0]\->static"}
+	sub sprop2 { ++$thing4 . " $_[0]-\>another" }
+}
+$j->bind_class(
+	package => 'PropsHashMethod',
+	constructor => 'knew',
+	props => {
+		p1 => 'prop1',
+		p2 => 'prop2',
+	},
+	static_props => {
+		sp1 => 'sprop1',
+		sp2 => 'sprop2',
+	},
+);
+
+{
+	package PropsHashSub;  # tests 'props => { name => sub { ... } }'
+	sub knew { bless [] }
+	my($thing1,$thing2,$thing3,$thing4);
+	sub prop1 { ++$thing1 . ' $a_' . ref($_[0]) . '->prop1' }
+	sub prop2 { ++$thing2 . ' $a_' . ref($_[0]) . '->prop2' }
+	sub sprop1 { ++$thing3 . " $_[0]\->static"}
+	sub sprop2 { ++$thing4 . " $_[0]-\>another" }
+}
+$j->bind_class(
+	package => 'PropsHashSub',
+	constructor => 'knew',
+	props => {
+		p1 => \&PropsHashSub::prop1,
+		p2 => \&PropsHashSub::prop2,
+	},
+	static_props => {
+		sp1 => \&PropsHashSub::sprop1,
+		sp2 => \&PropsHashSub::sprop2,
+	},
+);
+
+{
+	package PropsHashHashMethod;  # tests 'props => { name => { 
+	                              #        fetch => "method" }}'
+	sub knew { bless [] }
+	my($thing1,$thing2,$thing3,$thing4);
+	sub prop1 { "$thing1 \$a_" . ref($_[0]) . '->prop1' }
+	sub prop2 { "$thing2 \$a_" . ref($_[0]) . '->prop2' }
+	sub sprop1 { "$thing3 $_[0]\->static"}
+	sub sprop2 { "$thing4 $_[0]-\>another" }
+	sub storeprop1 { ++$thing1 }
+	sub storeprop2 { ++$thing2 }
+	sub storesprop1 { ++$thing3 }
+	sub storesprop2 { ++$thing4 }
+}
+$j->bind_class(
+	package => 'PropsHashHashMethod',
+	constructor => 'knew',
+	props => {
+		p1 => { fetch => 'prop1', store => 'storeprop1' },
+		p2 => { fetch => 'prop2', store => 'storeprop2' },
+	},
+	static_props => {
+		sp1 => { fetch => 'sprop1', store => 'storesprop1' },
+		sp2 => { fetch => 'sprop2', store => 'storesprop2' },
+	},
+);
+
+{
+	package PropsHashHashSub;  # tests 'props => { name => { 
+	                           #        fetch => sub { ... } }}'
+	sub knew { bless [] }
+	my($thing1,$thing2,$thing3,$thing4);
+	sub prop1 { "$thing1 \$a_" . ref($_[0]) . '->prop1' }
+	sub prop2 { "$thing2 \$a_" . ref($_[0]) . '->prop2' }
+	sub sprop1 { "$thing3 $_[0]\->static"}
+	sub sprop2 { "$thing4 $_[0]-\>another" }
+	sub storeprop1 { ++$thing1 }
+	sub storeprop2 { ++$thing2 }
+	sub storesprop1 { ++$thing3 }
+	sub storesprop2 { ++$thing4 }
+}
+$j->bind_class(
+	package => 'PropsHashHashSub',
+	constructor => 'knew',
+	props => {
+		p1 => { fetch => \&PropsHashHashSub::prop1,
+		        store => \&PropsHashHashSub::storeprop1 },
+		p2 => { fetch => \&PropsHashHashSub::prop2,
+		        store => \&PropsHashHashSub::storeprop2 },
+	},
+	static_props => {
+		sp1 => { fetch => \&PropsHashHashSub::sprop1,
+		         store => \&PropsHashHashSub::storesprop1 },
+		sp2 => { fetch => \&PropsHashHashSub::sprop2,
+		         store => \&PropsHashHashSub::storesprop2 },
+	},
+);
+
+{
+	package FetchOnly;
+
+	sub knew { bless [] }
+	sub prop { '$a_' . ref($_[0]) . '->prop' }
+	
+	sub sprop { "$_[0]\->static"}
+}
+$j->bind_class(
+	package => 'FetchOnly',
+	constructor => 'knew',
+	props => {
+		p => { fetch => 'prop'  },
+	},
+	static_props => {
+		sp => { fetch => 'sprop'  },
+	},
+);
+$j->{FetchOnly}{prototype}->new_method(
+	is_readonly => sub { $_[0]->is_readonly($_[1]) }
+);
+$j->{FetchOnly}->new_method(
+	is_readonly => sub { $_[0]->is_readonly($_[1]) }
+);
+
+{
+	package StoreOnly;
+
+	my $storage_space;
+	sub knew { bless [] }
+	sub prop { $storage_space = $_[1] }
+	sub look { $storage_space }
+}
+$j->bind_class(
+	package => 'StoreOnly',
+	constructor => 'knew',
+	props => {
+		p => { store => 'prop'  },	
+		look => 'look',
+	},
+	static_props => {
+		sp => { store => 'prop'  },
+	},
+);
+
+{
+	package UndefReadOnly;
+
+	sub knew { bless [] }
+}
+$j->bind_class(
+	package => 'UndefReadOnly',
+	constructor => 'knew',
+	props => {
+		p => {  },	
+	},
+	static_props => {
+		sp => {  },
+	},
+);
+$j->{UndefReadOnly}{prototype}->new_method(
+	is_readonly => sub { $_[0]->is_readonly($_[1]) }
+);
+$j->{UndefReadOnly}->new_method(
+	is_readonly => sub { $_[0]->is_readonly($_[1]) }
+);
+
+	
+	
+defined $j->eval(<<'----') or die;
+
+(function(){
+	var pa = new PropsArray;
+	var phm = new PropsHashMethod;
+	var phs = new PropsHashSub;
+	var phhm = new PropsHashHashMethod;
+	var phhs = new PropsHashHashSub;
+
+	is(pa, '[object PropsArray]', 'class of new PropsArray');
+	is(phm, '[object PropsHashMethod]',
+		'class of new PropsHashMethod');
+	is(phs, '[object PropsHashSub]', 'class of new PropsHashSub');
+	is(phhm, '[object PropsHashHashMethod]',
+		'class of new PropsHashHashMethod');
+	is(phhs, '[object PropsHashHashSub]',
+		'class of new PropsHashHashSub');
+
+	pa.prop1 = 'something';
+	is(pa.prop1, '2 $a_PropsArray->prop1', 'pa.prop1');
+	pa.prop2 = 'something';
+	is(pa.prop2, '2 $a_PropsArray->prop2', 'pa.prop2');
+	phm.p1 = 'something';
+	is(phm.p1, '2 $a_PropsHashMethod->prop1', 'phm.p1');
+	phm.p2 = 'something';
+	is(phm.p2, '2 $a_PropsHashMethod->prop2', 'phm.p2');
+	phs.p1 = 'something';
+	is(phs.p1, '2 $a_PropsHashSub->prop1', 'phs.p1');
+	phs.p2 = 'something';
+	is(phs.p2, '2 $a_PropsHashSub->prop2', 'phs.p2');
+	phhm.p1 = 'something';
+	is(phhm.p1, '1 $a_PropsHashHashMethod->prop1', 'phhm.p1');
+	phhm.p2 = 'something';
+	is(phhm.p2, '1 $a_PropsHashHashMethod->prop2', 'phhm.p2');
+	phhs.p1 = 'something';
+	is(phhs.p1, '1 $a_PropsHashHashSub->prop1', 'phhs.p1');
+	phhs.p2 = 'something';
+	is(phhs.p2, '1 $a_PropsHashHashSub->prop2', 'phhs.p2');
+
+	PropsArray.sprop1 = 'something';
+	is(PropsArray.sprop1, '2 PropsArray->static', 'PropsArray.sprop1');
+	PropsArray.sprop2 = 'something';
+	is(PropsArray.sprop2, '2 PropsArray->another', 
+		'PropsArray.sprop2');
+	PropsHashMethod.sp1 = 'something';
+	is(PropsHashMethod.sp1, '2 PropsHashMethod->static', 
+		'PropsHashMethod.sp1');
+	PropsHashMethod.sp2 = 'something';
+	is(PropsHashMethod.sp2, '2 PropsHashMethod->another', 
+		'PropsHashMethod.sp2');
+	PropsHashSub.sp1 = 'something';
+	is(PropsHashSub.sp1, '2 PropsHashSub->static', 
+		'PropsHashSub.sp1');
+	PropsHashSub.sp2 = 'something';
+	is(PropsHashSub.sp2, '2 PropsHashSub->another', 
+		'PropsHashSub.sp2');
+	PropsHashHashMethod.sp1 = 'something';
+	is(PropsHashHashMethod.sp1, '1 PropsHashHashMethod->static', 
+		'PropsHashHashMethod.sp1');
+	PropsHashHashMethod.sp2 = 'something';
+	is(PropsHashHashMethod.sp2, '1 PropsHashHashMethod->another', 
+		'PropsHashHashMethod.sp2');
+	PropsHashHashSub.sp1 = 'something';
+	is(PropsHashHashSub.sp1, '1 PropsHashHashSub->static', 
+		'PropsHashHashSub.sp1');
+	PropsHashHashSub.sp2 = 'something';
+	is(PropsHashHashSub.sp2, '1 PropsHashHashSub->another', 
+		'PropsHashHashSub.sp2');
+
+
+	var fo = new FetchOnly;
+	var so = new StoreOnly;
+	var uro = new UndefReadOnly;
+
+	ok(fo.is_readonly('p'), "fo.is_readonly('p')");
+	fo.p = 'eonthoe'; // no-op
+	is(fo.p, '$a_FetchOnly->prop', 'fo.p')
+	ok(FetchOnly.is_readonly('sp'), "FetchOnly.is_readonly('sp')");
+	FetchOnly.sp = 'eonthoe'; // no-op
+	is(FetchOnly.sp, 'FetchOnly->static', 'FetchOnly.sp')
+	
+	so.p = 'uhudhdu';
+	is(so.look, 'uhudhdu', 'so.p');
+	StoreOnly.sp = 'xuokqbq';
+	is(so.look, 'xuokqbq', 'StoreOnly.sp');
+
+	ok(uro.is_readonly('p'), "uro.is_readonly('p')");
+	ok(uro.p === undefined, 'uro.p')
+	ok(UndefReadOnly.is_readonly('sp'),
+		"UndefReadOnly.is_readonly('sp')");
+	ok(UndefReadOnly.sp === undefined, 'UndefReadOnly.sp')
+
+}())
+----
+
+# make sure that $j->upgrade gets called on the return value of fetch
+isa_ok $j->upgrade(knew PropsArray)->{prop1}, 'JE::String',
+      '$j->upgrade(knew PropsArray)->{prop1}';
+isa_ok $j->upgrade(knew PropsHashMethod)->{p1}, 'JE::String',
+      '$j->upgrade(knew PropsHashMethod)->{p1}';
+isa_ok $j->upgrade(knew PropsHashSub)->{p1},      'JE::String',
+      '$j->upgrade(knew PropsHashSub)->{p1}';
+isa_ok $j->upgrade(knew PropsHashHashMethod)->{p1}, 'JE::String',
+      '$j->upgrade(knew PropsHashHashMethod)->{p1}';
+isa_ok $j->upgrade(knew PropsHashHashSub)->{p1},      'JE::String',
+      '$j->upgrade(knew PropsHashHashSub)->{p1}';
+
+
+#--------------------------------------------------------------------#
+# Test 127: Class bindings: wrappers
+
+$j->bind_class(
+	name => 'Wrappee',
+	wrapper => sub { bless[], 'Wrapper' },
+);
+
+isa_ok $j->upgrade(bless[],'Wrappee'),'Wrapper', 'the wrapper';

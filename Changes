@@ -1,5 +1,20 @@
 Revision history for JE
 
+0.015   10 June, 2007
+        - JS properties can now be bound to Perl subroutines that
+          store/fetch the value (see JE::Types).
+        - Class bindings now support binding of properties, as well
+          as methods.
+        - The constructor_name argument to bind_class is gone, since
+          it was confusing.
+        - bind_class now will understand 'package' to be the same as
+         'name' if only the latter is provided.
+        - bind_class now creates a constructor  whether  or  not  the
+         'constructor' argument is passed. If it is not, the construc-
+          tor that it makes will throw an error when invoked.
+        - JE::Scope's get_var method has been renamed to find_var,
+          since the name 'get_var' has the wrong implications.
+
 0.014   30 May, 2007
         Features and API changes:
         - Binding of Perl classes to JE with the new bind_class method

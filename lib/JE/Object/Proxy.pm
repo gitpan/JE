@@ -1,6 +1,6 @@
 package JE::Object::Proxy;
 
-our $VERSION = '0.014';
+our $VERSION = '0.015';
 
 use strict;
 use warnings;
@@ -36,6 +36,10 @@ sub new {
 		{ prototype => $$class_info{prototype} });
 
 	@$$self{qw/proxy_class value/} = ($$class_info{name}, $obj);
+
+	while(my($name,$args) = each %{$$class_info{props}}) {
+		$self->prop({ name => $name, @$args });
+	}
 
 	$self;
 }

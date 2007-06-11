@@ -11,10 +11,17 @@ use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.014';
+our $VERSION = '0.015';
 
 use Encode qw< decode_utf8 encode_utf8 FB_CROAK >;
 use Scalar::Util qw'blessed refaddr';
+
+BEGIN {
+	local $@; # ~~~ Is this necessary in a BEGIN block?
+	eval { require Hash::Util::FieldHash;
+	       import  Hash::Util::FieldHash 'fieldhash'; };
+	$@ and eval 'sub fieldhash{$_[0]}';
+}
 
 our @ISA = 'JE::Object';
 
@@ -36,7 +43,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.014 (alpha release)
+Version 0.015 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module.
@@ -502,6 +509,8 @@ sub new {
 				shift->to_number->value !~ /n/;
 				# NaN, Infinity, and -Infinity are the only
 				# values with the letter 'n' in them.
+				# ~~~ Does this work with Windoze and
+				#     ClosedBSD?
 			},
 		}),
 		dontenum  => 1,
@@ -517,6 +526,9 @@ sub new {
 			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
+# ~~~ I think the error constructors here andelsewhere need a reference to 
+# the global
+#    objec.
 				my $str = shift->to_string->value;
 				$str =~ /%(?![a-fA-F0-9]{2})(.{0,2})/
 				 && die
@@ -768,11 +780,16 @@ sub upgrade {
 			$classes or ($classes,$proxy_cache) =
 				@$$self{'classes','proxy_cache'};
 			my $ident = refaddr $_;
-			push @__, exists $$classes{+ref}
+			my $class = ref;
+			push @__, exists $$classes{$class}
 			    ? exists $$proxy_cache{$ident}
 			        ? $$proxy_cache{$ident}
 			        : ($$proxy_cache{$ident} =
-			            JE::Object::Proxy->new($self,$_))
+			            exists $$classes{$class}{wrapper}
+			                ? $$classes{$class}{wrapper}->(
+			                    $self,$_)
+			                : JE::Object::Proxy->new($self,$_)
+			           )
 			    : $_;
 		} else {
 			push @__,
@@ -833,8 +850,8 @@ sub null { # ~~~ This needs to be made more efficient.
  $j->bind_class(
      package => 'Net::FTP',
      name    => 'FTP', # if different from package
-     constructor_name => 'FTP', # if different from name
      constructor => 'new', # or sub { Net::FTP->new(@_) }
+
      methods => [ 'login','get','put' ],
      # OR:
      methods => {
@@ -847,9 +864,29 @@ sub null { # ~~~ This needs to be made more efficient.
      to_primitive => \&to_primitive # or a method name
      to_number    => \&to_number
      to_string    => \&to_string
+
+     props => [ 'status' ],
+     # OR:
+     props => {
+         status => {
+             fetch => sub { 'this var never changes' }
+             store => sub { system 'say -vHysterical hah hah' }
+         },
+         # OR:
+         status => \&fetch_store # or method name
+     },
+     static_props => { ... }
+
      isa => 'Object',
      # OR:
      prototype => $j->{Object}{prototype},
+ );
+ 
+ # OR:
+ 
+ $j->bind_class(
+     package => 'Net::FTP',
+     wrapper => sub { new JE_Proxy_for_Net_FTP @_ }
  );
 
 
@@ -858,24 +895,22 @@ sub null { # ~~~ This needs to be made more efficient.
 (Some of this is random order, and probably needs to be rearranged.)
 
 This method binds a Perl class to JavaScript. LIST is a hash-style list of 
-key/value pairs. The keys are as follows (only C<package> is required; the
-rest are optional):
+key/value pairs. The keys are as follows (all optional except for 
+C<package> or
+C<name>--you must specify at least one of the two):
 
 =over 4
 
 =item package
 
-The name of the Perl class.
+The name of the Perl class. If this is omitted, C<name> will be used
+instead.
 
 =item name
 
 The name the class will have in JavaScript. This is used by
-C<Object.prototype.toString>. If omitted, C<package> will be used.
-
-=item constructor_name
-
-The name the constructor will have. If omitted, C<name> will be used
-instead. This only applies if C<constructor> is specified.
+C<Object.prototype.toString> and as the name of the constructor. If 
+omitted, C<package> will be used.
 
 =item constructor => 'method_name'
 
@@ -936,6 +971,35 @@ used.
 If set to undef, a TypeError will be thrown whenever the
 object is strung.
 
+=item props => [ ... ]
+
+=item props => { ... }
+
+If this is an array ref, its elements will be the names of the properties.
+When a property is retrieved, a method of the same name is called. When a
+property is set, the same method is called, with the new value as the
+argument.
+
+If a hash ref is given, for each element, if the value is a simple scalar,
+the property named by the key will trigger the method named by the value.
+If the value is a coderef, it will be called with the object as its
+argument when the variable is read, and with the object and
+the new
+value as its two arguments when the variable is set.
+If the value is a hash ref, the C<fetch> and C<store> keys will be
+expected to be either coderefs or method names. If only C<fetch> is given,
+the property will be read-only. If only C<store> is given, the property 
+will
+be write-only and will appear undefined when accessed. (If neither is 
+given,
+it will be a read-only undefined property--really useful.)
+
+=item static_props
+
+Like C<props> but they will become properties of the constructor itself, 
+not
+of its C<prototype> property.
+
 =item isa => 'ClassName'
 
 =item isa => $prototype_object
@@ -948,20 +1012,17 @@ C<undef>. Instead of specifying the name of the superclass, you
 can
 provide the superclass's prototype object.
 
-=begin for later
+=item wrapper => sub { ... }
 
-=item props
+If C<wrapper> is specified, all other arguments will be ignored except for
+C<package> (or C<name> if C<package> is not present).
 
-     props => {
-         status => {
-             getter => sub { 'this var never changes' }
-             setter => sub { system 'say -vHysterical hah hah' }
-         },
-         # or:
-         status => \&getter, # in which case it will be read-only
-     }
+When an object of the Perl class in question is 'upgraded,' this subroutine
+will be called with the global object as its first argument and the object
+to be 'wrapped' as the second. The subroutine is expected to return
+an object compatible with the interface described in L<JE::Types>.
 
-=end for later
+If C<wrapper> is supplied, no constructor will be created.
 
 =back
 
@@ -979,14 +1040,9 @@ class,
 JavaScript's reference to it (if any) will remain as it is, and will not be
 wrapped up inside a proxy object.
 
-All the arguments to C<bind_class> are optional except for C<package>. The
-minimal usage,
-
-  $j->bind_class( package => 'Net::FTP' );
-
-simply adds this package to the
-list of Perl classes that are automatically 'wrapped up' for JavaScript,
-nothing else.
+If C<constructor> is
+not given, a constructor function will be made that throws an error when
+invoked, unless C<wrapper> is given.
 
 To use Perl's overloading within JavaScript, specify
 
@@ -1001,45 +1057,54 @@ sub bind_class {
 	my $self = shift;
 	my %opts = @_;
 
-	$$$self{proxy_cache} ||= {}; # &upgrade relies on this, because it
-	                             # takes the value of ->{proxy_cache},
-	                             # sticks it in a scalar, then modifies
-	                             # it through that scalar.
+	# &upgrade relies on this, because it
+	# takes the value of  ->{proxy_cache},
+	# sticks it in a scalar, then modifies
+	# it through that scalar.
+	$$$self{proxy_cache} ||= &fieldhash({}); # & to bypass prototyping
 
-	my $pack = "$opts{package}";
-	my $class =  exists $opts{name} ? $opts{name} : $pack;
+	if(exists $opts{wrapper}) { # special case
+		my $pack = $opts{qw/name package/[exists $opts{package}]};
+		$$$self{classes}{$pack} = {wrapper => $opts{wrapper}};
+		return;
+	}
+
+	my($pack, $class);
+	if(exists $opts{package}) {
+		$pack = "$opts{package}";
+		$class = exists $opts{name} ? $opts{name} : $pack;
+	}
+	else {
+		$class = $opts{name};
+		$pack = "$class";
+	}
+		
 	my %class = ( name => $class );
 	$$$self{classes}{$pack} = \%class;
 
-	my ($constructor,$proto);
+	my ($constructor,$proto,$coderef);
 	if (exists $opts{constructor}) {
 		my $c = $opts{constructor};
 
-		my $coderef = ref eq 'CODE'
+		$coderef = ref eq 'CODE'
 			? sub { $self->upgrade(&$c()) }
 			: sub { $self->upgrade($pack->$c) };
-
-		my $constructor_name = exists $opts{constructor_name} ?
-				$opts{constructor_name} : $class;
-		$proto = $self->prop({
-			name => $constructor_name,
-			value => $constructor = JE::Object::Function->new({
-				name => $constructor_name,
-				scope => $self,
-				function => $coderef, # ~~~ what should go
-				                      #     here ?
-				function_args => [],
-				constructor => $coderef,
-				constructor_args => [],
-			}),
-		})->prop('prototype');
 	}
 	else {
-		($proto = JE::Object->new($self))->prop(
-			constructor => undef
-		);
+		$coderef = sub { die "$class cannot be instantiated\n" };
 	}
-	$class{prototype} = $proto;
+	$class{prototype} = $proto = $self->prop({
+		name => $class,
+		value => $constructor = JE::Object::Function->new({
+			name => $class,
+			scope => $self,
+			function => $coderef,
+			function_args => [],
+			constructor => $coderef,
+			constructor_args => [],
+		}),
+	})->prop('prototype');
+
 
 	if(exists $opts{isa}) {
 		my $isa = $opts{isa};
@@ -1048,14 +1113,6 @@ sub bind_class {
 			        ? $isa
 			        : $self->prop($isa)->prop('prototype')
 		);
-		# ~~~ Slight problem: Because of the way this is
-		#     implemented, this is actually the constructor name,
-		#     not the class name, as the documentation says.
-		#     Maybe I should get rid of that distinction and force
-		#     constructor names to be the same as class names.
-		#     Of course, people can do 'constructor_name =
-		#     ClassName; delete ClassName', but in such cases they
-		#     can see clearly what they are doing.
 	}
 
 	if(exists $opts{methods}) {
@@ -1076,10 +1133,10 @@ sub bind_class {
 		}}
 	}
 
-	if(exists $opts{static_methods} && defined $constructor) {
+	if(exists $opts{static_methods}) {
 		my $methods = $opts{static_methods};
 		if (ref $methods eq 'ARRAY') { for my $m (@$methods) {
-			$constructor->new_method(
+			$constructor->new_function(
 				$m => sub { $pack->$m(@_) },
 			);
 		}} else { # it'd better be a hash!
@@ -1100,6 +1157,146 @@ sub bind_class {
 
 	for(qw/to_primitive to_string to_number/) {
 		exists $opts{$_} and $class{$_} = $opts{$_}
+	}
+
+	# The properties enumerated by the 'props' option need to be made
+	# instance properties, since assignment never falls through to the
+	# prototype,  and a fetch routine is passed the property's  actual
+	# owner;  i.e., the prototype, if it is an inherited property.  So
+	# we'll make a list of argument lists which &JE::Object::Proxy::new
+	# will take care of passing to each object's prop method.
+	if(exists $opts{props}) {
+		my $props = $opts{props};
+		$class{props} = \my %props;
+		if (ref $props eq 'ARRAY') {
+		    for my $p (@$props) {
+			$props{$p} = [
+				fetch => sub {
+					$self->upgrade($_[0]->value->$p)
+				},
+				store => sub { $_[0]->value->$p($_[1]) },
+			];
+		    }
+		} else { # it'd better be a hash!
+		while( my($name, $p) = each %$props) {
+			my @prop_args;
+			if (ref $p eq 'HASH') {
+				if(exists $$p{fetch}) {
+				    my $fetch = $$p{fetch};
+				    @prop_args = ( fetch =>
+				        ref $fetch eq 'CODE'
+				        ? sub { $self->upgrade(
+				            &$fetch($_[0]->value)
+				        ) }
+				        : sub { $self->upgrade(
+				            shift->value->$fetch
+				        ) }
+				    );
+				}
+				else { @prop_args =
+					(value => $self->undefined);
+				}
+				if(exists $$p{store}) {
+				    my $store = $$p{store};
+				    push @prop_args, ( store =>
+				        ref $store eq 'CODE'
+				        ? sub {
+				            &$store($_[0]->value, $_[1])
+				        }
+				        : sub {
+				            $_[0]->value->$store($_[1])
+				        }
+				    );
+				}
+				else {
+					push @prop_args, readonly => 1;
+				}
+			}
+			else {
+				@prop_args = ref $p eq 'CODE'
+					? (
+					    fetch => sub { $self->upgrade(
+				                &$p($_[0]->value)
+				            ) },
+					    store => sub {
+				                &$p($_[0]->value, $_[1])
+				            },
+					): (
+					    fetch => sub { $self->upgrade(
+				                $_[0]->value->$p
+				            ) },
+					    store => sub {
+				                $_[0]->value->$p($_[1])
+				            },
+					);
+			}
+			$props{$name} = \@prop_args;
+		}}
+	}
+
+	if(exists $opts{static_props}) {
+		my $props = $opts{static_props};
+		if (ref $props eq 'ARRAY') { for my $p (@$props) {
+			$constructor->prop({
+				name => $p,
+				fetch => sub { $self->upgrade($pack->$p) },
+				store => sub { $pack->$p($_[1]) },
+			});
+		}} else { # it'd better be a hash!
+		while( my($name, $p) = each %$props) {
+			my @prop_args;
+			if (ref $p eq 'HASH') {
+				if(exists $$p{fetch}) {
+				    my $fetch = $$p{fetch};
+				    @prop_args = ( fetch =>
+				        ref $fetch eq 'CODE'
+				        ? sub {
+				            $self->upgrade(&$fetch($pack))
+				        }
+				        : sub {
+				            $self->upgrade($pack->$fetch)
+				        }
+				    );
+				}
+				else { @prop_args =
+					(value => $self->undefined);
+				}
+				if(exists $$p{store}) {
+				    my $store = $$p{store};
+				    push @prop_args, ( store =>
+				        ref $store eq 'CODE'
+				        ? sub {
+				            &$store($pack, $_[1])
+				        }
+				        : sub {
+				            $pack->$store($_[1])
+				        }
+				    );
+				}
+				else {
+					push @prop_args, readonly => 1;
+				}
+			}
+			else {
+				@prop_args = ref $p eq 'CODE'
+					? (
+					    fetch => sub {
+				                $self->upgrade(&$p($pack))
+				            },
+					    store => sub {
+				                &$p($pack, $_[1])
+				            },
+					): (
+					    fetch => sub {
+				                $self->upgrade($pack->$p)
+				            },
+					    store => sub {
+				                $pack->$p($_[1])
+				            },
+					);
+			}
+			$constructor->prop({name => $name, @prop_args});
+		}}
 	}
 
 	return # nothing

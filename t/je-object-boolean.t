@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 95;
+use Test::More tests => 100;
 use Scalar::Util 'refaddr';
 use strict;
 use utf8;
@@ -31,7 +31,7 @@ isa_ok $n, 'JE::Object::Boolean', 'default boolean';
 
 
 #--------------------------------------------------------------------#
-# Tests 7-24: prop
+# Tests 7-27: prop
 
 {
 	is $t->prop(thing => 'value'), 'value',
@@ -97,18 +97,51 @@ isa_ok $n, 'JE::Object::Boolean', 'default boolean';
 	ok $auto, 'side-effect of autoload sub';
 	$auto = 0; () = $t->{notes}; # () suppresses void warnings
 	ok !$auto, 'sub autoload happens once';
+
+	# Fetch/store handlers
+
+	$t->prop({
+		name => 'abc',
+		fetch => sub {
+			$_[0]->global->upgrade(scalar reverse $_[1])
+		},
+		store => sub {
+			$_[2] = '!' . $_[1];
+		},
+		value => 'olleH',
+	});
+
+	is $t->{abc}, 'Hello', 'prop({}) with value and fetch together';
+	$t->{abc} = 'olleH';
+	is $t->{abc}, 'Hello!', 'fetch/store';
+	delete $t->{abc};
+	
+	# This behaviour is subject to change:
+	$t->prop({
+		name => 'eval',
+		store => sub {
+			my $global = $_[0]->global;
+			my $code = $_[1];
+			$_[2] = sub {$global->upgrade(eval($code))};
+		},
+	});
+
+	$t->{eval} = '1+1';
+	is $t->{eval}, 2, 'store and implicit autoload';
+	delete $t->{eval};
+
 }
 
 
 #--------------------------------------------------------------------#
-# Tests 25-6: keys
+# Tests 28-9: keys
 
 is_deeply [$t->keys], ['thing'], 'keys (1)';
 is_deeply [$f->keys], [], 'keys (2)';
 
 
 #--------------------------------------------------------------------#
-# Test 27-9: delete
+# Test 30-2: delete
 
 is_deeply $t->delete('anything'), 1, 'delete nonexistent property';
 is_deeply $t->delete('thing'), 1, 'delete property';
@@ -116,7 +149,7 @@ is_deeply $t->delete('notes'), !1, 'delete undeletable property';
 
 
 #--------------------------------------------------------------------#
-# Tests 30-31: method
+# Tests 33-34: method
 
 {
 	isa_ok my $ret = $t->method('toString'), 'JE::String',
@@ -126,14 +159,14 @@ is_deeply $t->delete('notes'), !1, 'delete undeletable property';
 }
 
 #--------------------------------------------------------------------#
-# Tests 32-4: value
+# Tests 35-7: value
 
 is_deeply $t->value,  1, '$t->value';
 is_deeply $f->value, !1, '$f->value';
 is_deeply $n->value, !1, '$n->value';
 
 #--------------------------------------------------------------------#
-# Test 35: call
+# Test 38: call
 
 eval {
 	$t->call
@@ -142,7 +175,7 @@ like $@, qr/^Can't locate object method/, 'call dies';
 
 
 #--------------------------------------------------------------------#
-# Test 36: apply
+# Test 39: apply
 
 eval {
 	$t->apply
@@ -151,7 +184,7 @@ like $@, qr/^Can't locate object method/, 'apply dies';
 
 
 #--------------------------------------------------------------------#
-# Test 37: construct
+# Test 40: construct
 
 eval {
 	$t->construct
@@ -160,16 +193,27 @@ like $@, qr/^Can't locate object method/, 'construct dies';
 
 
 #--------------------------------------------------------------------#
-# Tests 38-9: exists
+# Tests 41-4: exists
 
 $t->prop(thing => undef);
 
 is_deeply $t->exists('anything'), !1, 'exists(nonexistent property)';
 is_deeply $t->exists('thing'), 1, 'exists(property)';
 
+# exists in conjunction with fetch & store handlers (when the property's
+# value does not [yet] exist in the internal property hash)
+
+$t->prop({ name => 'jim', fetch => sub {} });
+ok $t->exists('jim'), 'exists when there is only a fetch handler';
+delete $t->{jim};
+$t->prop({ name => 'jim', store => sub {} });
+ok $t->exists('jim'), 'exists when there is only a store handler';
+delete $t->{jim};
+
+
 
 #--------------------------------------------------------------------#
-# Tests 40-42: is_readonly
+# Tests 45-47: is_readonly
 
 is_deeply $t-> is_readonly('anything'), !1,
 	'is_readonly(nonexistent property)';
@@ -179,7 +223,7 @@ is_deeply $t-> is_readonly('notes'), 1,
 
 
 #--------------------------------------------------------------------#
-# Tests 43-6: is_enum
+# Tests 48-51: is_enum
 
 is_deeply $t-> is_enum('anything'), !1,
 	'is_enum(nonexistent property)';
@@ -188,31 +232,31 @@ is_deeply $t-> is_enum('notes'), !1, 'is_enum(unenumerable property)';
 
 
 #--------------------------------------------------------------------#
-# Test 47: typeof
+# Test 52: typeof
 
 is_deeply typeof $t, 'object', 'typeof returns "object"';
 
 
 #--------------------------------------------------------------------#
-# Test 48: class
+# Test 53: class
 
 is_deeply $t->class, 'Boolean', 'class returns "Boolean"';
 
 
 #--------------------------------------------------------------------#
-# Test 49: id
+# Test 54: id
 
 is_deeply $t->id, refaddr $t, 'id';
 
 
 #--------------------------------------------------------------------#
-# Test 50: primitive
+# Test 55: primitive
 
 is_deeply $t->primitive, !1, 'primitive returns !1';
 
 
 #--------------------------------------------------------------------#
-# Tests 51-6: to_primitive
+# Tests 56-61: to_primitive
 
 {
 	my $thing;
@@ -229,7 +273,7 @@ is_deeply $t->primitive, !1, 'primitive returns !1';
 
 
 #--------------------------------------------------------------------#
-# Tests 57: to_boolean
+# Tests 62: to_boolean
 
 {
 	isa_ok my $thing = $f->to_boolean, 'JE::Boolean',
@@ -239,7 +283,7 @@ is_deeply $t->primitive, !1, 'primitive returns !1';
 
 
 #--------------------------------------------------------------------#
-# Tests 58-63: to_string
+# Tests 63-8: to_string
 
 {
 	my $thing;
@@ -256,7 +300,7 @@ is_deeply $t->primitive, !1, 'primitive returns !1';
 
 
 #--------------------------------------------------------------------#
-# Test 64-9: to_number
+# Test 69-74: to_number
 
 {
 	my $thing;
@@ -272,19 +316,19 @@ is_deeply $t->primitive, !1, 'primitive returns !1';
 }
 
 #--------------------------------------------------------------------#
-# Test 70: to_object
+# Test 75: to_object
 
 cmp_ok refaddr $t-> to_object, '==', refaddr $t, 'to_object';
 
 
 #--------------------------------------------------------------------#
-# Test 71: global
+# Test 76: global
 
 is refaddr $j, refaddr global $t, '->global';
 
 
 #--------------------------------------------------------------------#
-# Tests 72-8: Overloading
+# Tests 77-83: Overloading
 
 # %{} is dealt with further down
 
@@ -300,7 +344,7 @@ is 0+$n, 0, '0+$n';
 
 
 #--------------------------------------------------------------------#
-# Tests 79-93: Hash ties
+# Tests 84-98: Hash ties
 
 our %h;
 *h = \%$t;
@@ -335,7 +379,7 @@ ok !tied(%@),
 
 
 #--------------------------------------------------------------------#
-# Tests 94-5: Freezing with ties present
+# Tests 99-100: Freezing with ties present
 
 SKIP: {
 	eval 'require Data::Dump::Streamer' or

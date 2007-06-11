@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.014';
+our $VERSION = '0.015';
 
 use strict;
 use warnings;
@@ -120,7 +120,7 @@ sub execute {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.014';
+our $VERSION = '0.015';
 
 use subs qw'_create_vars _eval_term';
 use List::Util 'first';
@@ -196,7 +196,7 @@ sub eval {  # evaluate statement
 	if ($type eq 'var') {
 		for (@$stm[2..$#$stm]) {
 			@$_ == 2 and
-			    $scope->get_var($$_[0], _eval_term $$_[1]);
+			    $scope->find_var($$_[0], _eval_term $$_[1]);
 		}
 		return;
 	}
@@ -281,7 +281,7 @@ sub eval {  # evaluate statement
 				# in which case it's been deleted
 				
 				(ref $left_side ? $left_side->eval :
-					$scope->get_var($left_side))
+					$scope->find_var($left_side))
 				  ->set(new JE::String $_global, $_);
 
 				defined ($returned = ref $$stm[5]
@@ -527,7 +527,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.014';
+our $VERSION = '0.015';
 
 # See the comments in Number.pm for how I found out these constant values.
 use constant nan => sin 9**9**9;
@@ -1018,6 +1018,9 @@ sub eval {  # evalate (sub)expression
 			eval { (pop @terms)->set($val) };
 			$@ and die new JE::Object::Error::ReferenceError
 				$_global, "Cannot assign to a non-lvalue";
+			# ~~~ This needs to check whether it was an error
+			#     other than 'Can't locate objec mtehod "set"
+			#     since store handlers can thrown other errors.
 			
 		}
 		if(!@ops) { # If we only have ? : and no assignment
@@ -1178,7 +1181,7 @@ sub _eval_term {
 	#	"(this is a bug; please report it)";
 
 	ref $term ? $term : $term eq 'this' ?
-				$this : $scope->get_var($term);
+				$this : $scope->find_var($term);
 }
 
 
@@ -1186,7 +1189,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.014';
+our $VERSION = '0.015';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1198,7 +1201,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.014';
+our $VERSION = '0.015';
 
 sub list {
 	my $self = shift;
