@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
 use strict;
 use warnings;
@@ -14,11 +14,14 @@ use Scalar::Util 'blessed';
 
 our @ISA = 'JE::Object';
 
+require JE::Code;
 require JE::Object     ;
-require JE::Object::Error::RangeError;
 require JE::Object::Error::TypeError              ;
 require JE::String                                            ;
 require JE::Number                                                       ;
+
+import JE::Code 'add_line_number';
+sub add_line_number;
 
 =head1 NAME
 
@@ -83,8 +86,9 @@ sub new {
 	} elsif (@_ == 1 && UNIVERSAL::isa $_[0], 'JE::Number') {
 		my $num = 0+shift;
 		$num == int($num) % 2**32
-			or die JE::Object::Error::RangeError->new($global,
-				"$num is not a valid array index");
+		    or require JE::Object::Error::RangeError,
+		       die JE::Object::Error::RangeError->new($global,
+		        add_line_number "$num is not a valid array index");
 		$#array = $num - 1;
 	}
 	else {
@@ -109,7 +113,12 @@ sub prop {
 
 	if ($name eq 'length') {
 		if (@_ > 1) { # assignment
-			$val == int($val) % 2**32 or die; # ~~~ RangeError
+			$val == int($val) % 2**32 or
+				require JE::Object::Error::RangeError,
+				die new JE::Object::Error::RangeError
+				$$guts{global},
+				add_line_number
+				 "$val is not a valid value for length";
 			$#{$$guts{array}} = $val - 1;
 			return JE::Number->new($$guts{global}, $val);
 		}
@@ -382,7 +391,7 @@ sub _toString {
 	my $guts = $$self;
 	eval{$self->class} eq 'Array'
 	or die JE::Object::Error::TypeError->new($$guts{global},
-		'Object is not an Array');
+		add_line_number 'Object is not an Array');
 
 	JE::String->new(
 		$$guts{global},

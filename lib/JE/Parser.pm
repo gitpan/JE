@@ -1,12 +1,17 @@
 package JE::Parser;
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
 use strict;  # :-(
 use warnings;# :-(
 
+use Scalar::Util 'blessed';
+
 require JE::Code  ;
 require JE::Number; # ~~~ Don't want to do this
+
+import JE::Code 'add_line_number';
+sub add_line_number;
 
 our ($_parser, $global, @_decls, @_stms);
 
@@ -70,11 +75,11 @@ sub parse {
 			$_parser->{stm}{$_};
 	}
 
-	JE::Code::parse($_parser->{global}, shift);
+	JE::Code::parse($_parser->{global}, @_);
 }
 
 sub eval {
-	shift->parse(shift)->execute
+	shift->parse(@_)->execute
 }
 
 #----------PARSER---------#
@@ -1439,11 +1444,16 @@ sub program() { # like statements(), but it allows function declarations
 	return $ret;
 }
 
-sub _parse($$$) { # Returns just the parse tree,  not a JE::Code  object.
-                  # Actually, it returns the source followed by the parse
-                  # tree in list context,  or  just  the  parse  tree  in
-                  # scalar context.
-	my ($rule, $src, $my_global) = @_;
+
+# ~~~ The second arg to add_line_number is a bit ridiculous. I may change
+#     add_line_number's parameter list, perhaps so it accepts either a
+#     code object, or (src,file,line) if $_[1] isn'ta JE::Code. I don't
+#     know....
+sub _parse($$$;$$) { # Returns just the parse tree, not a JE::Code object.
+                     # Actually,  it returns the source followed  by  the
+                     # parse tree in list context, or just the parse tree
+                     # in scalar context.
+	my ($rule, $src, $my_global, $file, $line) = @_;
 
 	$src = "$src"; # We *hafta* stringify it, because it could be an
 	               # object with overloading  (e.g., JE::String)  and
@@ -1466,20 +1476,26 @@ sub _parse($$$) { # Returns just the parse tree,  not a JE::Code  object.
 		};
 		if(ref $@ ne '') {
 			ref $@ eq 'SCALAR' or die;
-			UNIVERSAL::isa($@, 'UNIVERSAL') and die;
+			defined blessed $@ and die;
 			$@ = JE::Object::Error::SyntaxError->new(
-				$my_global, ${$@}
-				. " at char " . pos);
+				$my_global,
+				add_line_number(
+				    ${$@},	
+				   {file=>$file,line=>$line,source=>\$src},
+				     pos)
+			);
 		}
 		elsif($@ =~ /\n\z/) { die }
 		elsif($@) {
 			$@ = JE::Object::Error::SyntaxError->new(
 				$my_global,
-			# ~~~ This needs to calculate the current line
-			#     number, and perhaps show more context
-				"Expected $@ but found '".
-				substr($_, pos, 10) . "'"
-				. " at char " . pos);
+			# ~~~ This should perhaps show more context
+				add_line_number
+				    "Expected $@ but found '".
+				    substr($_, pos, 10) . "'",
+				   {file=>$file,line=>$line,source=>\$src},
+				     pos
+			);
 			return;
 		}
 	}

@@ -388,6 +388,7 @@ SKIP: {
 
 	ok exists $$$t{tie}, 'hash tie is present before freeze';
 	{
+		local $SIG{__WARN__} = sub{};
 		require IO::Handle; # DDS (2.03) loads this, but I don't
 		                    # know that it always will.
 		my $black_hole = 'IO::Handle'->new;

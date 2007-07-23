@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
 
 use strict;
@@ -13,8 +13,12 @@ use Scalar::Util 'blessed';
 
 our @ISA = 'JE::Object';
 
+require JE::Code;
 require JE::Object;
 require JE::String;
+
+import JE::Code 'add_line_number';
+sub add_line_number;
 
 #import JE::String 'desurrogify';
 #sub desurrogify($);
@@ -184,7 +188,8 @@ sub new {
 		if ($re->isa(__PACKAGE__)) {
 			defined $flags && eval{$flags->id} ne 'undef' and
 				die JE::Object::Error::TypeError->new(
-					$global, 'Second argument to ' .
+					$global, add_line_number
+					'Second argument to ' .
 					'RegExp() must be undefined if ' .
 					'first arg is a RegExp');
 			$flags = $$$re{regexp_flags};
@@ -234,7 +239,7 @@ sub new {
 	# I'm not supporting /s (at least not for now)
 	$flags =~ /^((?:(?!s)[\$_\p{ID_Continue}])*)\z/ and eval "qr//$1"
 		or die new JE::Object::Error::SyntaxError $global,
-		"Invalid regexp modifiers: '$flags'";
+		add_line_number "Invalid regexp modifiers: '$flags'";
 
 	my $m = $flags =~ /m/;
 	$self->prop({
@@ -341,6 +346,7 @@ sub new {
 		}
 		elsif($re) {
 			die JE::Object::Error::SyntaxError->new($global,
+			    add_line_number
 			    $re =~ /^\[/
 			    ? "Unterminated character class $re in regexp"
 			    : 'Trailing \ in regexp');
@@ -349,7 +355,8 @@ sub new {
 	}
 
 	$qr = eval { qr/(?$flags:$new_re)/ }
-		|| die JE::Object::Error::SyntaxError->new($global, $@);
+		|| die JE::Object::Error::SyntaxError->new($global,
+			add_line_number $@);
 
 	} # end of pattern processing
 
@@ -441,7 +448,7 @@ sub new_constructor {
 			function => sub {
 				my ($self,$str) = @_;
 				die JE::Object::Error::TypeError->new(
-					$global,
+					$global, add_line_number
 					"Argument to exec is not a " .
 					"RegExp object"
 				) unless $self->class eq 'RegExp';

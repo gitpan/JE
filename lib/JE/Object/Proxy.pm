@@ -1,12 +1,13 @@
 package JE::Object::Proxy;
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
 use strict;
 use warnings;
 
 # ~~~ delegate overloaded methods?
 
+use JE::Code 'add_line_number';
 use Scalar::Util qw'refaddr';
 
 require JE::Object;
@@ -80,7 +81,8 @@ sub to_primitive { # ~~~ I think maybe the info should be stored in the
 			? $$guts{global}->upgrade(ref $tp eq 'CODE'
 				? &$tp($value, @_)
 				: $value->$tp(@_))
-			: die "The object ($$guts{proxy_class} cannot "
+			: die add_line_number
+				"The object ($$guts{proxy_class} cannot "
 				. "be converted to a primitive";
 	} else {
 		return SUPER::to_primitive $self @_;
@@ -105,7 +107,8 @@ sub to_string {
 			? $$guts{global}->upgrade(ref $tp eq 'CODE'
 				? &$tp($value, @_)
 				: $value->$tp(@_))->to_string
-			: die "The object ($$guts{proxy_class} cannot "
+			: die add_line_number
+				"The object ($$guts{proxy_class} cannot "
 				. "be converted to a string";
 	} else {
 		return SUPER::to_string $self @_;
@@ -130,7 +133,8 @@ sub to_number {
 			? $$guts{global}->upgrade(ref $tp eq 'CODE'
 				? &$tp($value, @_)
 				: $value->$tp(@_))->to_number
-			: die "The object ($$guts{proxy_class} cannot "
+			: die add_line_number
+				"The object ($$guts{proxy_class} cannot "
 				. "be converted to a number";
 	} else {
 		return SUPER::to_number $self @_;

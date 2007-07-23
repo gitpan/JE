@@ -1,6 +1,6 @@
 package JE::LValue;
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
 use strict;
 use warnings;
@@ -8,9 +8,12 @@ use warnings;
 use List::Util 'first';
 use Scalar::Util 'blessed';
 
+require JE::Code;
 require JE::Object::Error::TypeError;
 require JE::Object::Error::ReferenceError;
 
+import JE::Code 'add_line_number';
+sub add_line_number;
 
 # ~~~ Make 'call' use ->method instead of ->apply???
 
@@ -70,7 +73,8 @@ sub new {
 		my $id = $obj->id;
 		$id eq 'null' || $id eq 'undef' and die 
 			new JE::Object::Error::TypeError $obj->global,
-			$obj->to_string->value . " has no properties";
+			add_line_number
+			    $obj->to_string->value . " has no properties";
 	}
 	bless [$obj, $prop], $class;
 }
@@ -78,7 +82,7 @@ sub new {
 sub get {
 	my $base = (my $self = shift)->[0];
 	defined blessed $base or die new 
-		JE::Object::Error::ReferenceError $$base,
+		JE::Object::Error::ReferenceError $$base, add_line_number 
 		"The variable $$self[1] has not been declared";
 		
 	my $val = $base->prop($self->[1]);

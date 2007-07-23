@@ -4,7 +4,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 127;
+use Test::More tests => 128;
 use strict;
 use Scalar::Util 'refaddr';
 use utf8;
@@ -722,3 +722,20 @@ $j->bind_class(
 );
 
 isa_ok $j->upgrade(bless[],'Wrappee'),'Wrapper', 'the wrapper';
+
+
+
+
+#--------------------------------------------------------------------#
+# Test 128: Attempt to free unreferenced scalar in perl 5.8.x
+# fixed via a workaround for perl bug #24254
+
+# ~~~ This test should probably go in JE::Code, since that's what it's
+#     related to.
+
+{
+	my $x;
+	local $SIG{__WARN__} = sub { $x = $_[0] };
+	$j->eval('a(I_hope_thiS_var_doesnt_exist+b)');
+	is $x, undef, '"Attempt to free unreferenced scalar" avoided';
+}

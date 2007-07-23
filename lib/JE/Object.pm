@@ -4,7 +4,7 @@ package JE::Object;
 sub evall { my $global = shift; my $r = eval 'local *_;' . shift;
             $@ and die; $r }
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
 use strict;
 use warnings;
@@ -22,10 +22,13 @@ use B 'svref_2object';
 #use Data::Dumper;
 
 
+require JE::Code;
 require JE::Object::Function;
 require JE::Boolean;
 require JE::String;
 
+import JE::Code 'add_line_number';
+sub add_line_number;
 
 sub in_list { 
 	my $str = shift;
@@ -490,7 +493,8 @@ sub to_primitive {
 	}
 
 	# This will be upgraded to a TypeError automagically.
-	die "An object of type " . (eval {$self->class} || ref $self) .
+	die add_line_number "An object of type " .
+		(eval {$self->class} || ref $self) .
 		" cannot be converted to a primitive";
 }
 

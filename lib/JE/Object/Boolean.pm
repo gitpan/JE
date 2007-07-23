@@ -1,6 +1,6 @@
 package JE::Object::Boolean;
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
 
 use strict;
@@ -10,11 +10,14 @@ our @ISA = 'JE::Object';
 
 use Scalar::Util 'blessed';
 
+require JE::Code;
 require JE::Boolean;
 require JE::Object::Error::TypeError;
 require JE::Object::Function;
 require JE::String;
 
+import JE::Code 'add_line_number';
+sub add_line_number;
 
 =head1 NAME
 
@@ -111,7 +114,7 @@ sub _new_constructor {
 			function => sub {
 				my $self = shift;
 				die JE::Object::Error::TypeError->new(
-					$global,
+					$global, add_line_number
 					"Argument to " .
 					"Boolean.prototype.toString is not"
 					. " a " .
@@ -135,7 +138,7 @@ sub _new_constructor {
 			function => sub {
 				my $self = shift;
 				die JE::Object::Error::TypeError->new(
-					$global,
+					$global, add_line_number
 					"Argument to " .
 					"Boolean.prototype.valueOf is not"
 					. " a " .

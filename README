@@ -1,4 +1,4 @@
-JE, version 0.015
+JE, version 0.016
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -26,26 +26,22 @@ reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-    - JS properties can now be bound to Perl subroutines that store/
-      fetch the value (see JE::Types).
-    - Class bindings now support binding of properties, as well
-      as methods.
-    - The constructor_name argument to bind_class is gone, since it
-      was confusing.
-    - bind_class now will understand 'package' to be the same as
-     'name' if only the latter is provided.
-    - bind_class now  creates  a  constructor  whether  or  not  the
-     'constructor' argument is passed. If it is not, the constructor
-      that it makes will throw an error when invoked.
-    - JE::Scope's get_var  method  has  been  renamed  (again!)  to
-      find_var, since the name 'get_var' has the wrong implications.
+New feature:
+- Added support for filenams and line numbers in error messages.
+
+Bug fix:
+- Added a workaround for a perl 5.8.x  bug  that  was  causing  errors
+  thrown from expressions within argument lists to trigger an "Attempt
+  to free unreferenced scalar" warning.
 
 
 TO DO
 
+- Solve the problem of scalar leak warnings in perl 5.8.8 that occur
+  with certain JS syntax errors (perl 5.9.5 is fine)
 - Make the parser extensible/customisable
 - Finish the core object classes
-- Add helpful error messages
+- Add more helpful error messages
 - Determine some logical way of dealing with locale settings (for
   String.prototype.localeCompare, et al.)
 - Write lots and lots and lots of tests, at the same time fixing all
@@ -78,7 +74,9 @@ Or you can use the following:
 
 DEPENDENCIES
 
-This module requires Perl 5.8.0 or later.
+This module requires perl 5.8.0 or later.
+
+For perl versions earlier than 5.9.4 it requires Tie::RefHash::Weak.
 
 Later it will probably require Unicode::Collate and Date::Parse.
 

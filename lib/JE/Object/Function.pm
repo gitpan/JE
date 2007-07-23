@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
 
 use strict;
@@ -21,6 +21,8 @@ require JE::Object::Error::TypeError;
 require JE::Parser                    ;
 require JE::Scope                      ;
 
+import JE::Code 'add_line_number';
+sub add_line_number;
 
 =head1 NAME
 
@@ -219,6 +221,8 @@ sub new {
 				my $src = '(' . join(',', @_[0..$#_-1]) .
 					')';
 				$src =~ s/\p{Cf}//g;
+				# ~~~ What should I do here for the file
+				#     name and the starting line number?
 				my $params = JE::Parser::_parse(
 					params => $src, $scope
 				);
@@ -539,7 +543,8 @@ sub _init_proto {
 					'JE::Object::Function::Arguments'
 				   and eval{$args->class} ne 'Array') {
 					die JE::Object::Error::TypeError
-					->new($scope, "Second argument to "
+					->new($scope, add_line_number
+					      "Second argument to "
 					      . "'apply' is of type '" . 
 					      (eval{$args->class} ||
 					       eval{$args->typeof} ||
@@ -605,7 +610,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -682,7 +687,7 @@ sub delete {
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
 our @ISA = 'JE::Object';
 

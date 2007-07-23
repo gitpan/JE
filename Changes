@@ -1,5 +1,15 @@
 Revision history for JE
 
+0.016   22 July, 2007
+        New feature:
+        - Added support for filenames and line numbers in
+          error messages.
+        Bug fix:
+        - Added a workaround for a perl 5.8.x bug (#24254) that was
+          causing errors thrown from  expressions  within  argument
+          lists to trigger an  "Attempt to  free  unreferenced  sca-
+          lar" warning.
+
 0.015   10 June, 2007
         - JS properties can now be bound to Perl subroutines that
           store/fetch the value (see JE::Types).

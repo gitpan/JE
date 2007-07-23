@@ -1,5 +1,6 @@
 Changes
 lib/JavaScript/Engine.pm
+lib/JE/_FieldHash.pm
 lib/JE/Boolean.pm
 lib/JE/Code.pm
 lib/JE/LValue.pm

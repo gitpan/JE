@@ -28,8 +28,8 @@ diag('TO DO: Finish writing this test script')
 /* Tests 4-5: Make sure toString and toLocaleString die properly */
 
 try { Array.prototype.toString.apply(3) }
-catch(it) { ok(it.message == 'Object is not an Array') }
+catch(it) { ok(it.message.substring(0,22) == 'Object is not an Array') }
 try { Array.prototype.toLocaleString.apply(3) }
-catch(it) { ok(it.message == 'Object is not an Array') }
+catch(it) { ok(it.message.substring(0,22) == 'Object is not an Array') }
 
 --end--

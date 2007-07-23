@@ -1,15 +1,18 @@
 package JE::Code;
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
 use strict;
 use warnings;
 
 #use Data::Dumper;
+use Exporter 'import';
+our @EXPORT_OK = 'add_line_number';
 
 require JE::Object::Error::ReferenceError;
 require JE::Object::Error::SyntaxError;
 require JE::Object::Error::TypeError;
+require JE::Object::Function;
 require JE::Object::Array;
 require JE::Boolean;
 require JE::Object;
@@ -19,11 +22,16 @@ require JE::LValue;
 require JE::String;
 require JE::Scope;
 
+sub add_line_number; # so I can call it without parentheses in sub execute
 
+
+# This is documented in a POD comment at the bottom of the file.
 sub parse {
-	my($global, $src) = @_;
+	my($global, $src, $file, $line) = @_;
 
-	my $tree = JE::Parser::_parse(program => $src, $global);
+	($src, my $tree) = JE::Parser::_parse(
+		program => $src, $global, $file
+	);
 
 	$@ and return;
 
@@ -33,11 +41,14 @@ sub parse {
 	               ( $JE::Parser::_parser
 	                 ? (parser => $JE::Parser::_parser)
 	                 : () ),
-	               source     => $src,
+	               source     => \$src,
+	               file       => $file,
+	               line       => $line,
 	               tree       => $tree };
-	# ~~~ I need to add support for a name for the code--to be
-	#     used in error messages.
-	#     -- and a starting line number
+	# $self->{source} is a reference, so that we can share the same
+	# source between code objects without the extra memory overhead
+	# that copying it  would  have.  (Some  JS  script  files  are
+	# rather large.)
 }
 
 
@@ -61,7 +72,8 @@ sub execute {
 		local $JE::Code::this   = $this;
 		local $JE::Code::scope  = $scope;
 		local $JE::Code::parser = $code->{parser}; # might be
-		                                           # undef
+		local our $pos;                            # undef
+		local our $code = $code;
 		local $JE::Code::Expression::_global = $global;
 		local $JE::Code::Expression::_eval   = $code_type == 1;
 		local $JE::Code::Statement::_created_vars = 0 ;
@@ -79,7 +91,8 @@ sub execute {
 
 		if($JE::Code::Statement::_label) {
 			 die new JE::Object::Error::SyntaxError $global,
-		  	"continue $JE::Code::Statement::_label: label " .
+		  	 add_line_number
+			"continue $JE::Code::Statement::_label: label " .
 		  	"'$JE::Code::Statement::_label' not found";
 		} else { goto FINISH; }
 
@@ -87,6 +100,7 @@ sub execute {
 
 		if($JE::Code::Statement::_label) {
 			 die new JE::Object::Error::SyntaxError $global,
+			 add_line_number
 		  	"break $JE::Code::Statement::_label: label " .
 		  	"'$JE::Code::Statement::_label' not found";
 		} else { goto FINISH; }
@@ -108,28 +122,54 @@ sub execute {
 	else {
 		# Catch-all for any errors not dealt with elsewhere
 		ref $@ eq '' and $@ = new JE::Object::Error::TypeError
-			$global, $@;
-		# ~~~ Deal with proper line numbers later.
+			$global, add_line_number $@;
 	}
 
 	$rv;
 }
 
+# Variables pertaining to the current execution context
+our $code; # JE::Code object, not source code
+our $this;
+our $scope;
+our $parser;
+our $pos; # position within the source code; used to calculate a line no.
+
+sub add_line_number {
+	my $msg = shift;
+	my $code = @_ ? shift : $code;
+	my $pos  = @_ ? shift : $pos ;
+	$msg =~  /\n\z/ and return $msg;
+	defined(my $file = ($code || return $msg)->{file})
+		or defined $pos or return $msg;
+	my $first_line = $code->{line};
+	defined $first_line or $first_line = 1;
+	if(defined $pos) {
+	    no warnings 'uninitialized';
+	    "$msg at $file" . ', ' x defined($file) . 'line ' .
+	        ($first_line + (() = substr(${$code->{source}},0,$pos) =~
+	            /\cm\cj?|[\cj\x{2028}\x{2029}]/g))
+	        . ".\n";
+	} else {
+	    "$msg in $file.\n"
+	}
+}
 
 
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
 use subs qw'_create_vars _eval_term';
 use List::Util 'first';
 
-our($_created_vars, $scope, $_global,$_label,$_return);
+our($_created_vars, $_global,$_label,$_return);
 
 *_eval_term = *JE::Code::Expression::_eval_term;
 *_global    = *JE::Code::Expression::_global;
-*scope     = *JE::Code::scope;
+import JE::Code 'add_line_number';
+sub add_line_number;
 
 
 # Note: each statement object is an array ref. The elems are:
@@ -146,6 +186,7 @@ sub eval {  # evaluate statement
 	$type eq 'empty' || $type eq 'function' and return;
 
 	my @labels;
+	$pos = $$stm[0][0];
 
 	if ($type eq 'labelled') {
 		@labels = @$stm[2..$#$stm-1];
@@ -433,8 +474,7 @@ sub eval {  # evaluate statement
 		if (ref $@ || $@ ne '' and !ref $$stm[3]) { # catch
 			# Turn miscellaneous errors into TypeErrors
 			ref $@ or $@ = new JE::Object::Error::TypeError
-				$_global, $@;
-			# ~~~ Deal with line numbers?
+				$_global, add_line_number $@;
 
 			(my $new_obj = new JE::Object $_global)
 			 ->prop({
@@ -506,15 +546,13 @@ sub _create_vars {  # Process var and function declarations
 		# format: [[...], function=> 'name',
 		#          [ (params) ], $statements_obj] 
 		$scope->[-1]->delete($$_[2], 1);
+		(my $new_code_obj = bless {%$code}, 'JE::Code')
+		 ->{tree} = $$_[4];
 		$scope->new_var($$_[2], new JE::Object::Function {
 			scope    => $scope,
 			name     => $$_[2],
 			argnames => $$_[3],
-			function => bless {
-				global => $_global,
-				# ~~~ source => how do I get it? Do we need it? (for error reporting)
-				tree => $$_[4],
-			}, 'JE::Code'
+			function => $new_code_obj
 		});
 	}
 	elsif ($type eq 'labelled') {
@@ -527,19 +565,20 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
-# See the comments in Number.pm for how I found out these constant values.
+# B::Deparse showed me how to get these values.
 use constant nan => sin 9**9**9;
 use constant inf => 9**9**9;
 
 use subs qw'_eval_term';
 use POSIX 'fmod';
 
-our($scope,$this,$_global);
+import JE::Code 'add_line_number';
+sub add_line_number;
 
-*scope = *JE::Code::scope;
-*this  = *JE::Code::this;
+our($_global);
+
 
 #----------for reference------------#
 #sub _to_int {
@@ -769,11 +808,11 @@ our($scope,$this,$_global);
 	*{'ininstanceof'} = sub {
 		my($obj,$func) = @_;
 		die new JE::Object::Error::TypeError $_global,
-			"$func is not an object"
+			add_line_number "$func is not an object"
 			if $func->primitive;
 
 		die new JE::Object::Error::TypeError $_global,
-			"$func is not a function"
+			add_line_number "$func is not a function"
 			if $func->typeof ne 'function';
 		
 		return new JE::Boolean $_global, 0 if $obj->primitive;
@@ -781,7 +820,7 @@ our($scope,$this,$_global);
 		my $proto_id = $func->prop('prototype');
 		!defined $proto_id || $proto_id->primitive and die new
 		   JE::Object::Error::TypeError $_global,
-		   "Function $$$func{func_name} has no prototype property";
+		   add_line_number "Function $$$func{func_name} has no prototype property";
 		$proto_id = $proto_id->id;
 
 		0 while (defined($obj = $obj->prototype)
@@ -792,7 +831,8 @@ our($scope,$this,$_global);
 	};
 	*{'inin'} = sub {
 		my($prop,$obj) = @_;
-		die "$obj is not an object" # ~~~ TypeError
+		die new JE::Object::Error::TypeError $_global,
+		    add_line_number "$obj is not an object"
 			if $obj->primitive;
 		new JE::Boolean $_global, defined $obj->prop($prop);
 	};
@@ -963,6 +1003,8 @@ sub eval {  # evalate (sub)expression
 	my $type = $$expr[1];
 	my @labels;
 
+	$pos = $$expr[0][0];
+
 	if ($type eq 'expr') {
 		my $result;
 		if(@$expr == 3) { # no comma
@@ -1017,7 +1059,7 @@ sub eval {  # evalate (sub)expression
 			$val = $val->get if ref $val eq 'JE::LValue'; 
 			eval { (pop @terms)->set($val) };
 			$@ and die new JE::Object::Error::ReferenceError
-				$_global, "Cannot assign to a non-lvalue";
+				$_global, add_line_number "Cannot assign to a non-lvalue";
 			# ~~~ This needs to check whether it was an error
 			#     other than 'Can't locate objec mtehod "set"
 			#     since store handlers can thrown other errors.
@@ -1146,17 +1188,13 @@ sub eval {  # evalate (sub)expression
 			? bless([@$scope, new JE::Object $_global], 
 				'JE::Scope')
 			: $scope;
+		(my $new_code_obj = bless {%$code}, 'JE::Code')
+		 ->{tree} = $statements;
 		my $f = new JE::Object::Function {
 			scope    => $func_scope,
 			defined $name ? (name => $name) : (),
 			argnames => $params,
-			function => bless {
-				global => $_global,
-				# ~~~ source => how do I get it? Do we need it? (for error reporting)
-# ~~~ I need the source code for stringifying the function. I'll create a 
-#     $_src variable (not another global!)
-				tree => $statements,
-			}, 'JE::Code'
+			function => $new_code_obj,
 		};
 		if($name) {
 			$func_scope->new_var($name => $f)->base->prop({
@@ -1176,7 +1214,7 @@ sub _eval_term {
 	}
 #defined $term or print "@$copy";
 
-	# For some reason this 'die' causes a bus error.	
+	# ~~~ For some reason this 'die' causes a bus error.	
 	#defined $term or die "Internal Error in _eval_term " .
 	#	"(this is a bug; please report it)";
 
@@ -1189,7 +1227,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1201,13 +1239,29 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
 sub list {
 	my $self = shift;
+
+	#  I can't use map here, because this method is called from within
+	#  a foreach loop,  and an exception might be thrown from  within
+	# _eval_term, which has strange effects in perl 5.8.x (see perl
+	#  bug #24254).
+
+if(1) {
+	my @result;
+	for(@$self[1..$#$self]) {
+		my $val = JE::Code::Expression::_eval_term($_);
+		push @result, ref $val eq 'JE::LValue' ? $val->get : $val
+	}
+	@result;
+
+}else{ # original code
 	map { my $val = JE::Code::Expression::_eval_term($_);
 	      ref $val eq 'JE::LValue' ? $val->get : $val }
 	    @$self[1..$#$self];
+}
 }
 
 
@@ -1265,22 +1319,48 @@ error message. If no error occurs, C<$@> will be a null string.
 
 =back
 
+=head1 FUNCTIONS
+
+=over 4
+
+=item JE::Code::add_line_number($message, $code_object, $position)
+
+B<WARNING:> The parameter list is still subject to change.
+
+This routine append a string such as 'at file, line 76.' to the error 
+message passed to it,  
+unless it ends with a line break already.
+
+C<$code_object> is a code object as returned by JE's or JE::Parser's
+C<parse> method. If it is omitted, the current value of C<$JE::Code::code>
+will be used (this is set while JS code is running). If C<$JE::Code::code>
+turns out to be undefined, then C<$message> will be returned unchanged
+(B<this is subject to change>; later I might make it use Carp to add a Perl 
+file and line number).
+
+C<$position> is the position within the source code, which will be used to
+determine the line number. If this is omitted, $JE::Code::pos will be used.
 
 =begin private
 
-=head1 THE FUNCTION
+=item JE::Code::parse($global, $src, $file, $line)
 
 Please don't use this. It is for internal use. It might get renamed,
-or change its behaviour without notice.
+or change its behaviour without notice (which has happened several times).
 Use JE's C<compile> and C<eval> methods instead.
 
-C<JE::Code::_new($global, $src, $tree)> returns a JE::Code object.
+This function returns a JE::Code object.
 
-C<$global> is a global object. C<$src> is the source code. C<$tree> is a
-parse tree as returned by &JE::Parser::_parse
+C<$global> is a global object. C<$src> is the source code. C<$file> is a
+filename, or any name you want to give the code. C<$line> is a line number.
 
 =end private
 
+=back
+
+=head1 EXPORTS
+
+C<add_line_number> can optionally be exported.
 
 =head1 SEE ALSO
 

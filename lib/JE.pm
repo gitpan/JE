@@ -11,21 +11,16 @@ use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
+use Carp 'croak';
 use Encode qw< decode_utf8 encode_utf8 FB_CROAK >;
+use JE::Code 'add_line_number';
+use JE::_FieldHash;
 use Scalar::Util qw'blessed refaddr';
-
-BEGIN {
-	local $@; # ~~~ Is this necessary in a BEGIN block?
-	eval { require Hash::Util::FieldHash;
-	       import  Hash::Util::FieldHash 'fieldhash'; };
-	$@ and eval 'sub fieldhash{$_[0]}';
-}
 
 our @ISA = 'JE::Object';
 
-require JE::Code;
 require JE::Null     ;
 require JE::Number     ;
 require JE::Object      ;
@@ -43,7 +38,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.015 (alpha release)
+Version 0.016 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module.
@@ -144,6 +139,12 @@ sub new {
 	# I can't use the usual object and function constructors, since
 	# they both rely on the existence of  the global object and its
 	# 'Object' and 'Function' properties.
+
+	if(ref $class) {
+		croak "JE->new is a class method and cannot be called " .
+			"on a" . ('n' x ref($class) =~ /^[aoeui]/i) . ' ' .
+			 ref($class). " object."
+	}
 
 	# Commented lines here are just for reference:
 	my $self = bless \{
@@ -520,44 +521,51 @@ sub new {
 	$self->prop({
 		name  => 'decodeURI',
 		value => JE::Object::Function->new({
-			scope  => $self,
-			name   => 'decodeURI',
-			argnames => [qw/encodedURI/],
-			no_proto => 1,
-			function_args => ['args'],
-			function => sub {
-# ~~~ I think the error constructors here andelsewhere need a reference to 
-# the global
-#    objec.
-				my $str = shift->to_string->value;
-				$str =~ /%(?![a-fA-F0-9]{2})(.{0,2})/
-				 && die
-					JE::Object::Error::URIError->new(
+		    scope  => $self,
+		    name   => 'decodeURI',
+		    argnames => [qw/encodedURI/],
+		    no_proto => 1,
+		    function_args => ['args'],
+		    function => sub {
+		        my $str = shift->to_string->value;
+		        $str =~ /%(?![a-fA-F0-9]{2})(.{0,2})/
+		         and require JE::Object::Error::URIError,
+		             die
+		        	JE::Object::Error::URIError->new(
+		        		$self,
+		        		add_line_number
 						"Invalid escape %$1 in URI"
-					);
+		        	);
 
-				$str = encode_utf8 $str;
+		        $str = encode_utf8 $str;
 
-				# [;/?:@&=+$,#] do not get unescaped
-				$str =~ s/%(?!2[346bcf]|3[abdf]|40)
-					([0-9a-f]{2})/chr hex $1/iegx;
-				
-				local $@;
-				eval {
-					$str = decode_utf8 $str, FB_CROAK;
-				};
-				if ($@) {
-					die JE::Object::Error::URIError
-					->new('Malformed UTF-8 in URI');
-				}
-				
-				$str =~
-				     /^[\0-\x{d7ff}\x{e000}-\x{10ffff}]*\z/
-				or die JE::Object::Error::URIError->new(
+		        # [;/?:@&=+$,#] do not get unescaped
+		        $str =~ s/%(?!2[346bcf]|3[abdf]|40)
+		        	([0-9a-f]{2})/chr hex $1/iegx;
+		        
+		        local $@;
+		        eval {
+		        	$str = decode_utf8 $str, FB_CROAK;
+		        };
+		        if ($@) {
+		        	require JE'Object'Error'URIError;
+		        	die JE::Object::Error::URIError
+		        	->new(
+		        		$self,
+		        		add_line_number
+						'Malformed UTF-8 in URI'
+		        	);
+		        }
+		        
+		        $str =~
+		             /^[\0-\x{d7ff}\x{e000}-\x{10ffff}]*\z/
+		        or require JE::Object::Error::URIError,
+		           die JE::Object::Error::URIError->new(
+		        	$self, add_line_number
 					'Malformed UTF-8 in URI');
 
-				JE::String->new($self, $str);
-			},
+		        JE::String->new($self, $str);
+		    },
 		}),
 		dontenum  => 1,
 	});
@@ -572,8 +580,11 @@ sub new {
 			function => sub {
 				my $str = shift->to_string->value;
 				$str =~ /%(?![a-fA-F0-9]{2})(.{0,2})/
-				 && die
+				 and require JE::Object::Error::URIError,
+				     die
 					JE::Object::Error::URIError->new(
+						$self,
+						add_line_number
 						"Invalid escape %$1 in URI"
 					);
 
@@ -586,13 +597,19 @@ sub new {
 					$str = decode_utf8 $str, FB_CROAK;
 				};
 				if ($@) {
+					require JE::Object::Error'URIError;
 					die JE::Object::Error::URIError
-					->new('Malformed UTF-8 in URI');
+					->new(
+						$self, add_line_number
+						'Malformed UTF-8 in URI'
+					);
 				}
 				
 				$str =~
 				     /^[\0-\x{d7ff}\x{e000}-\x{10ffff}]*\z/
-				or die JE::Object::Error::URIError->new(
+				or require JE::Object::Error::URIError,
+				   die JE::Object::Error::URIError->new(
+					$self, add_line_number
 					'Malformed UTF-8 in URI');
 
 				JE::String->new($self, $str);
@@ -611,8 +628,9 @@ sub new {
 			function => sub {
 				my $str = shift->to_string->value;
 				$str =~ /(\p{Cs})/ and
-die JE::Object::Error::URIError->new(
-	sprintf "Unpaired surrogate 0x%x in string", ord $1
+require JE::Object::Error::URIError,
+die JE::Object::Error::URIError->new($self, 
+	add_line_number sprintf "Unpaired surrogate 0x%x in string", ord $1
 );
 
 				$str = encode_utf8 $str;
@@ -637,8 +655,9 @@ die JE::Object::Error::URIError->new(
 			function => sub {
 				my $str = shift->to_string->value;
 				$str =~ /(\p{Cs})/ and
+require JE::Object::Error::URIError,
 die JE::Object::Error::URIError->new(
-	sprintf "Unpaired surrogate 0x%x in string", ord $1
+ $self, add_line_number sprintf "Unpaired surrogate 0x%x in string", ord $1
 );
 
 				$str = encode_utf8 $str;
@@ -666,9 +685,9 @@ die JE::Object::Error::URIError->new(
 
 
 
-=item $j->parse( STRING )
+=item $j->parse( $code, $filename, $first_line_no )
 
-C<parse> parses the code contained in STRING and returns a parse
+C<parse> parses the code contained in C<$code> and returns a parse
 tree (a JE::Code object).
 
 If the syntax is not valid, C<undef> will be returned and C<$@> will 
@@ -678,6 +697,10 @@ error message. Otherwise C<$@> will be a null string.
 The JE::Code class provides the method 
 C<execute> for executing the 
 pre-compiled syntax tree.
+
+C<$filename> and C<$first_line_no>, which are both optional, will be stored
+inside the JE::Code object and used for JS error messages. (See also
+L<JE::Code/FUNCTIONS|add_line_number> in the JE::Code man page.)
 
 =item $j->compile( STRING )
 
@@ -691,12 +714,15 @@ sub parse {
 *compile = \&parse;
 
 
-=item $j->eval ( STRING )
+=item $j->eval( $code, $filename, $lineno )
 
-C<eval> evaluates the JavaScript code contained in STRING. E.g.:
+C<eval> evaluates the JavaScript code contained in C<$code>. E.g.:
 
   $j->eval('[1,2,3]') # returns a JE::Object::Array which can be used as
                       # an array ref
+
+If C<$filename> and C<$lineno> are specified, they will be used in error
+messages. C<$lineno> is the number of the first line; it defaults to 1.
 
 If an error occurs, C<undef> will be returned and C<$@> will contain the
 error message. If no error occurs, C<$@> will be a null string.
@@ -720,7 +746,7 @@ latter would throw an error if the variable did not exist.
 =cut
 
 sub eval {
-	my $code = shift->parse(shift);
+	my $code = shift->parse(@_);
 	$@ and return;
 
 	$code->execute;
@@ -1091,7 +1117,10 @@ sub bind_class {
 			: sub { $self->upgrade($pack->$c) };
 	}
 	else {
-		$coderef = sub { die "$class cannot be instantiated\n" };
+		$coderef = sub {
+			die JE::Code::add_line_number(
+				"$class cannot be instantiated");
+		 };
 	}
 	$class{prototype} = $proto = $self->prop({
 		name => $class,
@@ -1109,9 +1138,14 @@ sub bind_class {
 	if(exists $opts{isa}) {
 		my $isa = $opts{isa};
 		$proto->prototype(
-			!defined $isa || defined blessed $isa
-			        ? $isa
-			        : $self->prop($isa)->prop('prototype')
+		    !defined $isa || defined blessed $isa
+		      ? $isa
+		      : do {
+		        defined(my $super_constr = $self->prop($isa)) ||
+			  croak("JE::bind_class: The $isa" .
+		                " constructor does not exist");
+		        $super_constr->prop('prototype')
+		      }
 		);
 	}
 
@@ -1407,6 +1441,8 @@ The documentation is a bit incoherent, and needs to be restructured.
 =head1 PREREQUISITES
 
 perl 5.8.0 or later
+
+Tie::RefHash::Weak, for perl versions earlier than 5.9.4
 
 B<Note:> JE will probably end up with Date::Parse and Unicode::Collate in
 the list of dependencies.

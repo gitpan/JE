@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.015';
+our $VERSION = '0.016';
 
 
 use strict;
@@ -13,13 +13,15 @@ our @ISA = 'JE::Object';
 
 use Scalar::Util 'blessed';
 
+require JE::Code;
 require JE::Object                 ;
 require JE::Object::Error::TypeError;
 require JE::Object::Function        ;
 require JE::String                 ;
 
 JE::String->import(qw/surrogify desurrogify/);
-
+JE::Code->import('add_line_number');
+sub add_line_number;
 
 =head1 NAME
 
@@ -165,7 +167,7 @@ sub _new_constructor {
 			function => sub {
 				my $self = shift;
 				die JE::Object::Error::TypeError->new(
-					$global,
+					$global, add_line_number
 					"Argument to toString is not a " .
 					"String object"
 				) unless $self->class eq 'String';
@@ -186,7 +188,7 @@ sub _new_constructor {
 			function => sub {
 				my $self = shift;
 				die JE::Object::Error::TypeError->new(
-					$global,
+					$global, add_line_number
 					"Argument to valueOf is not a " .
 					"String object"
 				) unless $self->class eq 'String';
