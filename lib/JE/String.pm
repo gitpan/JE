@@ -1,6 +1,6 @@
 package JE::String;
 
-our $VERSION = '0.016';
+our $VERSION = '0.017';
 
 
 use strict;
@@ -61,7 +61,7 @@ sub prop {
 	my $self = shift;
 
 	if ($_[0] eq 'length') {
-		return length $$self[0];
+		return JE::Number->new($$self[1],length $$self[0]);
 	}
 
 	JE::Object::String->new($$self[1], $self)->prop(@_);

@@ -11,7 +11,7 @@ use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.016';
+our $VERSION = '0.017';
 
 use Carp 'croak';
 use Encode qw< decode_utf8 encode_utf8 FB_CROAK >;
@@ -34,14 +34,14 @@ require JE::Undefined                     ;
 
 JE - Pure-Perl ECMAScript (JavaScript) Engine
 
-"JE" is short for "JavaScript::Engine."
+"JE" is short for "L<JavaScript::Engine>" (q.v., for an explanation).
 
 =head1 VERSION
 
-Version 0.016 (alpha release)
+Version 0.017 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
-please experiment with this module.
+please experiment with this module (or even lend a hand :-).
 If you have any ideas for the API, or would like to help with development,
 please e-mail the author.
 
@@ -115,7 +115,8 @@ have overloaded operators)
 
 =back
 
-JE's greatest weakness is that it's slow (well, what did you expect?).
+JE's greatest weakness is that it's slow (well, what did you expect?). It
+also uses and leaks lots of memory, but that will be fixed.
 
 =head1 METHODS
 

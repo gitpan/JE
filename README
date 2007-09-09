@@ -1,4 +1,4 @@
-JE, version 0.016
+JE, version 0.017
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -14,31 +14,27 @@ advantages:
 Here are its main weakness:
     - It's slow (well, what did you expect?).
     - It uses lots of memory.
+    - It leaks memory (to be fixed).
 
 This is still an alpha release. The core objects are not yet complete,
-but as long as you don't need dates or regular expressions,  this mod-
-ule is actually usable.
+but as long as you don't need dates or methods of regular expressions,
+this module is actually usable.
 
-If  you have the time and the interest,  please experiment with this
-module. If you have any ideas as to how the API could be improved or
-reworked, please e-mail me.
+If  you have the time and the interest,  please experiment  with  this
+module (or maybe even lend a hand :-). If you have any ideas as to how
+the API could be improved or reworked, please e-mail me.
 
 
 CHANGES IN THIS RELEASE
 
-New feature:
-- Added support for filenams and line numbers in error messages.
-
-Bug fix:
-- Added a workaround for a perl 5.8.x  bug  that  was  causing  errors
-  thrown from expressions within argument lists to trigger an "Attempt
-  to free unreferenced scalar" warning.
+Just bug fixes. See the Changes file for more detail.
 
 
 TO DO
 
 - Solve the problem of scalar leak warnings in perl 5.8.8 that occur
-  with certain JS syntax errors (perl 5.9.5 is fine)
+  with certain JS syntax errors (perl 5.9.5 is fine) (I may have fixed
+  this; I can't reproduce it now)
 - Make the parser extensible/customisable
 - Finish the core object classes
 - Add more helpful error messages
@@ -47,7 +43,7 @@ TO DO
 - Write lots and lots and lots of tests, at the same time fixing all
   the bugs they bring to light.
 - Make tainted JS code run safely
-- Deal with circular references somehow
+- Deal with circular references
 - Autoload built-in JS properties
 - Optimise JS functions by turning them into Perl subs (but run bench-
   marks first to see whether this would actually speed things up) (I'm

@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.016';
+our $VERSION = '0.017';
 
 use strict;
 use warnings;
@@ -30,7 +30,7 @@ sub parse {
 	my($global, $src, $file, $line) = @_;
 
 	($src, my $tree) = JE::Parser::_parse(
-		program => $src, $global, $file
+		program => $src, $global, $file, $line
 	);
 
 	$@ and return;
@@ -76,16 +76,26 @@ sub execute {
 		local our $code = $code;
 		local $JE::Code::Expression::_global = $global;
 		local $JE::Code::Expression::_eval   = $code_type == 1;
-		local $JE::Code::Statement::_created_vars = 0 ;
-		local $JE::Code::Statement::_label;
-		local $JE::Code::Statement::_return;
+
+		package JE::Code::Statement;
+		local our $_created_vars = 0 ;
+		local our $_label;
+		# This $_return variable has two uses. It hold the return
+		# value when the JS 'return' statement calls 'last RETURN'.
+		# It also is used by statements that return values. It is
+		# necessary to use this var, rather than simply returning
+		# the value (as in v0.016 and earlier), in order to make
+		# 'while(true) { 3; break }'  return  3,  rather  than
+		#  undefined.
+		local our $_return;
+		package JE::Code;
 
 		RETURN: {
 		BREAK: {
 		CONT: {
+			$$code{tree}->eval;
 			$code_type == 2 # function
-				? $$code{tree}->eval
-				: ($rv = $$code{tree}->eval);
+				or defined $_return && ($rv = $_return);
 			goto FINISH;
 		} 
 
@@ -159,7 +169,7 @@ sub add_line_number {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.016';
+our $VERSION = '0.017';
 
 use subs qw'_create_vars _eval_term';
 use List::Util 'first';
@@ -196,9 +206,9 @@ sub eval {  # evaluate statement
 			goto LOOPS; # skip unnecessary if statements
 		}
 
-		my $to_return;
 		BREAK: {
-			$to_return = $$stm[-1]->eval;
+			my $returned = $$stm[-1]->eval;
+			defined $returned and $_return = $returned
 		}
 
 		# Note that this has 'defined' in it, whereas the similar
@@ -207,7 +217,7 @@ sub eval {  # evaluate statement
 		# $_label to '' and exits loops and switches.
 		if(! defined $_label || first {$_ eq $_label} @labels) {
 			undef $_label;
-			return $to_return;
+			return;
 		} else {
 			no warnings 'exiting';
 			last BREAK;
@@ -223,37 +233,38 @@ sub eval {  # evaluate statement
 
 		# Execute the statements, one by one, and return the return
 		# value of the last statement that actually returned one.
-		my $to_return;
 		my $returned;
 		for (@$stm[2..$#$stm]) {
 			next if $_ eq 'empty';
 			defined($returned = $_->eval) and
-				$to_return = $returned,
-				ref $to_return eq 'JE::LValue'
-					&& get $to_return;
+				$_return = $returned,
+				ref $_return eq 'JE::LValue'
+					&& get $_return;
 		}
-		return $to_return;
+		return;
 	}
 	if ($type eq 'var') {
-		for (@$stm[2..$#$stm]) {
-			@$_ == 2 and
-			    $scope->find_var($$_[0], _eval_term $$_[1]);
-		}
+		for (@$stm[2..$#$stm]) { if (@$_ == 2) {
+			my $ret = _eval_term $$_[1];
+			ref $ret eq'JE::LValue' and $ret = get $ret;
+			$scope->find_var($$_[0], $ret);
+		}}
 		return;
 	}
 	if ($type eq 'if') {
 		#            2       3          4
 		# we have:  expr statement statement?
+		my $returned;
 		if ($$stm[2]->eval->to_boolean->value) {
-			return $$stm[3] eq 'empty'
-				? ()
-				: $$stm[3]->eval;
+			$$stm[3] eq 'empty' or $returned = $$stm[3]->eval;
 		}
 		else {
-			return exists $$stm[4]
+			exists $$stm[4]
 				&& $$stm[4] ne 'empty'
-				? $$stm[4]->eval : ();
+				and $returned = $$stm[4]->eval;
 		}
+		defined $returned and $_return = $returned;
+		return
 	}
 	if ($type =~ /^(?:do|while|for|switch)\z/) {
 		# We have one of the following:
@@ -272,36 +283,37 @@ sub eval {  # evaluate statement
 		no warnings 'exiting';
 
 		LOOPS:
-		my $to_return;
 		my $returned;
 		
 		BREAK: {
 		if ($type eq 'do') {
-			do { CONT: {
-				if($_label and
-				   !first {$_ eq $_label} @labels) {
-					goto NEXT;
-				}
-				undef $_label;
+			do {
+			  CONT: {
+			    defined ($returned = ref $$stm[2]
+			      ? $$stm[2]->eval : undef)
+			    and $_return = $returned;
+			  }
 
-				defined ($returned = ref $$stm[2]
-					? $$stm[2]->eval : undef)
-				and $to_return = $returned;
-
-			}} while $$stm[3]->eval->to_boolean->value;
+			  if($_label and
+			     !first {$_ eq $_label} @labels) {
+			       goto NEXT;
+			  }
+			  undef $_label;
+			} while $$stm[3]->eval->to_boolean->value;
 		}
 		elsif ($type eq 'while') {
 			CONT: while ($$stm[2]->eval->to_boolean->value) {
+				defined ($returned = ref $$stm[3]
+					? $$stm[3]->eval : undef)
+				and $_return = $returned;
+			}
+			continue {
 				if($_label and
 				   !first {$_ eq $_label} @labels) {
 					goto NEXT;
 				}
-				undef $_label;
-
-				defined ($returned = ref $$stm[3]
-					? $$stm[3]->eval : undef)
-				and $to_return = $returned;
 			}
+			undef $_label;
 		}
 		elsif ($type eq 'for' and $$stm[3] eq 'in') {
 			my $left_side = $$stm[2];
@@ -327,26 +339,40 @@ sub eval {  # evaluate statement
 
 				defined ($returned = ref $$stm[5]
 					? $$stm[5]->eval : undef)
-				and $to_return = $returned;
+				and $_return = $returned;
 			}
+
+			# In case 'continue LABEL' is called during the
+			# last iteration of the loop
+			if($_label and
+			   !first {$_ eq $_label} @labels) {
+				next CONT;
+			}
+			undef $_label;
+
 		}
 		elsif ($type eq 'for') { # for(;;)
+			my $tmp;
 			CONT: for (
-				ref $$stm[2] && $$stm[2]->eval;
+				$tmp = ref $$stm[2] && $$stm[2]->eval,
+				ref $tmp eq 'JE::LValue' && get $tmp;
+
 				ref $$stm[3]
 					? $$stm[3]->eval->to_boolean->value
 					: 1;
-				ref $$stm[4] && $$stm[4]->eval
-			) {
-				if($_label and
-				   !first {$_ eq $_label} @labels) {
-					goto NEXT;
-				}
-				undef $_label;
 
+				do{if($_label and
+				     !first {$_ eq $_label} @labels) {
+				       goto NEXT;
+				  }
+				  undef $_label;
+				},
+				$tmp = ref $$stm[4] && $$stm[4]->eval,
+				ref $tmp eq 'JE::LValue' && get $tmp
+			) {
 				defined ($returned = ref $$stm[5]
 					? $$stm[5]->eval : undef)
-				and $to_return = $returned;
+				and $_return = $returned;
 			}			
 		}
 		else { # switch
@@ -361,6 +387,7 @@ sub eval {  # evaluate statement
 			
 			# Evaluate the expression in the header
 			my $given = $$stm[2]->eval;
+			$given = get $given if ref $given eq 'JE::LValue';
 			
 			# Look through the case clauses to see
 			# which it matches. At the same time,
@@ -395,22 +422,14 @@ sub eval {  # evaluate statement
 				do { $$stm[$n]->eval }
 					while ($n+=2) < @$stm;
 			}
-		}
-
-		# In case 'continue LABEL' is called during the last
-		# iteration of the loop (does not apply to switch)
-		if($_label and
-		   !first {$_ eq $_label} @labels) {
-			next CONT;
-		}
-		undef $_label;
+		} # switch
 
 		} # end of BREAK
 
 
 		if(!$_label || first {$_ eq $_label} @labels) {
 			undef $_label;
-			return $to_return;
+			return;
 		} else {
 			last BREAK;
 		}
@@ -439,7 +458,9 @@ sub eval {  # evaluate statement
 		local $scope = bless [
 			@$scope, $$stm[2]->eval->to_object
 		], 'JE::Scope';
-		return $$stm[3]->eval;
+		my $returned = $$stm[3]->eval;
+		defined $returned and $_return = $returned;
+		return;
 	}
 	if ($type eq 'throw') {
 		my $excep;
@@ -460,18 +481,26 @@ sub eval {  # evaluate statement
 		my $propagate;
 
 		eval { # try
+			local $_return;
 			no warnings 'exiting';
 			RETURN: {
 			BREAK: {
 			CONT: {
 				$result = $$stm[2]->eval;
-				goto FINALLY;
-			} $propagate = sub{ next CONT }; goto FINALLY;
-			} $propagate = sub{ last BREAK }; goto FINALLY;
-			} $propagate = sub{ last RETURN }; goto FINALLY;
+				goto SAVERESULT;
+			} $propagate = sub{ next CONT }; goto SAVERESULT;
+			} $propagate = sub{ last BREAK }; goto SAVERESULT;
+			} $propagate = sub{ last RETURN }; goto SAVERESULT;
+
+			SAVERESULT:
+			defined $result or $result = $_return;
+			goto FINALLY;
 		};
 		# check ref first to avoid the overhead of overloading
 		if (ref $@ || $@ ne '' and !ref $$stm[3]) { # catch
+			undef $result; # prevent { 3; throw ... } from
+			                # returning 3
+
 			# Turn miscellaneous errors into TypeErrors
 			ref $@ or $@ = new JE::Object::Error::TypeError
 				$_global, add_line_number $@;
@@ -486,10 +515,21 @@ sub eval {  # evaluate statement
 				@$scope, $new_obj
 			], 'JE::Scope';
 	
-			eval { # in case an error is thrown in the 
-			       # catch block
-				$result = $$stm[4]->eval;
-				$@ = '';
+			eval { # in case the catch block ends abruptly
+			  local $_return;
+			  no warnings 'exiting';
+			  RETURN: {
+			  BREAK: {
+			  CONT: {
+			    $result = $$stm[4]->eval;
+			    goto SAVE;
+			  } $propagate = sub{ next CONT }; goto SAVE;
+			  } $propagate = sub{ last BREAK }; goto SAVE;
+			  } $propagate = sub{ last RETURN }; goto SAVE;
+
+			  SAVE:
+			  defined $result or $result = $_return;
+			  $@ = '';
 			}
 		}
 		# In case the 'finally' block resets $@:
@@ -500,8 +540,8 @@ sub eval {  # evaluate statement
 		}
 		defined $exception and ref $exception || $exception ne ''
 			and die $exception;
+		$_return = $result if defined $result;
 		$propagate and &$propagate();
-		return $result;
 	}
 }
 
@@ -530,7 +570,7 @@ sub _create_vars {  # Process var and function declarations
 		_create_vars $$_[3];
 	}
 	elsif ($type eq 'for') {
-		_create_vars $$_[2] if $$_[2][1] eq 'var';
+		_create_vars $$_[2] if ref $$_[2] && $$_[2][1] eq 'var';
 		_create_vars $$_[-1];
 	}
 	elsif ($type eq 'switch') {
@@ -565,7 +605,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.016';
+our $VERSION = '0.017';
 
 # B::Deparse showed me how to get these values.
 use constant nan => sin 9**9**9;
@@ -1227,7 +1267,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.016';
+our $VERSION = '0.017';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1239,7 +1279,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.016';
+our $VERSION = '0.017';
 
 sub list {
 	my $self = shift;

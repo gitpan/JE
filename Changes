@@ -1,5 +1,38 @@
 Revision history for JE
 
+0.017   9 September, 2007
+        Another alpha release, featuring just bug fixes:
+        - Fixed a bug with the length property of strings being a Perl
+          scalar instead of a JE::Number.
+        - Fixed a bug that was causing line numbers in parse error
+          messages to be counted from 1 even when another starting
+          line number was given.
+        -'continue' and 'break' statements now no longer clobber the
+          return value of the previous statement, so
+          eval('do{3; continue} while(0)') now returns 3, in accord-
+          ance with the spec.
+        - In a variable initialiser such as var a = b, the value is
+          now correctly extracted from b and put inside a. Before, a
+          reference to b would be put in a, such that
+         'var a=non_existent_var; do_something_with(a)' would throw an
+          error on the second statement, not the first.
+        - Fixed a problem with 'continue OUTER' statements in nested
+          loops calling the loop condition on the inner loop first.
+          E.g., in the following snippet:
+            var x = 0, y = 0
+            OUTER: while(++x < 2) while(++y < 2) continue;
+          The 'continue' would make '++y < 2' get evaluated, and then
+         '++x < 2'; whereas only the latter should be evaluated. This
+          problem was affecting do, while and for(;;) loops.
+        - for(;;) loops now work when there is nothing before the
+          first semicolon.
+        - RegExp.prototype.exec now actually works (not fully tested)
+          instead of always dying.
+        - switch(non_existent_var) now dies as it should.
+        - In a try-catch-finally statement, return, break and contin-
+          ue statements and errors within the catch block no  longer
+          prevent the final block from running.
+
 0.016   22 July, 2007
         New feature:
         - Added support for filenames and line numbers in

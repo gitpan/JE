@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.016';
+our $VERSION = '0.017';
 
 use strict;  # :-(
 use warnings;# :-(
@@ -883,6 +883,7 @@ sub for() {
 		}
 	}
 	else {
+		push @$ret, 'empty';
 		/\G;$s/cog
 		    or expected 'expression or semicolon';
 		push @$ret, &finish_for_sc_sc;
@@ -1238,6 +1239,7 @@ sub statement_default() {
 				}
 			}
 			else {
+				push @$ret, 'empty';
 				/\G;$s/cog
 				    or expected 'expression or semicolon';
 				push @$ret, &finish_for_sc_sc;

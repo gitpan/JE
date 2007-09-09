@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.016';
+our $VERSION = '0.017';
 
 
 use strict;
@@ -444,9 +444,10 @@ sub new_constructor {
 			name    => 'exec',
 			argnames => ['string'],
 			no_proto => 1,
-			function_args => ['this'],
+			function_args => ['this','args'],
 			function => sub {
 				my ($self,$str) = @_;
+
 				die JE::Object::Error::TypeError->new(
 					$global, add_line_number
 					"Argument to exec is not a " .
@@ -462,8 +463,7 @@ sub new_constructor {
 					$str = 'undefined';
 				}
 
-				$str = defined $str ? $str->to_string->[0]
-					: 'undefined';
+				my(@ary,$indx);
 
 				my $g = $self->prop('global')->value;
 				if ($g) {
@@ -473,24 +473,31 @@ sub new_constructor {
 					  $self->prop(lastIndex =>
 					    JE::Number->new($global, 0)),
 					  return $global->null;
-				}
+
+					@ary = substr($str, $-[0],
+						$+[0] - $-[0]);
+					no strict 'refs';
+					push @ary, map $$_, 1..$#+;
+					$indx = $-[0];
+
+					$self->prop(lastIndex =>
+						JE::Number->new(
+							$global, pos $str
+						));							}
 				else {
 					$str =~ /$$$self{value}/ or
 					  $self->prop(lastIndex =>
 					    JE::Number->new($global, 0)),
 					  return $global->null;
+
+					@ary = substr($str, $-[0],
+						$+[0] - $-[0]);
+					no strict 'refs';
+					push @ary, map $$_, 1..$#+;
+					$indx = $-[0];
+
 				}
-
-				my @ary = substr($str, $-[0],
-					$+[0] - $-[0]);
-				no strict 'refs';
-				push @ary, map $$_, 1..$#+;
-				my $indx = $-[0];
-
-				$g and $self->prop(lastIndex =>
-						JE::Number->new(
-							$global, pos $str
-						));						
+			
 				my $ary = JE::Object::Array->new(
 					$global, \@ary);
 				$ary->prop(index => $indx);

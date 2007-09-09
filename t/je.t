@@ -1,10 +1,10 @@
 #!perl  -T
 
-# Much of the stuff in here needs to be moved elsewhere.
+# Some of the stuff in here needs to be moved elsewhere.
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 128;
+use Test::More tests => 113;
 use strict;
 use Scalar::Util 'refaddr';
 use utf8;
@@ -36,22 +36,7 @@ ok !ref(our $value = $result->value),
 ok $value eq 'aabb', '(string)->value eq "aabb"';
 
 #--------------------------------------------------------------------#
-# Tests 10-12: numeric addition
-
-ok $code = $j->parse('3+7.9');
-
-isa_ok +($result = $code->execute), 'JE::Number';
-ok $result == 10.9, 'JE::Number\'s overloaded ops';
-
-#--------------------------------------------------------------------#
-# Tests 13-14: array literals
-
-ok $code = $j->parse('[1, 2,3+4]');
-
-isa_ok +($result = $code->execute), 'JE::Object::Array';
-
-#--------------------------------------------------------------------#
-# Tests 15-20: object literals
+# Tests 10-15: object literals
 
 ok $code = $j->parse('({a:"b"})');
 
@@ -63,7 +48,7 @@ ok ref($value = $result->value) eq 'HASH',
 ok $value->{a} eq 'b', '(obj)->value->{a} eq "b"';
 
 #--------------------------------------------------------------------#
-# Tests 21-3: bare identifiers
+# Tests 16-18: bare identifiers
 
 ok $code = $j->parse('parseFloat');
 
@@ -71,18 +56,13 @@ isa_ok +($result = $code->execute), 'JE::LValue';
 isa_ok get $result, 'JE::Object::Function';
 
 #--------------------------------------------------------------------#
-# Tests 24-30: various js ops
+# Tests 19-20: various js ops
 
-ok $j->eval('x = 5')          eq '5';
-ok $j->eval('!true ? x = 3 : y = "do\tenut"; y')    eq "do\tenut";
-ok $j->eval('true ? x = 3 : y = "do\tenut"; x')          eq '3';
 ok $j->eval("new(String)('𝄐').length")                          eq '2'; 
-ok $j->eval("new String.prototype.constructor('A𝄫').length")      eq '3'; 
 ok !defined $j->eval('{ a = 6; b= tru\u003d; }');
-ok $j->eval("{ a = 6; b= 7; }")                                     eq '7'; 
 
 #--------------------------------------------------------------------#
-# Tests 31-40: more complicated js stuff
+# Tests 21-25: more complicated js stuff
 
 isa_ok $j->new_function(ok => \&ok), 'JE::Object::Function';
 
@@ -91,23 +71,6 @@ defined $j->eval(<<'---') or die;
 var func = new Function('this,and','a','that');
 ok(typeof func === 'function');
 //TO DO: ok(func.length === 3);
-
-ok(xx === undefined, 'vars declared later are undefined');
-var xx = 5;
-ok(xx === 5, 'var initialisation');
-
-if (3==4);
-else {ok(true)};
-
-var x =0, str = '';
-do str += 7656 
-while (++x < 7)
-ok(str === '7656765676567656765676567656');
-
-var object = {0:1,2:3,4:5,6:7,8:9};
-var keys = [];
-for(keys[keys.length] in object);
-ok(keys == '0,2,4,6,8');
 
 ok(double(-3) === -6);
 function double(number) {
@@ -128,7 +91,7 @@ ok($_ === 'Just another ECMAScript hacker,\n')
 ---
 
 #--------------------------------------------------------------------#
-# Tests 41-48: Class bindings: constructor and class names
+# Tests 26-33: Class bindings: constructor and class names
 
 $j->bind_class(package => 'class1');
 eval { $j->{class1}->construct};
@@ -165,7 +128,7 @@ isa_ok $j->{fourth_class}, 'JE::Object::Function',
 
 
 #--------------------------------------------------------------------#
-# Tests 49-63: Class bindings: construction and method calls
+# Tests 34-48: Class bindings: construction and method calls
 
 $j->new_function(is => \&is);
 
@@ -263,7 +226,7 @@ defined $j->eval(<<'----') or die;
 
 
 #--------------------------------------------------------------------#
-# Tests 64-82: Class bindings: primitivisation
+# Tests 49-67: Class bindings: primitivisation
 
 $j->{is} = \&is unless $j->{is};
 $j->{ok} = \&ok unless $j->{ok};
@@ -373,7 +336,7 @@ defined $j->eval(<<'})() ') or die;
 
 
 #--------------------------------------------------------------------#
-# Tests 83-5: Class bindings: inheritance
+# Tests 68-70: Class bindings: inheritance
 
 $j->bind_class(
 	package => 'HumptyDumpty',
@@ -403,7 +366,7 @@ is_deeply $j->upgrade(bless [], 'RunningOutOfWeirdIdeas')->prototype
 	->prototype, undef, 'isa => undef';
 
 #--------------------------------------------------------------------#
-# Test 86: Class bindings: proxy caching
+# Test 71: Class bindings: proxy caching
 
 {
 	my $thing = bless [], 'RunningOutOfWeirdIdeas';
@@ -413,7 +376,7 @@ is_deeply $j->upgrade(bless [], 'RunningOutOfWeirdIdeas')->prototype
 
 
 #--------------------------------------------------------------------#
-# Tests 87-126: Class bindings: properties
+# Tests 72-111: Class bindings: properties
 
 $j->{is} ||= \&is;
 $j->{ok} ||= \&ok;
@@ -714,7 +677,7 @@ isa_ok $j->upgrade(knew PropsHashHashSub)->{p1},      'JE::String',
 
 
 #--------------------------------------------------------------------#
-# Test 127: Class bindings: wrappers
+# Test 112: Class bindings: wrappers
 
 $j->bind_class(
 	name => 'Wrappee',
@@ -727,7 +690,7 @@ isa_ok $j->upgrade(bless[],'Wrappee'),'Wrapper', 'the wrapper';
 
 
 #--------------------------------------------------------------------#
-# Test 128: Attempt to free unreferenced scalar in perl 5.8.x
+# Test 113: Attempt to free unreferenced scalar in perl 5.8.x
 # fixed via a workaround for perl bug #24254
 
 # ~~~ This test should probably go in JE::Code, since that's what it's
