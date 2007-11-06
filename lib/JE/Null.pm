@@ -1,6 +1,6 @@
 package JE::Null;
 
-our $VERSION = '0.017';
+our $VERSION = '0.018';
 
 
 use strict;

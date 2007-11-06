@@ -11,13 +11,13 @@ use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.017';
+our $VERSION = '0.018';
 
 use Carp 'croak';
 use Encode qw< decode_utf8 encode_utf8 FB_CROAK >;
 use JE::Code 'add_line_number';
 use JE::_FieldHash;
-use Scalar::Util qw'blessed refaddr';
+use Scalar::Util 1.08 qw'blessed refaddr weaken';
 
 our @ISA = 'JE::Object';
 
@@ -38,7 +38,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.017 (alpha release)
+Version 0.018 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -62,11 +62,9 @@ please e-mail the author.
   $obj = $j->eval('new Object');
   # create a new object
 
-  $j->prop(document => $obj); # set property
-  $j->prop('document'); # get a property
-  # Also:
-  $j->{document} = $obj;
-  $j->{document} = {}; # gets converted to a JE::Object
+  $foo = $j->{document}; # get property
+  $j->{document} = $obj; # set property
+  $j->{document} = {};   # gets converted to a JE::Object
   $j->{document}{location}{href}; # autovivification
 
   $j->method(alert => "text"); # invoke a method
@@ -96,11 +94,11 @@ strengths:
 
 =item -
 
-Easy to install (no C compiler necessary)
+Easy to install (no C compiler necessary*)
 
 =item -
 
-Compatible with Data::Dump::Streamer, so the runtime environment
+Compatible with L<Data::Dump::Streamer>, so the runtime environment
 can be serialised
 
 =item -
@@ -117,6 +115,73 @@ have overloaded operators)
 
 JE's greatest weakness is that it's slow (well, what did you expect?). It
 also uses and leaks lots of memory, but that will be fixed.
+
+* If you are using perl 5.9.3 or lower, then L<Tie::RefHash::Weak> is
+required. Recent versions of it require L<Variable::Magic>, an XS module
+(which requires a compiler of course), but version 0.02 of the former is
+just pure Perl with no XS dependencies.
+
+=head1 USAGE
+
+=head2 Simple Use
+
+If you simply need to run a few JS functions from Perl, create a new JS
+environment like this:
+
+  my $je = new JE;
+
+If necessary, make Perl subroutines available to JavaScript:
+
+  $je->new_function(warn => sub { warn @_ });
+  $je->new_function(ok => \&Test::More::ok);
+
+Then pass the JavaScript functions to C<eval>:
+
+  $je->eval(<<'___');
+
+  function foo() {
+      return 42
+  }
+  // etc.
+  ___
+
+  # or perhaps:
+  use File::Slurp;
+  $je->eval(scalar read_file 'functions.js');
+
+Then you can access those function from Perl like this:
+
+  $return_val = $je->{foo}->();
+  $return_val = $je->eval('foo()');
+
+The return value will be a special object that, when converted to a string,
+boolean or number, will behave exactly as in JavaScript. You can also use
+it as a hash, to access or modify its properties. (Array objects can be
+used as arrays, too.) To call one of its
+JS methods, you should use the C<method> method:
+C<$return_val->method('foo')>. See L<JE::Types> for more information.
+
+=head2 Custom Global Objects
+
+To create a custom global object, you have to subclass JE. For instance,
+if all you need to do is add a C<self> property that refers to the global
+object, then override the C<new> method like this:
+
+  package JEx::WithSelf;
+  @ISA = 'JE';
+  sub new {
+      my $self = shift->SUPER::new(@_);
+      $self->{self} = $self;
+      return $self;
+  }
+
+=head2 Using Perl Objects from JS
+
+See C<bind_class>, below.
+
+=head2 Writing Custom Data Types
+
+See L<JE::Types>.
 
 =head1 METHODS
 
@@ -701,7 +766,7 @@ pre-compiled syntax tree.
 
 C<$filename> and C<$first_line_no>, which are both optional, will be stored
 inside the JE::Code object and used for JS error messages. (See also
-L<JE::Code/FUNCTIONS|add_line_number> in the JE::Code man page.)
+L<add_line_number|JE::Code/FUNCTIONS> in the JE::Code man page.)
 
 =item $j->compile( STRING )
 
@@ -837,6 +902,11 @@ sub upgrade {
 	@__ > 1 ? @__ : @__ == 1 ? $__[0] : ();
 }
 
+sub _upgr_def {
+# ~~~ maybe I should make this a public method named upgrade_defined
+	return defined $_[1] ? shift->upgrade(shift) : undef
+}
+
 
 =item $j->undefined
 
@@ -904,9 +974,24 @@ sub null { # ~~~ This needs to be made more efficient.
      },
      static_props => { ... }
 
+     hash  => 1, # Perl obj can be used as a hash
+     array => 1, # or as an array
+     # OR (not yet implemented):
+     hash  => 'namedItem', # method name or code ref
+     array => 'item',       # likewise
+     # OR (not yet implemented):
+     hash => {
+         fetch => 'namedItem',
+         store => sub { shift->{+shift} = shift },
+     },
+     array => {
+         fetch => 'item',
+         store => sub { shift->[shift] = shift },
+     },
+
      isa => 'Object',
      # OR:
-     prototype => $j->{Object}{prototype},
+     isa => $j->{Object}{prototype},
  );
  
  # OR:
@@ -922,9 +1007,26 @@ sub null { # ~~~ This needs to be made more efficient.
 (Some of this is random order, and probably needs to be rearranged.)
 
 This method binds a Perl class to JavaScript. LIST is a hash-style list of 
-key/value pairs. The keys are as follows (all optional except for 
+key/value pairs. The keys, listed below, are all optional except for 
 C<package> or
-C<name>--you must specify at least one of the two):
+C<name>--you must specify at least one of the two.
+
+Whenever it says you can pass a method name to a particular option, and
+that method is expected to return a value (i.e., this does not apply to
+C<< props => { property_name => { store => 'method' } } >>), you may append
+a colon and a data type (such as ':String') to the method name, to indicate
+to what JavaScript type to convert the return value. Actually, this is the
+name of a JS function to which the return value will be passed, so 'String'
+has to be capitalised. This also means than you can use 'method:eval' to
+evaluate the return value of 'method' as JavaScript code. One exception to
+this is that the special string ':null' indicates that Perl's C<undef>
+should become JS's C<null>, but other values will be converted the default
+way. This is useful, for instance, if a method should return an object or
+C<null>, from JavaScript's point of view. This ':' feature does not stop
+you from using double colons in method names, so you can write
+C<'Package::method:null'> if you like, and rest assured that it will split
+on the last colon. Furthermore, just C<'Package::method'> will also work.
+It won't split it at all.
 
 =over 4
 
@@ -977,8 +1079,9 @@ course, be the object. The second argument will be the hint ('number' or
 
 If to_primitive is omitted, the usual valueOf and
 toString methods will be tried as with built-in JS
-objects. B<This may change.> (Perhaps we should see whether the class has
-overloading to determine this.)
+objects, if the object does not have overloaded string/boolean/number
+conversions. If the object has even one of those three, then conversion to
+a primitive will be the same as in Perl.
 
 If C<< to_primitive => undef >> is specified, primitivisation
 without a hint (which happens with C<< < >> and C<==>) will throw a 
@@ -1001,6 +1104,11 @@ object is strung.
 =item props => [ ... ]
 
 =item props => { ... }
+
+Use this to add properties that will trigger the provided methods or
+subroutines when accessed. These property definitions can also be inherited
+by subclasses, as long as, when the subclass is registered with 
+C<bind_class>, the superclass is specified as a string (via C<isa>, below).
 
 If this is an array ref, its elements will be the names of the properties.
 When a property is retrieved, a method of the same name is called. When a
@@ -1027,6 +1135,88 @@ Like C<props> but they will become properties of the constructor itself,
 not
 of its C<prototype> property.
 
+=item hash
+
+If this option is present, then this indicates that the Perl object 
+can be used
+as a hash. An attempt to access a property not defined by C<props> or
+C<methods> will result in the retrieval of a hash element instead (unless
+the property name is a number and C<array> is specified as well).
+
+=begin comment
+
+There are several values this option can take:
+
+ =over 4
+
+ =item *
+
+One of the strings '1-way' and '2-way' (also 1 and 2 for short). This will
+indicate that the object being wrapped can itself be used as a hash.
+
+=end comment
+
+The value you give this option should be one of the strings '1-way' and
+'2-way' (also 1 and 2 for short).
+
+If
+you specify '1-way', only properties corresponding to existing hash 
+elements will be linked to those elements;
+properties added to the object from JavaScript will
+be JavaScript's own, and will not affect the wrapped object. (Consider how
+node lists and collections work in web browsers.)
+
+If you specify '2-way', an attempt to create a property in JavaScript will
+be reflected in the underlying object.
+
+=begin comment
+
+=item *
+
+A method name (that does not begin with a number). This method will be
+called on the object with the object as the first arg (C<$_[0]>), the
+property name as the second, and, if an assignment is being made, the new
+value as the third. This will be a one-way hash.
+
+=item *
+
+A reference to a subroutine. This sub will be called with the same
+arguments as a method. Again, this will be a one-way hash.
+
+=item *
+
+A hash with C<store> and C<fetch> keys, which should be set to method names
+or coderefs. Actually, you may omit C<store> to create a one-way binding,
+as per '1-way', above, except that the properties that correspond to hash
+keys will be read-only as well.
+
+ =back
+
+=end comment
+
+B<To do:> Make this accept '1-way:String', etc.
+
+=item array
+
+This is just like C<hash>, but for arrays. This will also create a property
+named 'length'.
+
+=for comment
+if passed '1-way' or '2-way'.
+
+B<To do:> Make this accept '1-way:String', etc.
+
+=begin comment
+
+=item keys
+
+This should be a method name or coderef that takes the object as its first 
+argument and
+returns a list of hash keys. This only applies if C<hash> is specified
+and passed a method name, coderef, or hash.
+
+=end comment
+
 =item isa => 'ClassName'
 
 =item isa => $prototype_object
@@ -1038,6 +1228,11 @@ class's prototype object have no prototype, specify
 C<undef>. Instead of specifying the name of the superclass, you 
 can
 provide the superclass's prototype object.
+
+If you specify a name, a constructor function by that name must already
+exist, or an exception will be thrown. (I supposed I could make JE smart
+enough to defer retrieving the prototype object until the superclass is
+registered. Well, maybe later.)
 
 =item wrapper => sub { ... }
 
@@ -1060,7 +1255,9 @@ corresponding JS class. Actually, they are 'wrapped up' in a proxy object
 object), such that operators like C<typeof> and C<===> will work. If the 
 object is passed back to Perl, it is the I<proxy,>
 not the original object that is returned. The proxy's C<value> method will
-return the original object.
+return the original object. B<Note:> I might change this slightly so that
+objects passed to JS functions created by C<bind_class> will be unwrapped.
+I still trying to figure out what the exact behaviour should be.
 
 Note that, if you pass a Perl object to JavaScript before binding its 
 class,
@@ -1071,12 +1268,30 @@ If C<constructor> is
 not given, a constructor function will be made that throws an error when
 invoked, unless C<wrapper> is given.
 
-To use Perl's overloading within JavaScript, specify
-
-      to_string => sub { "$_[0]" }
-      to_number => sub { 0+$_[0] }
+To use Perl's overloading within JavaScript, well...er, you don't have to
+do
+anything. If the object has C<"">, C<0+> or C<bool> overloading, that will
+automatically be detected and used.
 
 =cut
+
+sub _split_meth { $_[0] =~ /(.*[^:]):([^:].*)/s ? ($1, $2) : $_[0] }
+# This function splits a method specification  of  the  form  'method:Func'
+# into its two constituent parts, returning ($_[0],undef) if it is a simple
+# method name.  The  [^:]  parts of the regexp are  to  allow  things  like
+# "HTML::Element::new:null"  and to prevent  "Foo::bar"  from being turned
+# into qw(Foo: bar).
+
+sub _cast {
+	my ($self,$val,$type) = @_;
+	return $self->upgrade($val) unless defined $type;
+	if($type eq 'null') {
+		defined $val ? $self->upgrade($val) : $self->null
+	}
+	else {
+		$self->prop($type)->call($self->upgrade($val));
+	}
+}
 
 sub bind_class {
 	require JE::Object::Proxy;
@@ -1107,7 +1322,8 @@ sub bind_class {
 	}
 		
 	my %class = ( name => $class );
-	$$$self{classes}{$pack} = \%class;
+	$$$self{classes}{$pack} = $$$self{classes_by_name}{$class} =
+		\%class;
 
 	my ($constructor,$proto,$coderef);
 	if (exists $opts{constructor}) {
@@ -1135,13 +1351,14 @@ sub bind_class {
 		}),
 	})->prop('prototype');
 
-
+	my $super;
 	if(exists $opts{isa}) {
 		my $isa = $opts{isa};
 		$proto->prototype(
 		    !defined $isa || defined blessed $isa
 		      ? $isa
 		      : do {
+		        $super = $isa;
 		        defined(my $super_constr = $self->prop($isa)) ||
 			  croak("JE::bind_class: The $isa" .
 		                " constructor does not exist");
@@ -1152,38 +1369,89 @@ sub bind_class {
 
 	if(exists $opts{methods}) {
 		my $methods = $opts{methods};
-		if (ref $methods eq 'ARRAY') { for my $m (@$methods) {
-			$proto->new_method(
-				$m => sub { shift->value->$m(@_) },
-			);
+		if (ref $methods eq 'ARRAY') { for (@$methods) {
+			my($m, $type) = _split_meth $_;
+			if (defined $type) {
+				$proto->new_method(
+					$m => sub {
+					  $self->_cast(
+					    shift->value->$m(@_),
+					    $type
+					  );
+					}
+				);
+			}else {
+				$proto->new_method(
+					$m => sub { shift->value->$m(@_) },
+				);
+			}
 		}} else { # it'd better be a hash!
 		while( my($name, $m) = each %$methods) {
-			$proto->new_method(
-				$name => ref $m eq 'CODE'
-					? sub {
+			if(ref $m eq 'CODE') {
+				$proto->new_method(
+					$name => sub {
 					    &$m($_[0]->value,@_[1..$#_])
-					}
-					: sub { shift->value->$m(@_) },
-			);
+					  }
+				);
+			} else {
+				my ($method, $type) = _split_meth $m;
+				$proto->new_method(
+					$name => defined $type
+					  ? sub {
+					    $self->_cast(
+					      shift->value->$method(@_),
+					      $type
+					    );
+					  }
+					  : sub { shift->value->$m(@_) },
+				);
+			}
 		}}
 	}
 
 	if(exists $opts{static_methods}) {
 		my $methods = $opts{static_methods};
-		if (ref $methods eq 'ARRAY') { for my $m (@$methods) {
+		if (ref $methods eq 'ARRAY') { for (@$methods) {
+			my($m, $type) = _split_meth $_;
 			$constructor->new_function(
-				$m => sub { $pack->$m(@_) },
+				$m => defined $type
+					? sub { $self->_cast(
+						$pack->$m(@_), $type
+					) }
+					: sub { $pack->$m(@_) }
 			);
+			 # new_function makes the functions  enumerable,
+			 # unlike new_method. This code is here to make
+			 # things consistent. I'll delete it if someone
+			 # convinces me otherwise. (I can't make
+			 # up my mind.)
+			$constructor->prop({
+				name => $m, dontenum => 1
+			});
 		}} else { # it'd better be a hash!
 		while( my($name, $m) = each %$methods) {
-			$constructor->new_function(
-				$name => ref $m eq 'CODE'
-					? sub {
+			if(ref $m eq 'CODE') {
+				$constructor->new_function(
+					$name => sub {
 					    unshift @_, $pack;
 					    goto $m;
 					}
-					: sub { $pack->$m(@_) },
-			);
+				);
+			} else {
+				($m, my $type) = _split_meth $m;
+				$constructor->new_function(
+					$name => defined $type
+						? sub { $self->_cast(
+							$pack->$m, $type
+						) }
+						: sub { $pack->$m(@_) },
+				);
+			}
+			 # new_function makes the functions  enumerable,
+			 # unlike new_method. This code is here to make
+			 # things consistent. I'll delete it if someone
+			 # convinces me otherwise. (I can't make
+			 # up my mind.)
 			$constructor->prop({
 				name => $name, dontenum => 1
 			});
@@ -1200,15 +1468,21 @@ sub bind_class {
 	# owner;  i.e., the prototype, if it is an inherited property.  So
 	# we'll make a list of argument lists which &JE::Object::Proxy::new
 	# will take care of passing to each object's prop method.
+	{ my %props;
 	if(exists $opts{props}) {
 		my $props = $opts{props};
-		$class{props} = \my %props;
+		$class{props} = \%props;
 		if (ref $props eq 'ARRAY') {
-		    for my $p (@$props) {
+		    for(@$props) {
+			my ($p,$type) = _split_meth $_;
 			$props{$p} = [
-				fetch => sub {
-					$self->upgrade($_[0]->value->$p)
-				},
+				fetch => defined $type
+				  ? sub {
+				    $self->_cast($_[0]->value->$p, $type)
+				  }
+				  : sub {
+				    $self->upgrade($_[0]->value->$p)
+				  },
 				store => sub { $_[0]->value->$p($_[1]) },
 			];
 		    }
@@ -1223,9 +1497,15 @@ sub bind_class {
 				        ? sub { $self->upgrade(
 				            &$fetch($_[0]->value)
 				        ) }
-				        : sub { $self->upgrade(
+				        : do {
+					  my($f,$t) = _split_meth $fetch;
+					  defined $t ? sub { $self->_cast(
+				            shift->value->$f, $t
+				          ) }
+				          : sub { $self->upgrade(
 				            shift->value->$fetch
-				        ) }
+				          ) }
+				        }
 				    );
 				}
 				else { @prop_args =
@@ -1248,33 +1528,56 @@ sub bind_class {
 				}
 			}
 			else {
-				@prop_args = ref $p eq 'CODE'
-					? (
+				if(ref $p eq 'CODE') {
+					@prop_args = (
 					    fetch => sub { $self->upgrade(
 				                &$p($_[0]->value)
 				            ) },
 					    store => sub {
 				                &$p($_[0]->value, $_[1])
 				            },
-					): (
-					    fetch => sub { $self->upgrade(
+					);
+				}else{
+					($p, my $t) = _split_meth($p);
+					@prop_args = (
+					    fetch => defined $t
+					    ? sub { $self->_cast(
+				                $_[0]->value->$p, $t
+				              ) }
+					    : sub { $self->upgrade(
 				                $_[0]->value->$p
-				            ) },
+				              ) },
 					    store => sub {
 				                $_[0]->value->$p($_[1])
 				            },
 					);
+				}
 			}
 			$props{$name} = \@prop_args;
 		}}
 	}
+	if(defined $super){
+		$class{props} ||= \%props;
+		{
+			my $super_props =
+				$$$self{classes_by_name}{$super}{props}
+				|| last;
+			for (keys %$super_props) {
+				exists $props{$_} or
+					$props{$_} = $$super_props{$_}
+			}
+		}
+	}}
 
 	if(exists $opts{static_props}) {
 		my $props = $opts{static_props};
-		if (ref $props eq 'ARRAY') { for my $p (@$props) {
+		if (ref $props eq 'ARRAY') { for (@$props) {
+			my($p,$t) = _split_meth $_;
 			$constructor->prop({
 				name => $p,
-				fetch => sub { $self->upgrade($pack->$p) },
+				fetch => defined $t
+				  ? sub { $self->_cast($pack->$p, $t) }
+				  : sub { $self->upgrade($pack->$p) },
 				store => sub { $pack->$p($_[1]) },
 			});
 		}} else { # it'd better be a hash!
@@ -1288,8 +1591,14 @@ sub bind_class {
 				        ? sub {
 				            $self->upgrade(&$fetch($pack))
 				        }
-				        : sub {
-				            $self->upgrade($pack->$fetch)
+				        : do {
+				            my($f,$t) = _split_meth $fetch;
+				            defined $t ? sub {
+				              $self->_cast($pack->$f,$t)
+				            }
+				            : sub {
+				              $self->upgrade($pack->$f)
+				            }
 				        }
 				    );
 				}
@@ -1313,26 +1622,207 @@ sub bind_class {
 				}
 			}
 			else {
-				@prop_args = ref $p eq 'CODE'
-					? (
+				if(ref $p eq 'CODE') {
+					@prop_args = (
 					    fetch => sub {
 				                $self->upgrade(&$p($pack))
 				            },
 					    store => sub {
 				                &$p($pack, $_[1])
 				            },
-					): (
-					    fetch => sub {
+					);
+				} else {
+					($p, my $t) = _split_meth $p;
+					@prop_args = (
+					    fetch => defined $t
+					    ? sub {
+				                $self->_cast($pack->$p,$t)
+				              }
+					    : sub {
 				                $self->upgrade($pack->$p)
-				            },
+				              },
 					    store => sub {
 				                $pack->$p($_[1])
 				            },
 					);
+				}
 			}
 			$constructor->prop({name => $name, @prop_args});
 		}}
 	}
+
+	# ~~~ needs to be made more elaborate
+# ~~~ for later:	exists $opts{keys} and $class{keys} = $$opts{keys};
+
+
+
+	# $class{hash}{store} will be a coderef that returns true or false,
+	# depending on whether it was able to write the property. With two-
+	# way hash bindings, it will always return true
+
+	if($opts{hash}) {
+		if(!ref $opts{hash} # ) {
+			#if(
+			&& $opts{hash} =~ /^(?:1|(2))/) {
+				$class{hash} = {
+					fetch => sub { exists $_[0]{$_[1]}
+						? $self->upgrade(
+							$_[0]{$_[1]})
+						: undef
+					},
+					store => $1 # two-way?
+					  ? sub { $_[0]{$_[1]}=$_[2]; 1 }
+					  : sub {
+						exists $_[0]{$_[1]} and
+						   ($_[0]{$_[1]}=$_[2], 1)
+					  },
+				};
+				$class{keys} ||= sub { keys %{$_[0]} };
+			}
+		else { croak
+			"Invalid value for the 'hash' option: $opts{hash}";
+		}
+
+=begin comment
+
+# I haven't yet figured out a logical way for this to work:
+
+			else { # method name
+				my $m = $opts{hash};
+				$class{hash} = {
+					fetch => sub {
+						$self->_upgr_def(
+						  $_[0]->value->$m($_[1])
+						)
+					},
+					store => sub {
+					  my $wrappee = shift->value;
+					  defined $wrappee->$m($_[0]) &&
+					    ($wrappee->$m(@_), 1)
+					},
+				};
+			}
+		} elsif (ref $opts{hash} eq 'CODE') {
+			my $cref = $opts{hash};
+			$class{hash} = {
+				fetch => sub {
+					$self->_upgr_def(
+				            &$cref($_[0]->value, $_[1])
+					)
+				},
+				store => sub {
+				  my $wrappee = shift->value;
+				  defined &$cref($wrappee, $_[0]) &&
+				    (&$cref($wrappee, @_), 1)
+				},
+			};
+		} else { # it'd better be a hash!
+			my $opt = $opts{hash_elem};
+			if(exists $$opt{fetch}) {
+				my $fetch = $$opt{fetch};
+				$class{hash}{fetch} =
+				        ref $fetch eq 'CODE'
+				        ? sub { $self-> _upgr_def(
+				            &$fetch($_[0]->value, $_[1])
+				        ) }
+				        : sub { $self-> _upgr_def(
+				            shift->value->$fetch(shift)
+				        ) }
+				;
+			}
+			if(exists $$opt{store}) {
+				my $store = $$opt{store};
+				$class{hash}{store} =
+				        ref $store eq 'CODE'
+				        ? sub {
+				  	  my $wrappee = shift->value;
+				  	  defined &$store($wrappee, $_[0])
+					  and &$store($wrappee, @_), 1
+				        }
+				        : sub {
+				  	  my $wrappee = shift->value;
+				  	  defined $wrappee->$store($_[0])
+					  and &$store($wrappee, @_), 1
+				            $_[0]->value->$store(@_[1,2])
+				        }
+				;
+			}
+		}
+
+=end comment
+
+=cut
+
+	}
+
+	if($opts{array}) {
+			if($opts{array} =~ /^(?:1|(2))/) {
+				$class{array} = {
+					fetch => sub { $_[1] < @{$_[0]}
+						? $self->upgrade(
+							$_[0][$_[1]])
+						: undef
+					},
+					store => $1 # two-way?
+					  ? sub { $_[0][$_[1]]=$_[2]; 1 }
+					  : sub {
+						$_[1] < @{$_[0]} and
+						   ($_[0]{$_[1]}=$_[2], 1)
+					  },
+				};
+			}
+		else { croak
+		    "Invalid value for the 'array' option: $opts{array}";
+		}
+
+=begin comment
+
+	} elsif (exists $opts{array_elem}) {
+		if (!ref $opts{array_elem}) {
+			my $m = $opts{array_elem};
+			$class{array} = {
+				fetch => sub {
+					$self->upgrade(
+						$_[0]->value->$m($_[1])
+					)
+				},
+				store => sub { $_[0]->value->$m(@_[1,2]) },
+			};
+		} else { # it'd better be a hash!
+			my $opt = $opts{array_elem};
+			if(exists $$opt{fetch}) {
+				my $fetch = $$opt{fetch};
+				$class{array}{fetch} =
+				        ref $fetch eq 'CODE'
+				        ? sub { $self->upgrade(
+				            &$fetch($_[0]->value, $_[1])
+				        ) }
+				        : sub { $self->upgrade(
+				            shift->value->$fetch(shift)
+				        ) }
+				;
+			}
+			if(exists $$opt{store}) {
+				my $store = $$opt{store};
+				$class{array}{store} =
+				        ref $store eq 'CODE'
+				        ? sub {
+				            &$store($_[0]->value, @_[1,2])
+				        }
+				        : sub {
+				            $_[0]->value->$store(@_[1,2])
+				        }
+				;
+			}
+		}
+
+=end comment
+
+=cut
+
+	}
+
+	weaken $self; # we've got closures
 
 	return # nothing
 }
@@ -1359,10 +1849,6 @@ sub new_parser {
 =cut
 
 
-
-#----------------PRIVATE METHODS/SUBS------------------------#
-
-# none (yet [if ever])
 
 1;
 __END__
@@ -1441,7 +1927,7 @@ The documentation is a bit incoherent, and needs to be restructured.
 
 =head1 PREREQUISITES
 
-perl 5.8.0 or later
+perl 5.8.3 or later (to be precise: Exporter 5.57 or later)
 
 Tie::RefHash::Weak, for perl versions earlier than 5.9.4
 

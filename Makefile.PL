@@ -1,12 +1,14 @@
+BEGIN { require 5.008 };
+
 use strict;
-use warnings;
 use ExtUtils::MakeMaker;
 
 my %prq = (
          Encode     => 0,
+         Exporter   => 5.57,
         'List::Util' => 0,
          Memoize      => 0,
-        'Scalar::Util' => 0,
+        'Scalar::Util' => 1.08,
         'Test::More'   => 0,
     );
 

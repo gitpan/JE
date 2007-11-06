@@ -7,21 +7,15 @@ This is just documentation, not a module.
 =head1 DESCRIPTION
 
 The various JavaScript types and objects are represented by Perl
-classes in JE. Each class provides whichever methods listed
-below apply.
-
-If you are creating your own object classes in Perl for
-JavaScript to use, you can subclass JE::Object, but you don't
-have to, in which case you ought to implement the C<prop>, C<delete>,
-C<method>,
-C<typeof>, C<class>, C<id>, C<primitive>, C<prototype> and C<to_object> 
-methods;
-otherwise TypeErrors may occur unexpectedly.
+classes in JE (which are listed below). This document describes the basic 
+interface implemented by
+these classes. Information specific to each class can be found on its own
+manual page.
 
 =head1 UPGRADING VALUES
 
-When a value is passed to the C<prop> and C<method> methods of objects, and
-to various other functions, it will be "upgraded" to a Perl object
+When a value is passed from Perl to JavaScript, it will be "upgraded" to a 
+Perl object
 representing a JavaScript value. This is done by the C<upgrade> method of
 the global object.
 
@@ -92,10 +86,90 @@ And I might also mention a few special cases:
 
 The last two are for internal use. 
   
+=head1 PUBLIC API
 
-=head1 METHODS
+=head2 Using JS Values as Scalars
 
-Each class provides whichever of the following methods are applicable. If
+Every JS data type can be use as as string, boolean or number. It works
+exactly as it does in JavaScript. For example:
+
+  $num = $je->eval('42');
+  $num2 = $je->eval('NaN');
+  print $num2; # prints NaN
+  print 0+$num2; # prints nan or NaN, depending or your system
+                 # (or something really weird on Windows).
+
+  $zero_str = $je->eval("'0'");
+  print "true" if $zero_str; # prints 'true'
+  print "false" unless 0+$zero_str; # prints 'false'
+
+  $false = $je->eval('false');
+  print $false; # prints 'false'
+  print "false" unless $false; # also prints 'false'
+
+=head2 Property Access
+
+To access the property of a JS object,
+or of the
+JS environment itself (i.e., a global variable), just use it as a hash ref:
+
+  $je->{String};    # gives you the String constructor function
+  $je->{undefined}; # the undefined value
+  my $obj = $je->eval('var obj = new Object; return obj');
+  $obj->{foo} = 'bar';
+
+C<keys> will return a list of the object's enumerable properties, including
+those inherited from its prototype. The following example prints
+S<'baz foo '>:
+
+  $obj = $je->eval('Object.prototype.foo="bar"; ({baz:43}) ');
+  print "$_ " for keys %$obj;
+
+C<exists> and C<delete> act upon properties of the object itself, ignoring
+those of
+its prototype, so C<< exists $obj->{foo} >> will return false.
+
+=head2 Calling Methods
+
+To call a method on an object or primitive data type, use the C<method>
+method:
+
+  my $number = $je->eval('42');
+  $number->method('toString', 16); # returns the number in hexadecimal
+
+=head2 Calling Functions
+
+Just use a function as though it were a coderef:
+
+  $je->{Array}->();
+
+=head2 Just Getting a Simple Perl Scalar
+
+To convert one of the fancy objects returned by JE into a simple Perl
+value, use the C<value> method.
+
+  $number->value; # simple Perl scalar
+  $str->value;    # likewise
+  $obj->value;    # hash ref
+  $array->value;  # array ref
+
+Currently the C<value> method of objects and arrays is not recursive, but
+I plan to make it so later on. The only way to get consistent behaviour
+between this a future versions is to pass C<< recursive => 0 >> as
+arguments.
+
+=head1 DATA TYPE API (in more detail)
+
+If you are going to write you own custom data types, proxy objects, or
+subclasses of JE's classes, you'll need to read
+this. If not, you shouldn't need to, but you might like to anyway. :-)
+
+Be warned that some of the methods described here can be hard
+to use, and can easily result in code that's hard to debug, if misused.
+
+These are the methods that the JavaScript engine itself uses (as opposed
+to those provided for convenient access from the Perl side). Each class 
+provides whichever of the following methods are applicable. If
 an object does not support a particular method, a TypeError will be thrown
 when JavaScript code (indirectly) tries to call that method. (For instance,
 C<'some_string'()> will attempt to call the C<call> method of JE::String,
@@ -108,10 +182,14 @@ thus resulting in a TypeError).
 =item prop($name, $new_value)
 
 Gets or sets a property. Setting a property returns the new
-value. The new value will be converted to a JS value
+value. The return value will be a Perl undef if the
+property does not exist. See also L<JE::Object>, for the
+S<< C<prop({ ... })> >> usage.
+
+The new value will be converted to a JS value
 automatically if it is not one already. (See
-L</UPGRADING VALUES>.) The return value will be a Perl undef if the
-property does not exist. See also the S<< C<prop({ ... })> >> usage below.
+L</UPGRADING VALUES>.) B<This is going to change.> For the sake of 
+efficiency, C<prop> is going to stop upgrading automatically.
 
 =item keys
 
@@ -120,22 +198,16 @@ Perl strings, not JE::Strings.
 
 =item delete($name)
 
-=item delete($name, $even_if_it's_undeletable)
-
 Deletes the property named $name, if it is deletable. If the property did 
 not exist or it was deletable, then
 true is returned. If the property exists and could not be deleted, false
 is returned.
 
-If the second argument is given and is true, the property will be deleted
-even if it is marked is undeletable, if the object supports it.
+L<JE::Object> will also take a second argument, that allows one to
+indicate whether an undeletable property should be deleted. This is
+required by custom classes if the object in question is the global object.
 
 The return value is a Perl scalar, not a JE::Boolean.
-
-=item method($name, $arg1, $arg2, ...)
-
-Invokes the specified method through the object. The arguments
-are automatically upgraded.
 
 =item value
 
@@ -147,14 +219,14 @@ for instance, produces an array ref.
 
 Runs the code associated with the object if it is a function.
 The arguments
-are automatically upgraded.
+are automatically upgraded B<but that is going to change>.
 
 =item apply($obj, @args)
 
 Runs the code associated with the object if it is a function. C<$obj> will
 be passed to the function as its invocant (its 'this' value).
 The arguments
-are automatically upgraded.
+are automatically upgraded B<but, again, that is going to change>.
 
 =item construct(@args)
 
@@ -169,11 +241,10 @@ returned if it is an object. Otherwise it will be discarded, and the object
 originally passed to the function will be returned instead (possibly 
 modified).
 
-=back
+=begin comment
 
-The rest of these are mostly for internal use:
-
-=over 4
+NOTE: I need to copy parts of this to those classes that don't describe the
+C<new> method, before I go and delete it.
 
 =item I<Class>->new($global_obj, @args)
 
@@ -188,62 +259,7 @@ respective man page.
 User-defined classes do not need to accept arguments in the same order as
 those that come with JE. They can do whatever they like.
 
-=item prop({ ... })
-
-The C<prop> method can be called with a hash ref as its argument. In this
-case, the prototype chain is I<not> searched.
-The elements of the hash are as follows:
-
-  name      property name
-  value     new value
-  dontenum  whether this property is unenumerable
-  dontdel   whether this property is undeletable
-  readonly  whether this property is read-only
-  fetch     subroutine called when the property is fetched
-  store     subroutine called when the property is set
-  autoload  see below
-
-If C<dontenum>, C<dontdel> or C<readonly> is given, the attribute in 
-question will be set.
-If C<value> is given, the value of the property will be set, regardless of
-the attributes.
-
-C<fetch> and C<store>, if specified, must be subroutines for
-fetching/setting the value of the property. The 'fetch' subroutine will be
-called with ($object, $storage_space) as the arguments, where
-C<$storage_space> is a hash key inside the object that the two subroutines
-can use for storing the value (they can ignore it if they like). The
-'store' subroutine will be call with
-($object, $new_value, $storage_space) as
-the arguments. Values assigned to the storage space from within these 
-routines are I<not>
-upgraded, neither is the return value of C<fetch>. C<fetch> and C<store> do 
-not necessarily have to go
-together. If you only specify C<fetch>, then the value will be set as
-usual, but C<fetch> will be able to mangle the value when it is retrieved.
-Likewise, if you only specify C<store>, the value will be retrieved the
-usual way, so you can use this for validating or normalising the assigned
-value, for
-instance. B<Note:> Currently, a simple scalar or unblessed coderef in the
-storage space will cause autoloading, but that is subject to change.
-
-C<autoload> can be a string or a coderef. It will be called/evalled the
-first time the property is accessed (accessing it with a hash ref as
-described here does not count). If it is a string, it will be
-evaluated in a scope that has a variable name C<$global>, containing a 
-reference to the global object. The result will become the
-property's value. The value returned is not currently upgraded. The behaviour when a simple scalar or unblessed reference is returned is
-undefined. C<autoload> will be
-ignored completely if C<value> or C<fetch> is also given.
-
-This hash ref calling convention is not supported by Arguments objects or
-by the primitive classes. It 
-does not work on Array
-objects when the property name is C<length> or an array index (a 
-non-negative integer 
-below
-4294967295). It does not work on strings or String objects if the
-property name is C<length>.
+=end comment
 
 =item exists($property_name)
 
@@ -256,7 +272,7 @@ the return value of C<prop> is defined.)
 B<To do:> Make C<hasOwnProperty> use the C<exists> method. Right
 now it uses C<prop> with hashref syntax.
 
-B<To do:> Implement this method.
+B<To do:> Implement this method in JE's classes.
 
 =item is_readonly($property_name)
 
@@ -350,15 +366,9 @@ Returns a reference to the global object.
 
 =back
 
-=head1 OVERLOADED OPERATORS
-
-All classes overload the "" (stringification) operator. See each
-class's respective man page (both primitives and objects) for more info on
-overloaded ops.
-
 =head1 SEE ALSO
 
-L<JE> and all the modules listed above under L<WHICH CLASSES ARE WHICH>.
+L<JE> and all the modules listed above under L</WHICH CLASSES ARE WHICH>.
 
 =cut
 

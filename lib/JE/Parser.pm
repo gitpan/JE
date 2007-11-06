@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.017';
+our $VERSION = '0.018';
 
 use strict;  # :-(
 use warnings;# :-(
@@ -84,7 +84,7 @@ sub eval {
 
 #----------PARSER---------#
 
-use Exporter 'import';
+use Exporter 5.57 'import';
 
 our @EXPORT_OK = qw/ $h $n $optional_sc $ss $s $S $id_cont
                      str num skip ident expr expr_noin statement

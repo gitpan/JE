@@ -1,5 +1,21 @@
 Revision history for JE
 
+0.018   5 November, 2007
+        - bind_class now binds hash- or array-like classes.
+        - For methods, properties, and primitivisation, bind_class
+          supports type-casting/filters  (specify method names  as
+         'foo:String', where 'String' is a JS function to feed the
+          result of foo through).
+        - Properties registered with bind_class can now be inherited
+          by subclasses that are also registered with bind_class, as
+          long as  'isa =>'  is given a  class  name  (not a   proto-
+          type object).
+        - If you don't specify  'to_primitive'  et al.  when you call
+          bind_class, JE will now check to see whether the object has
+          string/number/boolean overloading, and will use that. If it
+          doesn't,  it continues to do the default JS thing  (use the
+          valueOf and toString methods).
+
 0.017   9 September, 2007
         Another alpha release, featuring just bug fixes:
         - Fixed a bug with the length property of strings being a Perl

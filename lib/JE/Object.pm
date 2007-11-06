@@ -4,7 +4,7 @@ package JE::Object;
 sub evall { my $global = shift; my $r = eval 'local *_;' . shift;
             $@ and die; $r }
 
-our $VERSION = '0.017';
+our $VERSION = '0.018';
 
 use strict;
 use warnings;
@@ -186,9 +186,9 @@ sub ______new { # not according to spec. What *was* I thinking???
 =end bad
 
 
-=item $j->new_function($name, sub { ... })
+=item $obj->new_function($name, sub { ... })
 
-=item $j->new_function(sub { ... })
+=item $obj->new_function(sub { ... })
 
 This creates and returns a new function object. If $name is given,
 it will become a property of the object. The function is enumerable, like
@@ -216,9 +216,9 @@ sub new_function {
 
 
 
-=item $j->new_method($name, sub { ... })
+=item $obj->new_method($name, sub { ... })
 
-=item $j->new_method(sub { ... })
+=item $obj->new_method(sub { ... })
 
 This is the same as C<new_function>, except that the subroutine's first
 argument will be the object with which the function is called, and that the 
@@ -246,8 +246,68 @@ sub new_method {
 	$f;
 }
 
+=item $obj->prop( $name )
 
+=item $obj->prop( $name => $value )
 
+=item $obj->prop({ ... })
+
+See C<JE::Types> for the first two uses.
+
+When the C<prop> method is called with a hash ref as its argument, the 
+prototype chain is I<not> searched.
+The elements of the hash are as follows:
+
+  name      property name
+  value     new value
+  dontenum  whether this property is unenumerable
+  dontdel   whether this property is undeletable
+  readonly  whether this property is read-only
+  fetch     subroutine called when the property is fetched
+  store     subroutine called when the property is set
+  autoload  see below
+
+If C<dontenum>, C<dontdel> or C<readonly> is given, the attribute in 
+question will be set.
+If C<value> is given, the value of the property will be set, regardless of
+the attributes.
+
+C<fetch> and C<store>, if specified, must be subroutines for
+fetching/setting the value of the property. The 'fetch' subroutine will be
+called with ($object, $storage_space) as the arguments, where
+C<$storage_space> is a hash key inside the object that the two subroutines
+can use for storing the value (they can ignore it if they like). The
+'store' subroutine will be call with
+($object, $new_value, $storage_space) as
+the arguments. Values assigned to the storage space from within these 
+routines are I<not>
+upgraded, neither is the return value of C<fetch>. C<fetch> and C<store> do 
+not necessarily have to go
+together. If you only specify C<fetch>, then the value will be set as
+usual, but C<fetch> will be able to mangle the value when it is retrieved.
+Likewise, if you only specify C<store>, the value will be retrieved the
+usual way, so you can use this for validating or normalising the assigned
+value, for
+instance. B<Note:> Currently, a simple scalar or unblessed coderef in the
+storage space will cause autoloading, but that is subject to change.
+
+C<autoload> can be a string or a coderef. It will be called/evalled the
+first time the property is accessed (accessing it with a hash ref as
+described here does not count). If it is a string, it will be
+evaluated in a scope that has a variable name C<$global>, containing a 
+reference to the global object. The result will become the
+property's value. The value returned is not currently upgraded. The behaviour when a simple scalar or unblessed reference is returned is
+undefined. C<autoload> will be
+ignored completely if C<value> or C<fetch> is also given.
+
+This hash ref calling convention does not work on Array
+objects when the property name is C<length> or an array index (a 
+non-negative integer 
+below
+4294967295). It does not work on String objects if the
+property name is C<length>.
+
+=cut
 
 sub prop {
 	my ($self, $opts) = (shift, shift);
@@ -400,6 +460,18 @@ sub keys {
 
 
 
+
+=item $obj->delete($property_name, $even_if_it's_undeletable)
+
+Deletes the property named $name, if it is deletable. If the property did 
+not exist or it was deletable, then
+true is returned. If the property exists and could not be deleted, false
+is returned.
+
+If the second argument is given and is true, the property will be deleted
+even if it is marked is undeletable, if the object supports it.
+
+=cut
 
 sub delete {
 	my ($self, $name) = @_;

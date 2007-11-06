@@ -1,6 +1,6 @@
 package JE::_FieldHash;
 
-our $VERSION = '0.017';
+our $VERSION = '0.018';
 
 
 use strict;
@@ -18,7 +18,7 @@ BEGIN {
 	}
 }
 
-use Exporter 'import';
+use Exporter 5.57 'import';
 
 our @EXPORT = 'fieldhash'; # this returns a veracious value
 

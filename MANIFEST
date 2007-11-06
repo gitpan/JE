@@ -72,6 +72,7 @@ t/je-scope.t
 t/je-string.t
 t/je.t
 t/jstest.pl
+t/misc.t
 t/parse00-strings.t
 t/parse01-decimals.t
 t/parse02-hexadecimals.t

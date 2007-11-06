@@ -1,10 +1,12 @@
 #!perl  -T
 
 # Some of the stuff in here needs to be moved elsewhere.
+# This is supposed to test JE.pm's Perl interface (as opposed to that of
+# its accompanying modules, or its JS features).
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 113;
+use Test::More tests => 197;
 use strict;
 use Scalar::Util 'refaddr';
 use utf8;
@@ -297,6 +299,7 @@ $j->bind_class(
 	constructor => sub { bless [], 'NotPrimitive' },
 	to_primitive => undef
 );
+$j->{diag} = \&diag unless $j->{diag};
 
 defined $j->eval(<<'})() ') or die;
 
@@ -325,6 +328,8 @@ defined $j->eval(<<'})() ') or die;
 	is(String(t6), 'Here you are')
 	error=false;try{+ t6}catch(e){error = true}ok(error)
 	is(String(t7), 'string')
+//diag(t7)
+//diag(+ (t7))
 	is(     + t7 , NaN)
 	error=false;try{'' + t7}catch(e){error = true}ok(error)
 	error=false;try{'' + t8}catch(e){error = true}ok(error)
@@ -687,18 +692,353 @@ $j->bind_class(
 isa_ok $j->upgrade(bless[],'Wrappee'),'Wrapper', 'the wrapper';
 
 
+#--------------------------------------------------------------------#
+# Tests 113-46: Class bindings: arrays and hashes
+
+@{$j->{Object}{prototype}}{0,'doodad'} = qw "something weird";
+
+$j->bind_class(qw:
+	name Arghh!
+	array 1
+:) ;
+
+{
+	my $a = $j->upgrade(bless \my @a, 'Arghh!');
+
+	is $$a{0}, 'something',
+		'proto array elems >length show through';
+	$a[0]='12 plumbers plumbing';
+	is $$a{0}, '12 plumbers plumbing';
+	is $$a{length}++, 1;
+	is @a, 2;
+	is join(':-)', sort keys %$a), '0:-)doodad';
+	delete $$a{0};
+	is join(':-)', sort keys %$a), '0:-)doodad';
+	is $$a{0}, 'undefined',
+		'nonexistent array elem <length overrides proto';
+	$$a{7} = 'aaa';
+	is $$a{length}, 2, 'ary len after assing property >length (1-way)';
+}
+
+$j->bind_class(qw:
+	name Arghh!
+	array 2-way
+:) ;
+
+{
+	my $a = $j->upgrade(bless \my @a, 'Arghh!');
+
+	is $$a{0}, 'something',
+		'proto array elems >length show through';
+	$a[0]='12 plumbers plumbing';
+	is $$a{0}, '12 plumbers plumbing';
+	is $$a{length}++, 1;
+	is @a, 2;
+	is join(':-)', sort keys %$a), '0:-)doodad';
+	delete $$a{0};
+	is join(':-)', sort keys %$a), '0:-)doodad';
+	is $$a{0}, 'undefined',
+		'nonexistent array elem <length overrides proto';
+	$$a{7} = 'aaa';
+	is $$a{length}, 8, 'ary len after assing property >length (2-way)';
+}
+
+
+
+$j->bind_class(qw:
+	name Hush!
+	hash 1
+:) ;
+
+{
+	my $a = $j->upgrade(bless \my %a, 'Hush!');
+	$a{doodad}='10 prawns a creeping';
+	$a{thing}++;
+
+	is $$a{doodad}, '10 prawns a creeping';
+	$$a{doodad} = '9 babies prancing';
+	is $a{doodad}, '9 babies prancing';
+	is join(':-)', sort keys %$a), '0:-)doodad:-)thing';
+	delete $a{doodad};
+	is join(':-)', sort keys %$a), '0:-)doodad:-)thing';
+	is $$a{doodad}, 'weird';
+}
+
+$j->bind_class(qw:
+	name Hush!
+	hash 2
+:) ;
+
+{
+	my $a = $j->upgrade(bless \my %a, 'Hush!');
+	$a{doodad}='10 prawns a creeping';
+	$a{thing}++;
+
+	is $$a{doodad}, '10 prawns a creeping';
+	$$a{doodad} = '9 babies prancing';
+	is $a{doodad}, '9 babies prancing';
+	is join(':-)', sort keys %$a), '0:-)doodad:-)thing';
+	delete $a{doodad};
+	is join(':-)', sort keys %$a), '0:-)doodad:-)thing';
+	is $$a{doodad}, 'weird'; # test 138
+}
+
+{package Arrash;
+	use overload fallback=>1,
+		'@{}' => sub { \@{*{+shift}} },
+		'%{}' => sub { \%{*{+shift}} };
+}
+
+$j->bind_class(qw 5
+	name Arrash
+	array 2
+	hash 2.5
+) ;
+
+{
+	use Symbol;
+	bless my $g = gensym, 'Arrash';
+	${*$g}{length} = 17;
+	${*$g}{0} = '4 jolly nerds';
+	${*$g}{doodad} = '3 henchmen';
+
+	my $ugh = $j->upgrade($g);
+
+	is $ugh->{0}, '4 jolly nerds';
+	is $ugh->{length}, 0;
+	$ugh->{length} = 17;
+	is @{*$g}, 17;
+	is $ugh->{doodad}, '3 henchmen';
+
+	delete ${*$g}{0};
+	delete ${*$g}{doodad};
+
+	is $ugh->{0}, 'undefined';
+	$ugh->{length} = 0;
+	is $ugh->{0}, 'something';
+	is $ugh->{doodad}, 'weird';
+
+	is join(':-)', sort keys %$ugh), '0:-)doodad:-)length';
+}
+
+
+delete $j->{Object}{$_} for qw _0 doodad_;
+
+#--------------------------------------------------------------------#
+# Tests 147-90 (17+17+9+1=44): Class bindings: method return types
+
+sub ___::AUTOLOAD{scalar reverse $___::AUTOLOAD}
+sub ___::oof{}
+sub ___::ooph{}
+
+$j->bind_class(
+	name => '___',
+	methods => [qw[ foo:Number ___::bar ___::baz:null oof:null ]],
+	static_methods =>[qw[FOO:Number ___::BAR ___::BAZ:null oof:null]],
+	to_primitive => 'prim:Boolean',
+	props => [qw[phoo:Number ___::barr ___::bazz:null ooph:null ]],
+	static_props=>[qw[PHOO:Number ___::BARR ___::BAZZ:null ooph:null]],
+);
+
+{ # 17 tests here:
+	my $foo = $j->upgrade(bless[],'___');
+	is $foo->method('foo'), 'NaN', 'methods => [method:func]';
+	is $foo->method('___::bar'), 'rab::___',
+		'methods => [Package::method]';
+	is $foo->method('___::baz'), 'zab::___',
+		'methods => [Package::method:thing]';
+	is $foo->method('oof'), 'null', 'methods => [method:null]';
+
+	my $con#structor
+		= $j->{___};
+	is $con->method('FOO'), 'NaN', 'static_methods => [method:func]';
+	is $con->method('___::BAR'), 'RAB::___',
+		'static_methods => [Package::method]';
+	is $con->method('___::BAZ'), 'ZAB::___',
+		'static_methods => [Package::method:thing]';
+	is $con->method('oof'), 'null', 'static_methods => [method:null]';
+
+	is $foo->to_primitive, 'true', 'to_primtive => method:func';
+
+	is $foo->{phoo}, 'NaN', 'props => [method:func]';
+	is $foo->{'___::barr'}, 'rrab::___',
+		'props => [Package::method]';
+	is $foo->{'___::bazz'}, 'zzab::___',
+		'props => [Package::method:thing]';
+	is $foo->{ooph}, 'null', 'props => [method:null]';
+
+	is $con->{PHOO}, 'NaN', 'static_props => [method:func]';
+	is $con->{'___::BARR'}, 'RRAB::___',
+		'static_props => [Package::method]';
+	is $con->{'___::BAZZ'}, 'ZZAB::___',
+		'static_props => [Package::method:thing]';
+	is $con->{ooph}, 'null', 'static_props => [method:null]';
+
+}
+
+sub __::AUTOLOAD{scalar reverse $__'AUTOLOAD}
+sub __::oof{}
+
+$j->bind_class(
+	name => '__',
+	methods => {qw{
+		phew foo:Number
+		bare __::bar
+		bass __::baz:null
+		poof oof:null
+	}},
+	static_methods => {qw{
+		PHEW foo:Number
+		BARE __::BAR
+		BASS __::BAZ:null
+		POOF oof:null
+	}},
+	to_primitive => '__::prim:null',
+	props => {qw{
+		hati foo:Number
+		uraa __::barr
+		orut __::bazz:null
+		hwha oof:null
+	}},
+	static_props => {qw{
+		AHTI foo:Number
+		URAI __::BARR
+		ORUT __::BAZZ:null
+		WHAT oof:null
+	}},
+);
+
+{ # 17 tests here:
+	my $foo = $j->upgrade(bless[],'__');
+	is $foo->method('phew'), 'NaN',
+		'methods => {name => method:func}';
+	is $foo->method('bare'), 'rab::__',
+		'methods => {name => Package::method}';
+	is $foo->method('bass'), 'zab::__',
+		'methods => {name => Package::method:thing}';
+	is $foo->method('poof'), 'null',
+		'methods => {name => method:null}';
+
+	my $con#structor
+		= $j->{__};
+	is $con->method('PHEW'), 'NaN',
+		'static_methods => {name => method:func}';
+	is $con->method('BARE'), 'RAB::__',
+		'static_methods => {name => Package::method}';
+	is $con->method('BASS'), 'ZAB::__',
+		'static_methods => {name => Package::method:thing}';
+	is $con->method('POOF'), 'null',
+		'static_methods => {name => method:null}';
+
+	is $foo->to_primitive, 'mirp::__',
+		'to_primtive => Pack::method:null';
+
+	is $foo->{hati}, 'NaN', 'props => {name => method:func}';
+	is $foo->{'uraa'}, 'rrab::__',
+		'props => {name => Package::method}';
+	is $foo->{'orut'}, 'zzab::__',
+		'props => {name => Package::method:thing}';
+	is $foo->{hwha}, 'null', 'props => {mname => ethod:null}';
+
+	is $con->{AHTI}, 'NaN', 'static_props => {name => method:func}';
+	is $con->{'URAI'}, 'RRAB::__',
+		'static_props => {name => Package::method}';
+	is $con->{'ORUT'}, 'ZZAB::__',
+		'static_props => {name => Package::method:thing}';
+	is $con->{WHAT}, 'null', 'static_props => {name => method:null}';
+
+}
+
+sub _::AUTOLOAD{scalar reverse $_'AUTOLOAD}
+sub _::oof{}
+
+$j->bind_class(
+	name => '_',
+	to_primitive => '_::prim',
+	props => {
+		hati => { fetch => 'foo:Number' },
+		uraa => { fetch => '_::bar'     },
+		orut => { fetch => '_::baz:null'},
+		hwha => { fetch => 'oof:null'   },
+	},
+	static_props => {
+		AHTI => { fetch => 'foo:Number' },
+		URAI => { fetch => '_::BAR'     },
+		ORUT => { fetch => '_::BAZ:null'},
+		WHAT => { fetch => 'oof:null'   },
+	},
+);
+
+{ # 9 tests here:
+	my $foo = $j->upgrade(bless[],'_');
+
+	is $foo->to_primitive, 'mirp::_',
+		'to_primtive => Pack::method:null';
+
+	is $foo->{hati}, 'NaN',
+		'props => {name => {fetch => method:func}}';
+	is $foo->{'uraa'}, 'rab::_',
+		'props => {name => {fetch => Package::method}}';
+	is $foo->{'orut'}, 'zab::_',
+		'props => {name => {fetch => Package::method:thing}}';
+	is $foo->{hwha}, 'null',
+		'props => {mname => {fetch => ethod:null}}';
+
+	my $con#structor
+		= $j->{_};
+	is $con->{AHTI}, 'NaN',
+		'static_props => {name => {fetch => method:func}}';
+	is $con->{'URAI'}, 'RAB::_',
+		'static_props => {name => {fetch => Package::method}}';
+	is $con->{'ORUT'}, 'ZAB::_',
+		'static_props => {name => {fetch => Pack::method:thing}}';
+	is $con->{WHAT}, 'null',
+		'static_props => {name => {fetch => method:null}}';
+
+}
+
+
+sub ____::oof{}
+
+$j->bind_class(
+	name => '____',
+	to_primitive => 'oof:null',
+);
+
+# 1 test here:
+is $j->upgrade(bless[],'____')->to_primitive, 'null',
+	'to_primitive => method:null';
 
 
 #--------------------------------------------------------------------#
-# Test 113: Attempt to free unreferenced scalar in perl 5.8.x
-# fixed via a workaround for perl bug #24254
+# Test 191: Class bindings: inherited property [gs]etters
 
-# ~~~ This test should probably go in JE::Code, since that's what it's
-#     related to.
+$j->bind_class(package => 'base_class',
+               props => { property => sub { ${+shift} } });
+$j->bind_class(package => 'subclarce', isa => 'base_class');
 
 {
-	my $x;
-	local $SIG{__WARN__} = sub { $x = $_[0] };
-	$j->eval('a(I_hope_thiS_var_doesnt_exist+b)');
-	is $x, undef, '"Attempt to free unreferenced scalar" avoided';
+	bless my $x = \(my $y = 'fo'), 'subclarce';
+	is $j->upgrade($x)->{property}, 'fo',
+		'inhertied property [gs]etters';
 }
+
+#--------------------------------------------------------------------#
+# Tests 192-7: Class bindings: respect of Perl's overloading
+
+{package ov; use overload '""' => sub { 43 }}
+$j->bind_class(name => 'ov');
+$j->bind_class(name => 'un');
+is ($j->upgrade(bless [], 'ov')->to_string, 43,
+	'Perl\'s string overloading in JS');
+is ($j->upgrade(bless [], 'ov')->to_number, 43,
+	'Perl\'s number overloading in JS');
+is ($j->upgrade(bless [], 'ov')->to_primitive, 43,
+	'Perl\'s overloading in JS');
+is ($j->upgrade(bless [], 'un')->to_string, '[object un]',
+	'Perl\'s stringification ignored without overloading');
+is ($j->upgrade(bless [], 'un')->to_number, 'NaN',
+	'Perl\'s numbification ignored without overloading');
+is ($j->upgrade(bless [], 'un')->to_primitive, '[object un]',
+	'Perl\'s stringification ignored without overloading (2)');
+

@@ -1,6 +1,6 @@
 package JE::String;
 
-our $VERSION = '0.017';
+our $VERSION = '0.018';
 
 
 use strict;
@@ -29,13 +29,12 @@ memoize 'surrogify'; #,  LIST_CACHE => 'MERGE';  # tion is  called  in
 # And perhaps we need a 'value16' method (or 'utf16val', but that looks
 # ugly and is harder to type),  for accessing the  surrogified  string.
 
-our @ISA = 'Exporter';
+use Exporter 5.57 'import';
 our @EXPORT_OK = qw'surrogify desurrogify';
 
 require JE::Object::String;
 require JE::Boolean;
 require JE::Number;
-require Exporter;
 
 
 sub new {
