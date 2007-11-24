@@ -11,7 +11,7 @@ use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = '0.018';
+our $VERSION = '0.019';
 
 use Carp 'croak';
 use Encode qw< decode_utf8 encode_utf8 FB_CROAK >;
@@ -34,11 +34,9 @@ require JE::Undefined                     ;
 
 JE - Pure-Perl ECMAScript (JavaScript) Engine
 
-"JE" is short for "L<JavaScript::Engine>" (q.v., for an explanation).
-
 =head1 VERSION
 
-Version 0.018 (alpha release)
+Version 0.019 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -1330,8 +1328,8 @@ sub bind_class {
 		my $c = $opts{constructor};
 
 		$coderef = ref eq 'CODE'
-			? sub { $self->upgrade(&$c()) }
-			: sub { $self->upgrade($pack->$c) };
+			? sub { $self->upgrade(scalar &$c()) }
+			: sub { $self->upgrade(scalar $pack->$c) };
 	}
 	else {
 		$coderef = sub {
@@ -1375,7 +1373,7 @@ sub bind_class {
 				$proto->new_method(
 					$m => sub {
 					  $self->_cast(
-					    shift->value->$m(@_),
+					    scalar shift->value->$m(@_),
 					    $type
 					  );
 					}
@@ -1396,14 +1394,14 @@ sub bind_class {
 			} else {
 				my ($method, $type) = _split_meth $m;
 				$proto->new_method(
-					$name => defined $type
-					  ? sub {
-					    $self->_cast(
-					      shift->value->$method(@_),
-					      $type
-					    );
-					  }
-					  : sub { shift->value->$m(@_) },
+				  $name => defined $type
+				    ? sub {
+				      $self->_cast(
+				        scalar shift->value->$method(@_),
+				        $type
+				      );
+				    }
+				    : sub { shift->value->$m(@_) },
 				);
 			}
 		}}
@@ -1416,7 +1414,7 @@ sub bind_class {
 			$constructor->new_function(
 				$m => defined $type
 					? sub { $self->_cast(
-						$pack->$m(@_), $type
+						scalar $pack->$m(@_), $type
 					) }
 					: sub { $pack->$m(@_) }
 			);
@@ -1442,7 +1440,8 @@ sub bind_class {
 				$constructor->new_function(
 					$name => defined $type
 						? sub { $self->_cast(
-							$pack->$m, $type
+							scalar $pack->$m,
+							$type
 						) }
 						: sub { $pack->$m(@_) },
 				);
@@ -1478,10 +1477,12 @@ sub bind_class {
 			$props{$p} = [
 				fetch => defined $type
 				  ? sub {
-				    $self->_cast($_[0]->value->$p, $type)
+				    $self->_cast(
+				      scalar $_[0]->value->$p, $type
+				    )
 				  }
 				  : sub {
-				    $self->upgrade($_[0]->value->$p)
+				    $self->upgrade(scalar $_[0]->value->$p)
 				  },
 				store => sub { $_[0]->value->$p($_[1]) },
 			];
@@ -1495,15 +1496,15 @@ sub bind_class {
 				    @prop_args = ( fetch =>
 				        ref $fetch eq 'CODE'
 				        ? sub { $self->upgrade(
-				            &$fetch($_[0]->value)
+				            scalar &$fetch($_[0]->value)
 				        ) }
 				        : do {
 					  my($f,$t) = _split_meth $fetch;
 					  defined $t ? sub { $self->_cast(
-				            shift->value->$f, $t
+				            scalar shift->value->$f, $t
 				          ) }
 				          : sub { $self->upgrade(
-				            shift->value->$fetch
+				              scalar shift->value->$fetch
 				          ) }
 				        }
 				    );
@@ -1531,10 +1532,12 @@ sub bind_class {
 				if(ref $p eq 'CODE') {
 					@prop_args = (
 					    fetch => sub { $self->upgrade(
-				                &$p($_[0]->value)
+				                scalar &$p($_[0]->value)
 				            ) },
 					    store => sub {
-				                &$p($_[0]->value, $_[1])
+				              &$p(
+					        scalar $_[0]->value, $_[1]
+					      )
 				            },
 					);
 				}else{
@@ -1542,10 +1545,10 @@ sub bind_class {
 					@prop_args = (
 					    fetch => defined $t
 					    ? sub { $self->_cast(
-				                $_[0]->value->$p, $t
+				                scalar $_[0]->value->$p, $t
 				              ) }
 					    : sub { $self->upgrade(
-				                $_[0]->value->$p
+				                scalar $_[0]->value->$p
 				              ) },
 					    store => sub {
 				                $_[0]->value->$p($_[1])
@@ -1576,8 +1579,12 @@ sub bind_class {
 			$constructor->prop({
 				name => $p,
 				fetch => defined $t
-				  ? sub { $self->_cast($pack->$p, $t) }
-				  : sub { $self->upgrade($pack->$p) },
+				  ? sub { $self->_cast(
+				      scalar $pack->$p, $t
+				    ) }
+				  : sub { $self->upgrade(
+				      scalar $pack->$p
+				    ) },
 				store => sub { $pack->$p($_[1]) },
 			});
 		}} else { # it'd better be a hash!
@@ -1589,15 +1596,18 @@ sub bind_class {
 				    @prop_args = ( fetch =>
 				        ref $fetch eq 'CODE'
 				        ? sub {
-				            $self->upgrade(&$fetch($pack))
+				            $self->upgrade(
+					        scalar &$fetch($pack))
 				        }
 				        : do {
 				            my($f,$t) = _split_meth $fetch;
 				            defined $t ? sub {
-				              $self->_cast($pack->$f,$t)
+				              $self->_cast(
+				                scalar $pack->$f,$t)
 				            }
 				            : sub {
-				              $self->upgrade($pack->$f)
+				              $self->upgrade(
+				                scalar $pack->$f)
 				            }
 				        }
 				    );
@@ -1625,7 +1635,8 @@ sub bind_class {
 				if(ref $p eq 'CODE') {
 					@prop_args = (
 					    fetch => sub {
-				                $self->upgrade(&$p($pack))
+				                $self->upgrade(
+					          scalar &$p($pack))
 				            },
 					    store => sub {
 				                &$p($pack, $_[1])
@@ -1636,10 +1647,12 @@ sub bind_class {
 					@prop_args = (
 					    fetch => defined $t
 					    ? sub {
-				                $self->_cast($pack->$p,$t)
+				                $self->_cast(
+					          scalar $pack->$p,$t)
 				              }
 					    : sub {
-				                $self->upgrade($pack->$p)
+				                $self->upgrade(
+					          scalar $pack->$p)
 				              },
 					    store => sub {
 				                $pack->$p($_[1])
@@ -1667,7 +1680,7 @@ sub bind_class {
 				$class{hash} = {
 					fetch => sub { exists $_[0]{$_[1]}
 						? $self->upgrade(
-							$_[0]{$_[1]})
+						    $_[0]{$_[1]})
 						: undef
 					},
 					store => $1 # two-way?
@@ -1760,7 +1773,7 @@ sub bind_class {
 				$class{array} = {
 					fetch => sub { $_[1] < @{$_[0]}
 						? $self->upgrade(
-							$_[0][$_[1]])
+						    $_[0][$_[1]])
 						: undef
 					},
 					store => $1 # two-way?
@@ -1921,7 +1934,8 @@ C<hasOwnProperty> does not work properly with arrays and arguments objects.
 
 =item *
 
-The documentation is a bit incoherent, and needs to be restructured.
+Currently some tests for bitshift operators fail on Windows. Patches are
+welcome.
 
 =back
 
@@ -1952,7 +1966,7 @@ his tests,
 to Andy Armstrong S<< [ andyE<nbsp>E<nbsp>hexten net ] >> and Yair Lenga
 S<< [ yair lengaE<nbsp>E<nbsp>gmail com ] >> for their suggestions,
 
-and to the CPAN Testers for their helpful bug reports.
+and to the CPAN Testers for their helpful failure reports.
 
 =head1 SEE ALSO
 
@@ -1989,12 +2003,4 @@ L<JavaScript.pm|JavaScript> and L<JavaScript::SpiderMonkey>--both
 interfaces to
 Mozilla's open-source SpiderMonkey JavaScript engine.
 
-=cut
-
-
-HTML::DOM (still to be written)
-
-WWW::Mechanize::JavaScript (also not written yet; it might not been named
-this in the end, either)
-
-
+L<WWW::Mechanize::Plugin::JavaScript>

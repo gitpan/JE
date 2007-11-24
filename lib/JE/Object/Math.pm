@@ -1,6 +1,6 @@
 package JE::Object::Math;
 
-our $VERSION = '0.018';
+our $VERSION = '0.019';
 
 
 use strict;

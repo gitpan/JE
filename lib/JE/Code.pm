@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.018';
+our $VERSION = '0.019';
 
 use strict;
 use warnings;
@@ -169,7 +169,7 @@ sub add_line_number {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.018';
+our $VERSION = '0.019';
 
 use subs qw'_create_vars _eval_term';
 use List::Util 'first';
@@ -605,7 +605,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.018';
+our $VERSION = '0.019';
 
 # B::Deparse showed me how to get these values.
 use constant nan => sin 9**9**9;
@@ -1225,7 +1225,7 @@ sub eval {  # evalate (sub)expression
 		my($name,$params,$statements) = ref $$expr[2] ?
 			(undef, @$expr[2,3]) : @$expr[2..4];
 		my $func_scope = $name
-			? bless([@$scope, new JE::Object $_global], 
+			? bless([@$scope, my $obj=new JE::Object $_global], 
 				'JE::Scope')
 			: $scope;
 		(my $new_code_obj = bless {%$code}, 'JE::Code')
@@ -1237,8 +1237,9 @@ sub eval {  # evalate (sub)expression
 			function => $new_code_obj,
 		};
 		if($name) {
-			$func_scope->new_var($name => $f)->base->prop({
+			$obj->prop({
 				name    => $name,
+				value   => $f,
 				readonly => 1,
 				dontdel  => 1,
 			});
@@ -1267,7 +1268,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.018';
+our $VERSION = '0.019';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1279,7 +1280,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.018';
+our $VERSION = '0.019';
 
 sub list {
 	my $self = shift;

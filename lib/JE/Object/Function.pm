@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.018';
+our $VERSION = '0.019';
 
 
 use strict;
@@ -356,9 +356,11 @@ sub construct { # ~~~ we need to upgrade the args passed to construct, but
 		return $$guts{global}->upgrade($code->(@args));
 	}
 	else {
-		(my $obj = JE::Object->new($$guts{global}))
-		->prototype(
-			$self->prop('prototype')
+		my $proto = $self->prop('prototype');
+		my $obj = JE::Object->new($$guts{global},
+			defined $proto && !$proto->primitive ?
+				{ prototype => $proto }
+			: ()
 		);
 		my $return = $$guts{global}->upgrade(
 			$self->apply($obj, @_)
@@ -610,7 +612,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.018';
+our $VERSION = '0.019';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -687,7 +689,7 @@ sub delete {
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.018';
+our $VERSION = '0.019';
 
 our @ISA = 'JE::Object';
 

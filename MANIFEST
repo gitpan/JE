@@ -57,6 +57,7 @@ t/15.03-function-objects.t
 t/15.04-array-objects.t
 t/15.10-regexp-objects.t
 t/15.11-error-objects.t
+t/bind_class.t
 t/je-boolean.t
 t/je-code.t
 t/je-lvalue.t

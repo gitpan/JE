@@ -1,5 +1,11 @@
 Revision history for JE
 
+0.019  23 November, 2007
+          One bug fix:  Methods and subroutines passed to  bind_class
+          that are expected to return something were sometimes called
+          in  list  context.  Now  they  are  always  called  in  sca-
+          lar context.
+
 0.018   5 November, 2007
         - bind_class now binds hash- or array-like classes.
         - For methods, properties, and primitivisation, bind_class

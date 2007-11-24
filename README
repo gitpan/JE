@@ -1,4 +1,4 @@
-JE, version 0.018
+JE, version 0.019
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -27,35 +27,13 @@ the API could be improved or reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-I've improved the documentation a little. I have plans for some API
-changes (see JE::Types).
-
-JE's bind_class method now allows one to bind classes that have hash
-or array deref overloading, like this:
-
-    $je->bind_class( name => '...', hash => 1 );
-
-It also allows you to specify the return type of methods and proper-
-ties, like this:
-
-    $je->bind_class( name => '...',
-                     methods => [qw/ foo:String bar:Number /] );
-
-Properties registered with bind_class can now be inherited by sub-
-classes that are also registered with bind_class, as long as 'isa =>'
-is given a class name (not a prototype object).
-
-If you don't specify 'to_primitive'  et al.  when you call bind_class,
-JE will now check to see whether the object has string/number/boolean
-overloading, and will use that. If it doesn't, it continues to do the
-default JS thing (use the valueOf and toString methods).
+One bug fix: Methods and subroutines passed to bind_class that are
+expected to return something were sometimes called in list context.
+Now they are always called in scalar context.
 
 
 TO DO
 
-- Solve the problem of scalar leak warnings in perl 5.8.8 that occur
-  with certain JS syntax errors (perl 5.9.5 is fine) (I may have fixed
-  this; I can't reproduce it now)
 - Make the parser extensible/customisable
 - Finish the core object classes
 - Add more helpful error messages

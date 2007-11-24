@@ -21,6 +21,7 @@ WriteMakefile(
     ABSTRACT_FROM       => 'lib/JE.pm',
     PL_FILES            => {},
     PREREQ_PM           => \%prq,
-    dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
+    dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz',
+                             TAR => 'COPYFILE_DISABLE=1 tar' },
     clean               => { FILES => 'JE-*' },
 );
