@@ -748,6 +748,3 @@ is_eval('3;try{}catch(_){}', 3, 'try returning nothing')
 is_eval('3;try{throw 3}catch($){}', 3,'try-catch returning nothing')
 is_eval('3;attempt:try{throw 3}catch($){}finally{3;break attempt}', 3,
 	'finally returning nothing')
-
-
-

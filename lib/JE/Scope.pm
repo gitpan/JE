@@ -1,9 +1,9 @@
 package JE::Scope;
 
-our $VERSION = '0.019';
+our $VERSION = '0.020';
 
 use strict;
-use warnings;
+use warnings; no warnings 'utf8';
 
 require JE::LValue;
 

@@ -1,9 +1,9 @@
 package JE::Object::Proxy;
 
-our $VERSION = '0.019';
+our $VERSION = '0.020';
 
 use strict;
-use warnings;
+use warnings; no warnings 'utf8';
 
 # ~~~ delegate overloaded methods?
 
@@ -169,7 +169,7 @@ sub to_number {
 
 
 package JE::Object::Proxy::Array; # so this extra stuff doesn't slow down
-our $VERSION = '0.019';           # 'normal' usage
+our $VERSION = '0.020';           # 'normal' usage
 our @ISA = 'JE::Object::Proxy';
 
 sub prop {

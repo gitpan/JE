@@ -1,4 +1,4 @@
-JE, version 0.019
+JE, version 0.020
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -27,26 +27,40 @@ the API could be improved or reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-One bug fix: Methods and subroutines passed to bind_class that are
-expected to return something were sometimes called in list context.
-Now they are always called in scalar context.
+• Bug fixes (see the Changes file)
+• The Date object has been added, though it is far from complete. Only
+  the Date object itself  (which does not yet parse strings)  and  the
+  prototype’s getTime, getYear, getMonth, getDate and
+  to(GMT|UTC)String methods have been added.
+• The escape and unescape functions have been added.
+• String.prototype.substr has been added.
+• JE::String now has a value16 method that returns the internal UTF-16
+  version of the string.
+• JE::String also has now a ‘class’ method, that returns ‘String.’
+  This is intended primarily for internal use.
+• If  JE::Object::Function->new  is called with  no_proto => 1,  the
+  resulting function will now die when called as a constructor. This
+  fixes  an  inconsistency  with  the  spec.  for  all  such  built-
+  in functions.
+• A string passed to JE::Object’s prop method’s autoload parameter is
+  now evaluated in the package that called prop.
 
 
 TO DO
 
 - Make the parser extensible/customisable
-- Finish the core object classes
+- Finish the core object classes (Date and RegExp need to be finished)
 - Add more helpful error messages
 - Determine some logical way of dealing with locale settings (for
   String.prototype.localeCompare, et al.)
-- Write lots and lots and lots of tests, at the same time fixing all
-  the bugs they bring to light.
+- Finish writing tests
 - Make tainted JS code run safely
 - Deal with circular references
-- Autoload built-in JS properties
+- Finish making built-in JS properties load lazily
 - Optimise JS functions by turning them into Perl subs (but run bench-
   marks first to see whether this would actually speed things up) (I'm
   having second thoughts about this one)
+- Other optimisations
 
 
 INSTALLATION
@@ -69,11 +83,18 @@ Or you can use the following:
 
 DEPENDENCIES
 
-This module requires perl 5.8.3 or later.
+This module requires perl 5.8.0 or later and the following modules:
+• Scalar::Util version 1.08 or later
+• Exporter 5.57 or later
+• The TimeDate distribution (more precisely, Time::Zone, Date::Format
+  and Date::Parse)
 
-For perl versions earlier than 5.9.4 it requires Tie::RefHash::Weak.
+For perl versions earlier than 5.9.4 it also requires
+Tie::RefHash::Weak.
 
-Later it will probably require Unicode::Collate and Date::Parse.
+If you are using perl 5.8.5 or lower, you will need to upgrade Encode.
+
+Later it will probably require Unicode::Collate.
 
 
 DOCUMENTATION
@@ -96,7 +117,7 @@ his tests,
 to Andy Armstrong [ andy        hexten net ] and
    Yair Lenga     [ yair lenga  gmail com  ] for their suggestions,
 
-and to the CPAN Testers for their helpful bug reports.
+and to the CPAN Testers for their helpful reports.
 
 
 COPYRIGHT AND LICENCE

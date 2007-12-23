@@ -1,0 +1,474 @@
+package JE::Object::Date;
+
+our $VERSION = '0.020';
+
+
+use strict;
+use warnings; no warnings 'utf8';
+
+use JE::Code 'add_line_number';
+use Memoize;
+use POSIX 'floor';
+use Scalar::Util qw'blessed weaken looks_like_number';
+use Time::Local 'timegm_nocheck';
+use Time::Zone 'tz_local_offset';
+
+our @ISA = 'JE::Object';
+
+##require JE::Number;
+require JE::Object;
+require JE::Object::Error::TypeError;
+require JE::Object::Function;
+require JE::String;
+
+use constant EPOCH_OFFSET => timegm_nocheck(0,0,0,1,0,1970);
+
+=head1 NAME
+
+JE::Object::Date - JavaScript Date object class
+
+=head1 SYNOPSIS
+
+  use JE;
+
+  $j = new JE;
+
+  $js_date = new JE::Object::Date $j;
+
+  $js_date->value; # 1174886940.466
+  "$js_date";      # Sun Mar 25 22:29:00 2007 -0700
+
+=head1 DESCRIPTION
+
+This class implements JavaScript Date objects for JE.
+
+=head1 METHODS
+
+See L<JE::Types> for descriptions of most of the methods. Only what
+is specific to JE::Object::Date is explained here.
+
+=over
+
+=cut
+
+sub new {
+	my($class, $global) = (shift, shift);
+	my $self = $class->SUPER::new($global, {
+		prototype => $global->prop('Date')->prop('prototype')
+	});
+
+	if (@_ >= 2) {
+		my($year,$month,$date,$hours,$minutes,$seconds,$ms) = @_;
+		for($year,$month) {
+			defined()
+			? defined blessed $_ && can $_ 'to_number' &&
+			  ($_ = $_->to_number->value)
+			: ($_ = sin 9**9**9);
+		}
+		defined $date
+		? defined blessed $date && can $date 'to_number' &&
+		  ($date = $date->to_number->value)
+		: ($date = 1);
+		for($hours,$minutes,$seconds,$ms) {
+			no warnings 'uninitialized'; # undef --> 0
+			$_ = defined blessed $_ and can $_ 'to_number'
+			?	$_->to_number->value
+			:	0+$_;
+		}
+		$year >= 0 and int($year) <= 99 and $year += 1900;
+		$$$self{value} = _time_clip(_local2gm(_make_date(
+			_make_day($year,$month,$date),
+			_make_time($hours,$minutes,$seconds,$ms),
+		)));
+		
+	}
+	elsif (@_ and
+            defined blessed $_[0] ? $_[0]->isa('JE::String') :
+	   !looks_like_number $_[0]) {
+		die add_line_number "The Date constructor cannot yet parse date strings like $_[0]";
+	} elsif(@_) {
+		$$$self{value} = _time_clip (
+			defined $_[0]
+			? defined blessed $_[0]
+			  && $_[0]->can('to_number')
+				? $_[0]->to_number->value
+				: 0+$_[0]
+			: 0
+		);
+	} else {
+		$$$self{value} = (time - EPOCH_OFFSET) * 1000;
+	}
+	$self;
+}
+
+
+
+
+=item value
+
+Returns the date as the number of seconds since the epoch, with up to three
+decimal places.
+
+=cut
+
+sub value { $${$_[0]}{value}/1000 + EPOCH_OFFSET }
+
+
+
+=item class
+
+Returns the string 'Date'.
+
+=cut
+
+sub class { 'Date' }
+
+=back
+
+=head1 SEE ALSO
+
+L<JE>, L<JE::Types>, L<JE::Object>
+
+=cut
+
+
+# Most of these functions were copied directly from ECMA-262. Those were
+# not optimised for speed, but apparently either for clarity or obfuscation
+# --I’ve yet to ascertain which. These need to be optimized, and many (such
+# as _in_leap_year) completely rewritten.
+
+# ~~~ Are these useful enough to export them?
+sub MS_PER_DAY() { 86400000 }
+use constant LOCAL_TZA => do {
+ # ~~~ I need to test this by subtracting 6 mumps -- but how?
+	my $time = time;
+	1000 * (tz_local_offset($time) - (localtime $time)[8] * 3600)
+};
+
+# ~~~ I still need to figure which of these (if any) actually benefit from
+#     memoisation.
+
+sub _day($) { floor $_[0] / MS_PER_DAY }
+sub _time_within_day($) { $_[0] % MS_PER_DAY }
+sub _days_in_year($) {
+	365 + not $_[0] % 4 || !($_[0] % 100) && $_[0] % 400
+}
+sub _day_from_year($) {
+	my $y = shift;
+	365 * ($y - 1970) + floor(($y - 1969) / 4) -
+		floor(($y - 1901) / 100) + floor(($y - 1601) / 400)
+}
+sub _time_from_year($) { MS_PER_DAY * &_day_from_year }
+sub _div($$) {
+    my $mod = $_[0] % $_[1];
+    return +($_[0] - $mod) / $_[1], $mod;
+}
+sub _year_from_time($) { # ~~~ test this rigorously
+	# This line adjusts the  time  so  that  1/Mar/2000  is  0,  and
+	# 29/Feb/2400, the extra leap day in the quadricentennium, is the
+	# last day therein.  (So a qcm is  4 centuries  +  1  leap  day.)
+	my $time = $_[0] - 954547200_000;
+
+	(my $prec, $time) = _div $time, MS_PER_DAY * (400 * 365 + 97);
+	$prec *= 400; # number of years preceding the current quadri-
+	                  # centennium
+
+	# Divide by a century and we have centuries preceding the current
+	# century and the time within the century, unless $tmp == 4, ...
+	(my $tmp, $time) = _div $time, MS_PER_DAY * (100 * 365 + 24);
+	if($tmp == 4) { # ... in which case we already know the year, since
+	                # this is the last day of a qcm
+		return $prec + 400 + 2000;
+	}
+	$prec += $tmp * 100; # preceding the current century
+	
+	# A century is 24 quadrennia followed by four non-leap years, or,
+	# since we are starting with March,  25 quadrennia with one day 
+	# knocked off the end.  So no special casing is  needed  here.
+	($tmp, $time) = _div $time, MS_PER_DAY * (4 * 365 + 1);
+	$prec += $tmp * 4; # preceding the current quadrennium
+	
+	($tmp, $time) = _div $time, MS_PER_DAY * 365;
+	# Same special case we encountered when dividing qcms, since there
+	# is an extra day on the end.
+	if($tmp == 4) {
+		return $prec + 4 + 2000;
+	}
+	$prec + 2000 + $tmp +    # Add 1 if we are past Dec.:
+		($time >= (31+30+31+30+31+31+30+31+30+31) * MS_PER_DAY);
+		           # days from Mar 1 to Jan 1
+	# ~~~ to test: should that be >= or > ?
+}
+sub _in_leap_year($) { _days_in_year &_year_from_time == 366 }
+sub _day_within_year($) { &_day - _day_from_year &_year_from_time }
+sub _month_from_time($) {
+	my $dwy = &_day_within_year;
+	my $ily = &_in_leap_year;
+	return 0 if $dwy < 31;
+	my $counter = 1;
+	for (qw/59 90 120 151 181 212 243 273 304 334 365/) {
+		return $counter if $dwy < $_ + $ily;
+		++$counter;
+	}
+}
+sub _date_from_time($) {
+	my $dwy = &_day_within_year;
+	my $mft = &_month_from_time;
+	return $dwy+1 unless $mft;
+	return $dwy-30 if $mft == 1;
+	return $dwy - qw/0 0 58 89 119 150 180 211 242 272 303 333/[$mft]
+		- &_in_leap_year;
+}
+sub _week_day($) { (&_day + 4) % 7 }
+
+# $_dumdeedum[0] will contain the nearest non-leap-year that begins on Sun-
+# day, $_dumdeedum[1] the nearest beginning on Monday, etc.
+# @_dumdeedum[7..15] are for leap years.
+# For the life of me I can't think of a name for this array!
+my @_dumdeedum; 
+{
+	my $this_year = (gmtime(my $time = time))[5]+1900;
+	$_dumdeedum[_week_day($time) +
+		7 * _in_leap_year $this_year] = $this_year;
+
+	my $next_past = my $next_future = $this_year;
+	my $count = 1; my $index;
+	while ($count < 14) {
+		$index = (_day_from_year(--$next_past) + 4) % 7 +
+			7 * (_days_in_year($next_past)==366);
+		unless (defined $_dumdeedum[$index]) {
+			$_dumdeedum[$index] = $next_past;
+			++$count;
+		}
+		$index = (_day_from_year(++$next_future) + 4) % 7 +
+			7 * (_days_in_year($next_future)==366);
+		unless (defined $_dumdeedum[$index]) {
+			$_dumdeedum[$index] = $next_future;
+			++$count;
+		}
+	}
+# The spec requires that the same formula for daylight savings be used for
+# all years.  An ECMAScript implementation is not  allowed  to  take  into
+# account that the formula might have changed in the past. That's what the
+# @_dumdeedum array is for. The spec basically allows for fourteen differ-
+# ent possibilities for the dates for daylight savings time  change.  The
+# code above collects the 'nearest' fourteen years that are not equivalent
+# to each other.
+
+	sub _ds_time_adjust($) {
+		my $year = _year_from_time(my $time = $_[0]);
+		my $ddd_index = (_day_from_year($year) + 4) % 7 +
+				7 * _in_leap_year $year;
+		my $time_within_year = $time - _time_from_year $year;
+		(localtime $time_within_year +
+		    _time_from_year $_dumdeedum[$ddd_index])[8] * 3600_000
+	}
+}
+
+sub _gm2local($) {
+	$_[0] + LOCAL_TZA + &_ds_time_adjust
+}
+
+sub _local2gm($) {
+	$_[0] - LOCAL_TZA - &_ds_time_adjust - LOCAL_TZA
+}
+
+sub _hours_from_time($) { floor($_[0] / 3600_000) % 24 }
+sub _min_from_time($) { floor($_[0] / 60_000) % 60 }
+sub _sec_from_time($) { floor($_[0] / 1000) % 60 }
+sub _ms_from_time($) { $_[0] % 1000 }
+
+sub _make_time($$$$) {
+	my ($hour, $min, $sec, $ms) = @_;
+	for(\($hour, $min, $sec, $ms)) {
+		$$_ + 1 == $$_ or $$_ != $$_ and return sin 9**9**9;
+		$$_ = int $$_; # ~~~ Is this necessary? Is it sufficient?
+	}
+	$hour * 3600_000 +
+	$min  *   60_000 +
+	$sec  *     1000 +
+	$ms;
+}
+
+sub _make_day($$$) {
+	my ($year, $month, $date) = @_;
+	for(\($year, $month, $date)) {
+		$$_ + 1 == $$_ or $$_ != $$_ and return sin 9**9**9;
+		$$_ = int $$_; # ~~~ Is it sufficient?
+	}
+	$month <0 || $month > 11 and return sin 9**9**9; # ~~~ I sthis necessary?
+	(timegm_nocheck(0,0,0,$date,$month,$year) - EPOCH_OFFSET)
+		/
+	(MS_PER_DAY/1000)
+}
+
+sub _make_date($$) {
+	my ($day, $time) = @_;
+	for(\($day, $time)) {
+		$$_ + 1 == $$_ or $$_ != $$_ and return sin 9**9**9;
+	}
+	$day * MS_PER_DAY + $time
+}
+
+sub _time_clip($) {
+	my ($time) = @_;
+	$time + 1 == $time or $time != $time and return sin 9**9**9;
+	(my $ret = abs($time)) > 8.64e15 and return sin 9**9**9;
+	int $ret
+}
+
+sub _new_constructor {
+	my $global = shift;
+	my $f = JE::Object::Function->new({
+		name            => 'Date',
+		scope            => $global,
+		argnames         => [qw/year    month date hours minutes
+		                        seconds ms/],
+		function         => sub {
+			my $time = time;
+			return JE::String->new($global,
+				localtime($time) . ' ' .
+				time2str '%z',$time
+			);
+		},
+		function_args    => [],
+		constructor      => sub {
+			unshift @_, __PACKAGE__;
+			goto &new;
+		},
+		constructor_args => ['scope','args'],
+	});
+
+	0 and $f->prop({
+		name  => 'parse',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'parse',
+			argnames => ['string'],
+			no_proto => 1,
+			function_args => ['args'],
+			function => sub {
+				my $str = shift;
+				# ...
+			},
+		}),
+		dontenum => 1,
+	});
+
+	my $proto = bless $f->prop({
+		name    => 'prototype',
+		dontenum => 1,
+		readonly => 1,
+	}), __PACKAGE__;
+
+	$$$proto{value} = 0;
+
+	$proto->prop({
+		name  => 'getTime',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getTime',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+				$_[0]->class eq 'Date' or die
+					JE'Object'Error'TypeError->new(
+						$global,
+						"getTime cannot be called".
+						" on an object of type " .
+						shift->class
+					);
+				JE::Number->new(
+					$global,$${+shift}{value}
+				);
+			},
+		}),
+		dontenum => 1,
+	});
+
+	my @days = qw/ Sun Mon Tue Wed Thu Fri Sat Sun /;
+	my @mon  = qw/ Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec /;
+	my $tgs = $proto->prop({
+		name  => 'toGMTString',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'toGMTString',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  my $v = $${+shift}{value};
+			  JE::String->new( $global,
+			    sprintf "%s, %02d %s %04d %02d:%02d:%02d GMT",
+			      $days[_week_day $v], _date_from_time $v,
+			      $mon[_month_from_time $v],
+			      _year_from_time $v, _hours_from_time $v,
+			      _min_from_time $v, _sec_from_time $v
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+	$proto->prop(
+		{name => toUTCString => value => $tgs => dontenum => 1}
+	);
+
+	$proto->prop({
+		name  => 'getYear',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getYear',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _year_from_time(_gm2local $v) - 1900
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'getMonth',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getMonth',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _month_from_time(_gm2local $v) - 1900
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'getDate',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getDate',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _date_from_time(_gm2local $v) - 1900
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+	weaken $global;
+	$f;
+}
+
+
+
+return "a true value";

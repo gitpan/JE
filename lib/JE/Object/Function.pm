@@ -1,11 +1,10 @@
 package JE::Object::Function;
 
-our $VERSION = '0.019';
+our $VERSION = '0.020';
 
 
 use strict;
-use warnings;
-
+use warnings; no warnings 'utf8';
 use Carp                 ;
 use Scalar::Util 'blessed';
 
@@ -16,7 +15,8 @@ use overload
 our @ISA = 'JE::Object';
 
 require JE::Code         ;
-require JE::Object             ;
+require JE::Number          ;
+require JE::Object              ;
 require JE::Object::Error::TypeError;
 require JE::Parser                    ;
 require JE::Scope                      ;
@@ -234,7 +234,8 @@ sub new {
 	}
 
 	defined blessed $scope
-	    or croak "The 'scope' passed to JE::Object::Function->new ($scope) is not an object";
+	    or croak "The 'scope' passed to JE::Object::Function->new (" .
+		(defined $scope ? $scope : 'undef') . ") is not an object";
 
 	ref $scope ne 'JE::Scope' and $scope = bless [$scope], 'JE::Scope';
 	my $global = $$scope[0];
@@ -264,15 +265,15 @@ sub new {
 	: length $opts{function} ?
 		(
 		  $$guts{func_src} = $opts{function},
-		  parse $global $opts{function}
+		  parse $global $opts{function} or die
 		)
 	: ($$guts{func_src} = '');
 
 	$self->prop({
 		name     => 'length',
-		value    => $opts{length} ||
+		value    => JE::Number->new($global, $opts{length} ||
 		            (ref $opts{argnames} eq 'ARRAY'
-		                ? scalar @{$opts{argnames}} : 0),
+		                ? scalar @{$opts{argnames}} : 0)),
 		dontenum => 1,
 		dontdel  => 1, 
 		readonly => 1 # ~~~ check 15.3.5.1 for attrs
@@ -356,9 +357,18 @@ sub construct { # ~~~ we need to upgrade the args passed to construct, but
 		return $$guts{global}->upgrade($code->(@args));
 	}
 	else {
-		my $proto = $self->prop('prototype');
+		# If the prototype property does not exist, then, since it
+		# is undeletable, this can only be a function created with
+		# no_proto => 1, i.e., an internal functions that’s meant
+		# to die here.
+		defined(my $proto = $self->prop('prototype'))
+			or die JE::Object::Error::TypeError->new(
+				$$guts{global}, add_line_number
+				+($$guts{func_name} || 'The function').
+				    " cannot be called as a constructor");
+
 		my $obj = JE::Object->new($$guts{global},
-			defined $proto && !$proto->primitive ?
+			!$proto->primitive ?
 				{ prototype => $proto }
 			: ()
 		);
@@ -612,7 +622,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.019';
+our $VERSION = '0.020';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -689,7 +699,7 @@ sub delete {
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.019';
+our $VERSION = '0.020';
 
 our @ISA = 'JE::Object';
 

@@ -1,7 +1,8 @@
 #!perl -T
 
-use Test::More tests => 16;
+use Test::More tests => 18;
 use strict;
+no warnings 'utf8';
 
 #--------------------------------------------------------------------#
 # Test 1: See if the module loads
@@ -31,15 +32,18 @@ isa_ok( my $code = $j->parse( <<'--end--' ), 'JE::Code');
 
 --end--
 
+my $code2 = $j->parse(qq/ foo = '\x{dfff}' + "\x{d800}" /);
 
 #--------------------------------------------------------------------#
-# Test 3: Run code
+# Tests 3-4: Run code
 
 $code->execute;
 is($@, '', 'execute code');
+$code2->execute;
+is($@, '', 'execute code with surrogates in string literals');
 
 #--------------------------------------------------------------------#
-# Tests 4-15: Check side-effects
+# Tests 5-17: Check side-effects
 
 is( $j->prop('a'), 'Hello World', 'single quotes'  );
 is( $j->prop('b'), 'Hello World',  'double quotes'       );
@@ -51,12 +55,13 @@ is( $j->prop('g'), 'Hello \World\\',     'escaped wack'                 );
 is( $j->prop('h'), 'A',                   'single with \uHHHH escapes'   );
 is( $j->prop('i'), 'A',                   'double with \uHHHH escapes'   );
 is( $j->prop('j'), " \b\f\n\r\t\cKs",    'single with wack escapes'     );
-is( $j->prop('k'), " \b\f\n\r\t\cKs",  'double with wack escapes'     );
-is( $j->prop('JE'), "JE",           'name of existing Perl package' );
-       # Yes, that last one *was* failing at one time.
+is( $j->prop('k'), " \b\f\n\r\t\cKs",    'double with wack escapes'     );
+is( $j->prop('JE'), "JE",                'name of existing Perl package' );
+       # Yes, that one *was* failing at one time.
+is( $j->prop('foo'), "\x{dfff}\x{d800}" , 'surrogate in str literal'     );
 
 #--------------------------------------------------------------------#
-# Test 16: Make sure surrogates escape sequences in string literals do not
+# Test 18: Make sure surrogates escape sequences in string literals do not
 #          warn
 
 $SIG{__WARN__} = sub {

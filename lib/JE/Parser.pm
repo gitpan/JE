@@ -1,9 +1,10 @@
 package JE::Parser;
 
-our $VERSION = '0.019';
+our $VERSION = '0.020';
 
 use strict;  # :-(
 use warnings;# :-(
+no warnings 'utf8';
 
 use Scalar::Util 'blessed';
 
@@ -173,7 +174,6 @@ sub str() { # public
 	        "((?>(?:[^"\\] | \\.)*))"  )/xcgs or return;
 
 	no re 'taint'; # I need eval "qq-..." to work
-	no warnings 'utf8'; # for surrogates
 	(my $yarn = $+) =~ s/\\(?:
 		u([0-9a-fA-F]{4})
 		 |
@@ -221,7 +221,6 @@ our $ident = qr(
 
 sub unescape_ident($) {
 	my $ident = shift;
-	no warnings 'utf8';
 	$ident =~ s/\\u([0-9a-fA-F]{4})/chr hex $1/ge;
 	$ident = desurrogify $ident;
 	$ident =~ /^[\p{ID_Start}\$_]
@@ -1477,8 +1476,10 @@ sub _parse($$$;$$) { # Returns just the parse tree, not a JE::Code object.
 			   or expected 'statement or function declaration';
 		};
 		if(ref $@ ne '') {
+			defined blessed $@ and
+				$@->isa('JE::Object::Error')
+				? last : die;
 			ref $@ eq 'SCALAR' or die;
-			defined blessed $@ and die;
 			$@ = JE::Object::Error::SyntaxError->new(
 				$my_global,
 				add_line_number(
@@ -1541,8 +1542,7 @@ add extensions to the language, such as the 'catch-if' clause of a C<try>
 statement.
 
 As yet, C<delete_statement> works, but I've not finished
-designing the API for C<add_statement>. Currently, JavaScript's C<eval>
-function always uses the default parser, which will be fixed.
+designing the API for C<add_statement>.
 
 I might provide an API for extending expressions, if I can resolve the
 complications caused by the 'new' operator. If anyone else wants to have a

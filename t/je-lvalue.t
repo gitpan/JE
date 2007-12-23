@@ -1,9 +1,9 @@
 #!perl  -T
 
-use Test::More tests => 142;
+use Test::More tests => 143;
 use Scalar::Util 'refaddr';
 use strict;
-use warnings;
+use warnings; no warnings 'utf8';
 
 
 #--------------------------------------------------------------------#
@@ -304,6 +304,10 @@ is $je->prop('x'),         2, 'result of $lv_no_base->set';
 	is $lv->can('get'),  \&JE::LValue::get,  'can get';
 	ok !$lv->can('teemipyf.pyuh'), "can't teemipyf.pyuh";
 
+	eval {
+		$lv->can("\x{d800}")
+	};
+	is $@, '', '$lv->can("\x{d800}") doesn\'t die';
 }
 
 

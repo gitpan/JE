@@ -2,10 +2,11 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 194;
+use Test::More tests => 195;
 use strict;
 use Scalar::Util 'refaddr';
 use utf8;
+no warnings 'utf8';
 
 use JE;
 my $j = new JE;
@@ -1047,30 +1048,9 @@ is $j->{scalartest}->prop('prop5'), 10,
 is $j->{scalartest}->prop('prop6'), 10,
   'scalar context for static untyped method-name prop specified in hash';
 
+#--------------------------------------------------------------------#
+# Test 195: Make sure "\x{d800}" doesn’t make it die.
 
-
-__END__
-
-scalar context for typed method specified in array
-scalar context for typed method specified in hash
-scalar context for typed static method specified in array
-scalar context for typed static method specified in hash
-scalar context for typed method-name prop specified in array
-scalar context for untyped method-name prop specified in array
-scalar context for coderef prop specified in hash in hash
-scalar context for typed method-name prop specified in hash in hash
-scalar context for untyped method-name prop specified in hash in hash
-scalar context for coderef prop specified in hash
-scalar context for typed method-name prop specified in hash
-scalar context for untype method-name prop specified in hash
-scalar context for static typed method-name prop specified in array
-scalar context for static untyped method-name prop specified in array
-scalar context for static coderef prop specified in hash in hash
-scalar context for static typed method-name prop specified in hash in hash
-scalar context for static untyped method-name prop specified in hash in hash
-scalar context for static coderef prop specified in hash
-scalar context for static typed method-name prop specified in hash
-scalar context for static untype method-name prop specified in hash
-scalar context for hash-fetch
-scalar context for array-fetch
+eval { $j->bind_class(name => 'foo', methods => ["\x{d800}:"]) };
+ok !$@, 'bind_class doesn\'t croak on surrogates';
 

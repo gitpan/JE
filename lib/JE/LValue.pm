@@ -1,9 +1,9 @@
 package JE::LValue;
 
-our $VERSION = '0.019';
+our $VERSION = '0.020';
 
 use strict;
-use warnings;
+use warnings; no warnings 'utf8';
 
 use List::Util 'first';
 use Scalar::Util 'blessed';
@@ -14,8 +14,6 @@ require JE::Object::Error::ReferenceError;
 
 import JE::Code 'add_line_number';
 sub add_line_number;
-
-# ~~~ Make 'call' use ->method instead of ->apply???
 
 
 our $ovl_infix = join ' ', @overload::ops{qw[
@@ -74,7 +72,8 @@ sub new {
 		$id eq 'null' || $id eq 'undef' and die 
 			new JE::Object::Error::TypeError $obj->global,
 			add_line_number
-			    $obj->to_string->value . " has no properties";
+			    $obj->to_string->value . " has no properties"
+			    .", not even one named $prop";
 	}
 	bless [$obj, $prop], $class;
 }
@@ -101,6 +100,14 @@ sub set {
 sub call {
 	my $base_obj = (my $self = shift)->[0];
 	my $prop = $self->get; # dies here if $base_obj is not blessed
+	defined $prop or
+		die new JE::Object::Error::TypeError $base_obj->global,
+		add_line_number "The object's '" . $self->[1] .
+			"' property (undefined) is not a function";
+	$prop->can('apply') or
+		die new JE::Object::Error::TypeError $base_obj->global,
+		add_line_number "The object's '" . $self->[1] .
+			"' property ($prop) is not a function";
 	$prop->apply($base_obj, @_);
 }
 
@@ -116,13 +123,7 @@ our $AUTOLOAD;
 sub AUTOLOAD {
 	my($method) = $AUTOLOAD =~ /([^:]+)\z/;
 
-	 # deal with DESTROY, etc. # ~~~ Am I doing the right
-	                           #     thing?
-	if($method =~ /^[A-Z]+\z/) {
-		substr($method,0,0) = 'SUPER::';
-		local $@;
-		return eval { shift->$method(@_) };
-	}
+	return if $method eq 'DESTROY';
 
 	shift->get->$method(@_); # ~~~ Maybe I should use goto
 	                         #     to remove AUTOLOAD from
@@ -132,8 +133,7 @@ sub AUTOLOAD {
 sub can { # I think this returns a *canned* lvalue, as opposed to a fresh
           # one. :-)
 	
-	# deal with DESTROY, etc. # ~~~ Am I doing the right thing?
-	$_[1] =~ /^[A-Z]+\z/ and goto &UNIVERSAL::can;
+	!ref $_[0] || $_[1] eq 'DESTROY' and goto &UNIVERSAL::can;
 
 	&UNIVERSAL::can || shift->get->can(@_);
 }

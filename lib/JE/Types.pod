@@ -269,10 +269,7 @@ C<Object.prototype.hasOwnProperty>. (The C<in> operator checks to see
 whether
 the return value of C<prop> is defined.)
 
-B<To do:> Make C<hasOwnProperty> use the C<exists> method. Right
-now it uses C<prop> with hashref syntax.
-
-B<To do:> Implement this method in JE's classes.
+B<To do:> Implement this method in subclasses of JE::Object.
 
 =item is_readonly($property_name)
 

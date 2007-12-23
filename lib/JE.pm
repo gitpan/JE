@@ -9,12 +9,11 @@ package JE;
 
 use 5.008;
 use strict;
-use warnings;
+use warnings; no warnings 'utf8';
 
-our $VERSION = '0.019';
+our $VERSION = '0.020';
 
 use Carp 'croak';
-use Encode qw< decode_utf8 encode_utf8 FB_CROAK >;
 use JE::Code 'add_line_number';
 use JE::_FieldHash;
 use Scalar::Util 1.08 qw'blessed refaddr weaken';
@@ -36,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.019 (alpha release)
+Version 0.020 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -85,7 +84,8 @@ please e-mail the author.
 
 =head1 DESCRIPTION
 
-JE is a pure-Perl JavaScript engine. Here are some of its
+JE, short for JavaScript::Engine (imaginative, isn't it?), is a pure-Perl 
+JavaScript engine. Here are some of its
 strengths:
 
 =over 4
@@ -157,7 +157,7 @@ boolean or number, will behave exactly as in JavaScript. You can also use
 it as a hash, to access or modify its properties. (Array objects can be
 used as arrays, too.) To call one of its
 JS methods, you should use the C<method> method:
-C<$return_val->method('foo')>. See L<JE::Types> for more information.
+C<< $return_val->method('foo') >>. See L<JE::Types> for more information.
 
 =head2 Custom Global Objects
 
@@ -314,8 +314,12 @@ sub new {
 	$func_proto->prototype( $obj_proto );
 	$$$func_proto{global} = $self;
 
-	$obj_constr ->prop({name=>'length', value=>1});
-	$func_constr->prop({name=>'length', value=>1});
+	$obj_constr ->prop(
+	    {name=>'length',dontenum=>1,value=>new JE::Number $self,1}
+	);
+	$func_constr->prop(
+	    {name=>'length',dontenum=>1,value=>new JE::Number $self,1}
+	);
 	$func_proto->prop({name=>'length', value=>0});
 
 	JE::Object::_init_proto($obj_proto);
@@ -352,7 +356,13 @@ sub new {
 			JE::Object::Number::_new_constructor($global)',
 		dontenum => 1,
 	});
-	# ~~~ Date
+	$self->prop({
+		name => 'Date',
+		autoload =>
+			'require JE::Object::Date;
+			JE::Object::Date::_new_constructor($global)',
+		dontenum => 1,
+	});
 	$self->prop({
 		name => 'RegExp',
 		autoload => 
@@ -465,12 +475,17 @@ sub new {
 			no_proto => 1,
 			function_args => [qw< scope args >],
 			function => sub {
-				# ~~~ implement ToInt32 and
-				#     StrWhiteSpaceChar acc. to
-				#     spec
 				my($scope,$str,$radix) = @_;
+				$radix = defined $radix
+				 ? $radix->to_number->value
+				 : 0;
+				$radix == $radix and $radix != $radix+1
+					or $radix = 0;
 				
-				($str = $str->to_string) =~ s/^$s//;
+				if(defined $str) {
+					($str = $str->to_string)
+						=~ s/^$s//;
+				} else { $str = 'undefined' };
 				my $sign = $str =~ s/^([+-])//
 					? (-1,1)[$1 eq '+']
 					:  1;
@@ -482,26 +497,31 @@ sub new {
 				;
 				$radix == 16 and
 					$str =~ s/^0x//i;
-				
+
+				$radix < 2 || $radix > 36 and return
+					JE::Number->new($self,'nan');
+					
 				my @digits = (0..9, 'a'..'z')[0
 					..$radix-1];
 				my $digits = join '', @digits;
-				$str =~ /^([$digits]*)/;
+				$str =~ /^([$digits]*)/i;
 				$str = $1;
 
-				return 'nan' if !length $str;
-
-				if($radix == 10) {
-					return $sign * $str;
+				my $ret;
+				if(!length $str){
+					$ret= 'nan' ;
+				}
+				elsif($radix == 10) {
+					$ret= $sign * $str;
 				}
 				elsif($radix == 16) {
-					return $sign * hex $str;
+					$ret= $sign * hex $str;
 				}
 				elsif($radix == 8) {
-					return $sign * oct $str;
+					$ret= $sign * oct $str;
 				}
 				elsif($radix == 2) {
-					return $sign * eval
+					$ret= $sign * eval
 						"0b$str";
 				}
 				else { my($num, $place);
@@ -510,8 +530,10 @@ sub new {
 					    : ord(uc) - 55) 
 					    * $radix**$place++
 				}
-				return $num;
+				$ret= $num*$sign;
 				}
+
+				return JE::Number->new($self,$ret);
 			},
 		}),
 		dontenum  => 1,
@@ -525,14 +547,12 @@ sub new {
 			no_proto => 1,
 			function_args => [qw< scope args >],
 			function => sub {
-				# ~~~ implement StrWhiteSpaceChar and
-				#     StrDecimalLiteral acc. to
-				#     spec
 				my($scope,$str,$radix) = @_;
 				
+				defined $str or $str = '';
 				return JE::Number->new($self, $str =~
 					/^$s
-					  (?:
+					  (
 					    [+-]?
 					    (?:
 					      (?=[0-9]|\.[0-9]) [0-9]*
@@ -543,7 +563,7 @@ sub new {
 					    )
 					  )
 					/ox
-					?  $str : 'nan');
+					?  $1 : 'nan');
 			},
 		}),
 		dontenum  => 1,
@@ -557,7 +577,9 @@ sub new {
 			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
-				shift->to_number->id eq 'num:nan';
+				JE::Boolean->new($self,
+					!defined $_[0] ||
+					shift->to_number->id eq 'num:nan');
 			},
 		}),
 		dontenum  => 1,
@@ -571,11 +593,13 @@ sub new {
 			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
-				shift->to_number->value !~ /n/;
-				# NaN, Infinity, and -Infinity are the only
-				# values with the letter 'n' in them.
-				# ~~~ Does this work with Windoze and
-				#     ClosedBSD?
+				my $val = shift;
+				JE::Boolean->new($self,
+					defined $val &&
+					($val = $val->to_number->value)
+						== $val &&
+					$val + 1 != $val
+				);
 			},
 		}),
 		dontenum  => 1,
@@ -584,154 +608,58 @@ sub new {
 	# E 15.1.3
 	$self->prop({
 		name  => 'decodeURI',
-		value => JE::Object::Function->new({
-		    scope  => $self,
-		    name   => 'decodeURI',
-		    argnames => [qw/encodedURI/],
-		    no_proto => 1,
-		    function_args => ['args'],
-		    function => sub {
-		        my $str = shift->to_string->value;
-		        $str =~ /%(?![a-fA-F0-9]{2})(.{0,2})/
-		         and require JE::Object::Error::URIError,
-		             die
-		        	JE::Object::Error::URIError->new(
-		        		$self,
-		        		add_line_number
-						"Invalid escape %$1 in URI"
-		        	);
-
-		        $str = encode_utf8 $str;
-
-		        # [;/?:@&=+$,#] do not get unescaped
-		        $str =~ s/%(?!2[346bcf]|3[abdf]|40)
-		        	([0-9a-f]{2})/chr hex $1/iegx;
-		        
-		        local $@;
-		        eval {
-		        	$str = decode_utf8 $str, FB_CROAK;
-		        };
-		        if ($@) {
-		        	require JE'Object'Error'URIError;
-		        	die JE::Object::Error::URIError
-		        	->new(
-		        		$self,
-		        		add_line_number
-						'Malformed UTF-8 in URI'
-		        	);
-		        }
-		        
-		        $str =~
-		             /^[\0-\x{d7ff}\x{e000}-\x{10ffff}]*\z/
-		        or require JE::Object::Error::URIError,
-		           die JE::Object::Error::URIError->new(
-		        	$self, add_line_number
-					'Malformed UTF-8 in URI');
-
-		        JE::String->new($self, $str);
-		    },
-		}),
+		autoload => q{ require 'JE/escape.pl';
+		    JE::Object::Function->new({
+		        scope  => $global,
+		        name   => 'decodeURI',
+		        argnames => [qw/encodedURI/],
+		        no_proto => 1,
+		        function_args => ['scope','args'],
+		        function => \&_decodeURI,
+		    })
+		},
 		dontenum  => 1,
 	});
 	$self->prop({
 		name  => 'decodeURIComponent',
-		value => JE::Object::Function->new({
-			scope  => $self,
+		autoload => q{ require 'JE/escape.pl';
+		    JE::Object::Function->new({
+			scope  => $global,
 			name   => 'decodeURIComponent',
 			argnames => [qw/encodedURIComponent/],
 			no_proto => 1,
-			function_args => ['args'],
-			function => sub {
-				my $str = shift->to_string->value;
-				$str =~ /%(?![a-fA-F0-9]{2})(.{0,2})/
-				 and require JE::Object::Error::URIError,
-				     die
-					JE::Object::Error::URIError->new(
-						$self,
-						add_line_number
-						"Invalid escape %$1 in URI"
-					);
-
-				$str = encode_utf8 $str;
-
-				$str =~ s/%([0-9a-f]{2})/chr hex $1/iegx;
-				
-				local $@;
-				eval {
-					$str = decode_utf8 $str, FB_CROAK;
-				};
-				if ($@) {
-					require JE::Object::Error'URIError;
-					die JE::Object::Error::URIError
-					->new(
-						$self, add_line_number
-						'Malformed UTF-8 in URI'
-					);
-				}
-				
-				$str =~
-				     /^[\0-\x{d7ff}\x{e000}-\x{10ffff}]*\z/
-				or require JE::Object::Error::URIError,
-				   die JE::Object::Error::URIError->new(
-					$self, add_line_number
-					'Malformed UTF-8 in URI');
-
-				JE::String->new($self, $str);
-			},
-		}),
+			function_args => ['scope','args'],
+			function => \&_decodeURIComponent
+		    })
+		},
 		dontenum  => 1,
 	});
 	$self->prop({
 		name  => 'encodeURI',
-		value => JE::Object::Function->new({
-			scope  => $self,
+		autoload => q{ require 'JE/escape.pl';
+		    JE::Object::Function->new({
+			scope  => $global,
 			name   => 'encodeURI',
 			argnames => [qw/uri/],
 			no_proto => 1,
-			function_args => ['args'],
-			function => sub {
-				my $str = shift->to_string->value;
-				$str =~ /(\p{Cs})/ and
-require JE::Object::Error::URIError,
-die JE::Object::Error::URIError->new($self, 
-	add_line_number sprintf "Unpaired surrogate 0x%x in string", ord $1
-);
-
-				$str = encode_utf8 $str;
-
-				$str =~
-				s< ([^;/?:@&=+$,A-Za-z0-9\-_.!~*'()#]) >
-				 < sprintf '%%%02x', ord $1           >egx;
-				
-				JE::String->new($self, $str);
-			},
-		}),
+			function_args => ['scope','args'],
+			function => \&_encodeURI,
+		    })
+		},
 		dontenum  => 1,
 	});
 	$self->prop({
 		name  => 'encodeURIComponent',
-		value => JE::Object::Function->new({
-			scope  => $self,
+		autoload => q{ require 'JE/escape.pl';
+		    JE::Object::Function->new({
+			scope  => $global,
 			name   => 'encodeURIComponent',
 			argnames => [qw/uriComponent/],
 			no_proto => 1,
-			function_args => ['args'],
-			function => sub {
-				my $str = shift->to_string->value;
-				$str =~ /(\p{Cs})/ and
-require JE::Object::Error::URIError,
-die JE::Object::Error::URIError->new(
- $self, add_line_number sprintf "Unpaired surrogate 0x%x in string", ord $1
-);
-
-				$str = encode_utf8 $str;
-
-				$str =~ s< ([^A-Za-z0-9\-_.!~*'()])  >
-				         < sprintf '%%%02x', ord $1 >egx;
-				
-				JE::String->new($self, $str);
-			},
-		}),
+			function_args => ['scope','args'],
+			function => \&_encodeURIComponent,
+		    })
+		},
 		dontenum  => 1,
 	});
 
@@ -742,6 +670,40 @@ die JE::Object::Error::URIError->new(
 		             JE::Object::Math->new($global)',
 		dontenum  => 1,
 	});
+
+	# E B.2
+	$self->prop({
+		name  => 'escape',
+		autoload => q{
+			require 'JE/escape.pl';
+			JE::Object::Function->new({
+				scope  => $global,
+				name   => 'escape',
+				argnames => [qw/string/],
+				no_proto => 1,
+				function_args => ['scope','args'],
+				function => \&_escape,
+			})
+		},
+		dontenum  => 1,
+	});
+	$self->prop({
+		name  => 'unescape',
+		autoload => q{
+			require 'JE/escape.pl';
+			JE::Object::Function->new({
+				scope  => $global,
+				name   => 'unescape',
+				argnames => [qw/string/],
+				no_proto => 1,
+				function_args => ['scope','args'],
+				function => \&_unescape,
+			})
+		},
+		dontenum  => 1,
+	});
+
+
 
 	$self;
 }
@@ -832,7 +794,7 @@ For more ways to create functions, see L<JE::Object::Function>.
 
 This is actually a method of JE::Object, so you can use it on any object:
 
-  $j->prop('Math')->new_function(double => sub { 2 * shift });
+  $j->{Math}->new_function(double => sub { 2 * shift });
 
 
 =item $j->new_method($name, sub { ... })
@@ -1866,23 +1828,52 @@ sub new_parser {
 1;
 __END__
 
-=begin for me
-
 =head1 IMPLEMENTATION NOTES
 
-(to be written)
+Apart from items listed under L</BUGS>, below, JE follows the ECMAScript v3
+specification. There are cases in which ECMAScript leaves the precise
+semantics to the discretion of the implementation. Here is the behaviour in
+such cases:
 
-- decimal interpretation of parseInt's argument
-- numbers not necessarily acc. to spec
-- typo in 'for' and 'try' algorithms in spec
-- behaviour of 'break' and 'continue' outside of loops
-- behaviour of 'return' outside of subs
-- Array.prototype.toLocaleString uses ',' as the separator
-- reversed words can be used as idents when there is no ambiguity
+=over 4
 
-=end for me
+=item *
+
+The global C<parseInt> can interpret its first argument either as decimal 
+or octal if it begins with a 0 not followed by 'x', and the second argument
+is omitted. JE uses decimal.
+
+=item *
+
+Array.prototype.toLocaleString uses ',' as the separator.
+
+=back
+
+The spec. states that, whenever it (the spec.), say to throw a
+SyntaxError, an implementation may provide other behaviour instead. Here
+are some instances of this:
+
+=item *
+
+C<return> may be used outside a function. It's like an 'exit' statement,
+but it can return a value:
+
+  var thing = eval('return "foo"; this = statement(is,not) + executed')
+
+=item *
+
+C<break> and C<continue> may be used outside of loops. In which case they
+act like C<return> without arguments.
+
+=item *
+
+Reserved words can be used as identifiers when there is no ambiguity.
+
+=back
 
 =head1 BUGS
+
+To report bugs, please e-mail the author.
 
 =over 4
 
@@ -1893,7 +1884,7 @@ reason the Number.MIN_VALUE and Number.MAX_VALUE properties do not exist.
 
 =item *
 
-The RegExp class is incomplete. The Date class is still nonexistent.
+The RegExp and Date classes are incomplete.
 
 =item *
 
@@ -1934,18 +1925,62 @@ C<hasOwnProperty> does not work properly with arrays and arguments objects.
 
 =item *
 
-Currently some tests for bitshift operators fail on Windows. Patches are
+NaN and Infinity do not currently work properly on Windows. Patches are
 welcome.
+
+=item *
+
+In a try-catch-finally statement, if the 'try' block throws an error and
+the 'catch' and 'finally' blocks exit normally--i.e., not as a result of
+throw/return/continue/break--, the error
+originally thrown within the 'try' block is supposed to be propagated,
+according to the spec. JE does not re-throw the error. (This is consistent 
+with other ECMAScript
+implementations.)
+
+I believe there is a typo in the spec. in clause 12.14, in the 'I<TryStatement> : B<try> I<Block Catch Finally>' algorithm. Step 5 should
+probably read 'Let I<C> = Result(4),' rather than 'If Result(4).type is not B<normal>, Let I<C> = Result(4).'
+
+=item *
+
+If the expression between the two colons in a C<for(;;)> loop header is
+omitted, the expression before the first colon is not supposed to be
+evaluated. JE does evaluate it, regardless of whether the expression
+between the two colons is present.
+
+I think this is also a typo in the spec. In the first algorithm in clause
+12.6.3, step 1 should probably read 'If I<ExpressionNoIn> is not present,
+go to step 4,' rather than 'If the first I<Expression> is not present, go
+to step 4.'
+
+=item *
+
+Sometimes line numbers reported in error messages are off. E.g., in the
+following code--
+
+  foo(
+      (4))
+
+--, if C<foo> is not a function, line 2 will be reported instead of line 1.
 
 =back
 
 =head1 PREREQUISITES
 
-perl 5.8.3 or later (to be precise: Exporter 5.57 or later)
+perl 5.8.0 or higher
+
+Scalar::Util 1.10 or higher
+
+Exporter 5.57 or higher
 
 Tie::RefHash::Weak, for perl versions earlier than 5.9.4
 
-B<Note:> JE will probably end up with Date::Parse and Unicode::Collate in
+The TimeDate distribution (more precisely, Time::Zone and 
+Date::Parse)
+
+If you are using perl 5.8.5 or lower, you will need to upgrade Encode.
+
+B<Note:> JE will probably end up with Unicode::Collate in
 the list of dependencies.
 
 =head1 AUTHOR, COPYRIGHT & LICENSE
@@ -1966,7 +2001,7 @@ his tests,
 to Andy Armstrong S<< [ andyE<nbsp>E<nbsp>hexten net ] >> and Yair Lenga
 S<< [ yair lengaE<nbsp>E<nbsp>gmail com ] >> for their suggestions,
 
-and to the CPAN Testers for their helpful failure reports.
+and to the CPAN Testers for their helpful reports.
 
 =head1 SEE ALSO
 

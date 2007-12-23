@@ -2,11 +2,11 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 33;
+use Test::More tests => 34;
 use Scalar::Util 'refaddr';
 use strict;
 use utf8;
-
+no warnings 'utf8';
 
 #--------------------------------------------------------------------#
 # Tests 1-2: See if the modules load
@@ -90,7 +90,7 @@ ok($@->isa('JE::Object::Error::ReferenceError'),
 	'$@ contains the error when ->execute fails');
 
 #--------------------------------------------------------------------#
-# Tests 22-32: add_line_number
+# Tests 22-33: add_line_number
 #              abbreviated as 'aln' in test names
 
 {
@@ -124,10 +124,15 @@ ok($@->isa('JE::Object::Error::ReferenceError'),
 	$JE::Code::code = $nameless;
 	is add_line_number('a'), "a at line 9.\n",
 		'aln with two implicit args and no filename';
+
+	$code = $j->parse("'\x{d800}'");
+	eval { add_line_number 'a', $code };
+	is $@, '',
+	  'add_line_number can handle mangled source code with surrogates';
 }
 
 #--------------------------------------------------------------------#
-# Test 33: Bug in 0.016: line numbers were always counting from 1 for
+# Test 34: Bug in 0.016: line numbers were always counting from 1 for
 #                        parse errors (JE::Code was not passing the arg
 #                        to JE::Parser::_parse).
 

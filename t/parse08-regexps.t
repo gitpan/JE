@@ -1,8 +1,9 @@
 #!perl -T
 
-use Test::More tests => 35;
+use Test::More tests => 38;
 use strict;
 use utf8;
+no warnings 'utf8';
 
 #--------------------------------------------------------------------#
 # Test 1: See if the module loads
@@ -57,14 +58,18 @@ t35 = /[\D\W]/ // two negatives
 
 --end--
 
+my $code2 = $j->parse(qq| foo = /\x{dfff}\x{d800}/ |);
+
 #--------------------------------------------------------------------#
-# Test 3: Run code
+# Tests 3-4: Run code
 
 $code->execute;
 is($@, '', 'execute code');
+$code2->execute;
+is($@, '', 'execute code with surrogates in regexp literals');
 
 #--------------------------------------------------------------------#
-# Tests 4-35: Check to see whether regexps were parse and compiled properly
+# Tests 5-37: Check to see whether regexps were parse and compiled properly
 
 my $B = qr/^\(\?-\w+:\(\?/;  # begin re
 my $E = qr/\)\)/;            # end re
@@ -128,3 +133,17 @@ re_ok t32 => '(?:[^\cm\cj\x{2028}\x{2029}]|[a])',       '/[.a]/';
 re_ok t33 => '[a]',                                     '/[a]/';
 re_ok t34 => '[^\cm\cj\x{2028}\x{2029}]',               '/[.]/';
 re_ok t35 => '(?:[^0-9]|[^A-Za-z0-9_])',                '/[\D\W]/';
+
+re_ok foo => '\x{dfff}\x{d800}',                        'surrogates';
+
+#--------------------------------------------------------------------#
+# Test 38: Make sure invalid regexp modifiers do not warn
+
+$SIG{__WARN__} = sub {
+	warn @_;
+	fail 'invalid regexp modifiers should not warn';
+	exit;
+};
+
+is $j->eval(q| /uue/oeoentuUCGD |), undef,
+	'invalid regexp modifiers do not warn';

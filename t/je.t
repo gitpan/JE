@@ -7,7 +7,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 25;
+use Test::More tests => 28;
 use strict;
 use Scalar::Util 'refaddr';
 use utf8;
@@ -92,3 +92,34 @@ ok($_ === 'Just another ECMAScript hacker,\n')
 
 
 ---
+
+#--------------------------------------------------------------------#
+# Test 26: Make sure that surrogates that cause invalid syntax don’t
+#          make parse die.  (Fixed in 0.020 via a workaround  for a
+#          perl bug.)
+
+{ no warnings 'utf8';
+	my $code;
+	ok eval {
+		$code = $j->parse("\x{dfff}"); # should simply return undef
+		1;
+	} && !defined $code, 'surrogates cause syntax errors';
+}
+
+#--------------------------------------------------------------------#
+# Tests 27-8: Make sure that regexp syntax errors or invalid modifiers
+#          don’t make parse die. (Fixed in 0.020.)
+
+{
+	my $code;
+	ok eval {
+		$code = $j->parse("/a**/"); # should simply return undef
+		1;
+	} && !defined $code, 'regexp syntax errors don\'t make parse die';
+	ok eval {
+		$code = $j->parse("/a/PCYFGRC");
+		1;
+	} && !defined $code, 'invalid regexp modifiers don\'t slay parse';
+}
+
+

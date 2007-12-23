@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 36;
+use Test::More tests => 37;
 use strict;
 use utf8;
 
@@ -22,7 +22,7 @@ isa_ok( $j->new_function( diag => \&diag ), 'JE::Object::Function' );
 # 11.2.1 Property accessors
 # ===================================================
 
-## Tests 4-21 ##
+## Tests 4-22 ##
 
 my($lv, $base);
 
@@ -120,6 +120,9 @@ $base = $lv->base;
 ok $base->id eq $j->eval('String.prototype.toString')->id &&
    $lv->property eq 'Σὺν', 'callexpr . ident [ expr ]';
 
+is eval { $j->eval('[]["\ud800"]') }, 'undefined',
+ 'Arrays don\'t die on access to a property with a surrogate in its name.';
+
 
 # JS tests
 defined $j->eval( <<'--end--' ) or die;
@@ -128,7 +131,7 @@ defined $j->eval( <<'--end--' ) or die;
 // 11.2.2 new
 // ===================================================
 
-/* Tests 22-7 */
+/* Tests 23-8 */
 
 function keys(obj) {
 	var k = []
@@ -170,7 +173,7 @@ ok(error, '"new memberexpr()" when memberexpr does not return an object')
 // 11.2.3 Function calls
 // ===================================================
 
-/* Tests 28-33 */
+/* Tests 29-34 */
 
 ok(function(){
 	function x() { return this }
@@ -199,7 +202,7 @@ ok(typeof 0 .method() == 'object' && 0 .method().valueOf() === 0,
 // 11.2.4 Argument lists
 // ===================================================
 
-/* Tests 34-6 */
+/* Tests 35-7 */
 
 0,function(){
 	ok(Array.prototype.join.call(arguments, ',') === '',

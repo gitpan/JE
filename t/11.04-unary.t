@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 110;
+use Test::More tests => 111;
 use strict;
 use utf8;
 
@@ -25,7 +25,7 @@ defined $j->eval( <<'--end--' ) or die;
 // 11.4.1 delete
 // ===================================================
 
-/* Tests 4-14 */
+/* Tests 4-15 */
 
 s = String;
 
@@ -44,12 +44,13 @@ ok( delete  w        &&!('w' in this),  'delete a when a does not exist')
 ok( delete this.String &&!('String' in this), 'delete a.b')
 // Hey, wait a minute! I still need that! Better put it back:
 String = s
+ok( delete []["\ud800"], 'delete []["\\ud800"]')
 
 // ===================================================
 // 11.4.2 void
 // ===================================================
 
-/* Tests 15-16 */
+/* Tests 16-17 */
 
 ok(typeof void delete undefined == 'undefined', 'void expr')
 error = 0
@@ -62,7 +63,7 @@ ok(error, '"void identifier" when var does not exist')
 // 11.4.3 typeof
 // ===================================================
 
-/* Tests 17-32 */
+/* Tests 18-33 */
 
 ok(          typeof undefined === 'undefined', 'typeof undefined (lvalue)')
 ok((x = null, typeof x        === 'object'),   'typeof null (lvalue)')
@@ -86,7 +87,7 @@ ok(           typeof new Function       === 'function', 'typeof function')
 // 11.4.4 ++
 // ===================================================
 
-/* Tests 33-40 */
+/* Tests 34-41 */
 
 ok((x = void 0, isNaN(++x)  && isNaN(x)),  '++undefined')
 ok((x = null,   ++x === 1   && x === 1),   '++null')
@@ -102,7 +103,7 @@ ok((x = {},     isNaN(++x)  && isNaN(x)),  '++{}')
 // 11.4.5 --
 // ===================================================
 
-/* Tests 41-8 */
+/* Tests 42-9 */
 
 ok((x = void 0, isNaN(--x)         && isNaN(x)),         '--undefined')
 ok((x = null,         --x === -1   &&       x === -1),   '--null')
@@ -118,7 +119,7 @@ ok((x = {},     isNaN(--x)         && isNaN(x)),         '--{}')
 // 11.4.6 +
 // ===================================================
 
-/* Tests 49-56 */
+/* Tests 50-7 */
 
 ok(isNaN(+void 0),        '+undefined')
 ok(      +null   === 0,   '+null')
@@ -134,7 +135,7 @@ ok(isNaN(+{}),            '+{}')
 // 11.4.7 -
 // ===================================================
 
-/* Tests 57-65 */
+/* Tests 58-66 */
 
 ok(isNaN(-void 0),         '-undefined')
 ok(      -null   ===  0,   '-null')
@@ -151,7 +152,7 @@ ok(      - -5    ===  5,   '- -5')
 // 11.4.8 ~
 // ===================================================
 
-/* Tests 66-100 */
+/* Tests 67-101 */
 
 ok(~ undefined      === -1         , "~undefined"      )
 ok(~ null           === -1         , "~null"           )
@@ -194,7 +195,7 @@ ok(~-6442450946.74  === -2147483647, "~-6442450946.74" )
 // 11.4.9 !
 // ===================================================
 
-/* Tests 101-10 */
+/* Tests 102-11 */
 
 ok(!undefined === true , "!undefined")
 ok(!null      === true , "!null"     )

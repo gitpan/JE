@@ -1,5 +1,86 @@
 Revision history for JE
 
+0.020   23 December, 2007
+        Additions/changes:
+        • The Date object has been added, though it is far from com-
+          plete.  Only the Date object itself  (which does not  yet
+          parse strings)  and the prototype’s getTime,  getYear and
+          toGMTString methods have been added.
+        • The escape and unescape functions have been added.
+        • String.prototype.substr has been added.
+        • JE::String now has a value16 method that returns the inter-
+          nal UTF-16 version of the string.
+        • JE::String also has now a ‘class’ method, that returns
+         ‘String.’  This is intended primarily for internal  use.
+        • If JE::Object::Function->new is called with no_proto => 1,
+          the resulting function will now die when called as a  con-
+          structor. This fixes an inconsistency with the spec.  for 
+          all such built-in functions.
+        • A string passed to  JE::Object’s  prop  method’s  autoload
+          parameter is now evaluated in the package that called prop.
+        Fixed bugs:
+        • parseInt  has now been fixed to match the spec.  It used to
+          return a string,  unless the return value was  0.  It  also
+          used to behave unpredictably when  the  radix  was  out  of
+          range,  instead of simply returning NaN.  It used always to
+          return a positive number for radices other than  2,  8,  10
+          and 16. And it used not to allow capital letters in numbers.
+        • parseFloat used to produce 0 when fed a number  preceded  by
+         \v or non-ASCII whitespace. It would emit warnings, too. This
+          has been fixed.
+        • isNaN and isFinite have now been fixed, so they return a boo-
+          lean, rather than a string.
+        • String.prototype.lastIndexOf now works.
+        • The length property of functions is now a number,
+          not a string.
+        • parseInt, isNan, isFinite, decodeURI, decodeURIComponent,
+          encodeURI and encodeURIComponent used to die when called
+          with no args.
+        • isFinite’s logic was flawed and probably would have failed
+          on Windows and OpenBSD.  (I still don’t  know  whether  it
+          works, or whether it even failed before; it just has a far
+          greater chance of being portable now.)
+        • decodeURI and decodeURIComponent used to die when passed an
+          encoded UTF-8 sequence for a character outside the BMP.
+        • decodeURI(Component) used to die when the input contained an
+          unpaired surrogate.
+        • decodeURI(Component) used not to die when fed encoded utf8
+          characters > 0x10ffff.
+        • decodeURI(Component)  used simply to  return  undefined
+          (instead of throwing an error) if the URI contained mal-
+          formed UTF-8 escape sequences.
+        • decodeURI(Component) used to die if a UTF-8 escape sequence
+          resulted in a surrogate, contrary to the spec.
+        • encodeURI  used to encode any strings contained in  $,  and
+          would produce “Use of uninitialized value” warnings if that
+          var were undef, or return undefined if that variable caused
+          a regexp syntax error when it was interpolated.
+        • encodeURI used erroneously to encode $ and ,
+        • encodeURI and encodeURIComponent used to throw TypeErrors,
+          rather than URIErrors,  when  stumbling  across  unpaired
+          surrogates.
+        • encodeURI(Component) used to use lc hex digits
+          instead of uc.
+        • Many methods and functions throughout the code could  die
+          when passed data containing a surrogate. This is fixed by
+         ‘no warnings 'utf8'’, believe it or not.
+        • isPrototypeOf used always to return false.
+        • Object.length and  Function.length  used to be strings,  but
+          are now numbers. They also used to be enumerable, but are no
+          longer so.
+        • hasOwnProperty and propertyIsEnumerable used to emit warn-
+          ings and behave incorrectly when called with no arguments.
+        • hasOwnProperty used to semi-autovivify the property, such
+          that propertyIsEnumerable would find it,  as would for-in,
+          but the ‘in’ op would not.
+        • JE::LValue->can no longer dies instead of returning false
+          when called as a class method.
+        • The Function constructor now propagates syntax errors,
+          instead of creating functions that do nothing.
+        • JE’s parse and compile methods used to die when there was a
+          regexp syntax error within a regexp literal or an invalid
+          regexp modifier.
+
 0.019  23 November, 2007
           One bug fix:  Methods and subroutines passed to  bind_class
           that are expected to return something were sometimes called

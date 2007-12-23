@@ -1,17 +1,24 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         JE
-version:      0.019
-version_from: lib/JE.pm
-installdirs:  site
-requires:
-    Encode:                        0
+--- #YAML:1.0
+name:                JE
+version:             0.020
+abstract:            Pure-Perl ECMAScript (JavaScript) Engine
+license:             ~
+author:              
+    - Father Chrysostomos <sprout @ cpan . org>
+generated_by:        ExtUtils::MakeMaker version 6.42
+distribution_type:   module
+requires:     
+    Encode:                        2.02
     Exporter:                      5.57
     List::Util:                    0
     Memoize:                       0
-    Scalar::Util:                  1.08
+    Scalar::Util:                  1.1
+    strict:                        0
     Test::More:                    0
-    Tie::RefHash::Weak:            0
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.30
+    Time::Local:                   0
+    Time::Zone:                    0
+    utf8:                          0
+    warnings:                      0
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3

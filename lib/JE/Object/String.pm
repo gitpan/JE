@@ -1,10 +1,10 @@
 package JE::Object::String;
 
-our $VERSION = '0.019';
+our $VERSION = '0.020';
 
 
 use strict;
-use warnings;
+use warnings; no warnings 'utf8';
 
 sub surrogify($);
 sub desurrogify($);
@@ -304,15 +304,18 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this','args'],
 			function => sub {
+				my $string = shift->to_string->value16;
+				my $pos = length $string;
+				if(defined $_[1] && $_[1]->id ne 'undef') {
+					my $p = $_[1]->to_number->value;
+					$p < $pos and $pos = $p
+				}
 				JE::Number->new($global, rindex
-					shift->to_string->[0],
+					$string,
 					defined $_[0]
 						? $_[0]->to_string->[0]
 						: 'undefined',
-					defined $_[1]
-					    && $_[1]->id ne 'undef'
-						? $_[1]->to_number->value
-						: ()
+					$pos
 				);
 			},
 		}),
@@ -756,6 +759,42 @@ return  JE::String->new($global, substr $str, $start, $end-$start);
 
 				JE::String->new($global,
 					uc $str->to_string->value);
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'substr',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name   => 'substr',
+			argnames => [qw/start length/],
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => sub {
+my($str, $start, $len) = @_;
+
+$str = $str->to_string->value16;
+
+if (defined $start) {
+	$start = int $start->to_number->value;
+}
+else { $start =  0; }
+
+
+if (!defined $len || $len->id eq 'undef') {
+	$len = undef;
+}
+else {
+	$len = int $len->to_number->value;
+}
+
+return  JE::String->new($global, defined $len ?
+	(substr $str, $start, $len) :
+	(substr $str, $start)
+);
+
 			},
 		}),
 		dontenum => 1,

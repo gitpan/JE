@@ -1,6 +1,6 @@
 package JE::Object::Number;
 
-our $VERSION = '0.019';
+our $VERSION = '0.020';
 
 
 use strict;
@@ -59,12 +59,9 @@ sub new {
 		prototype => $global->prop('Number')->prop('prototype')
 	});
 
-	$$$self{value} = defined $val
-		? defined blessed $val
-		  && $val->can('to_number')
-			? $val->to_number->[0]
-			: 0+$val
-		: 0;
+	$$$self{value} = defined blessed $val && $val->can('to_number')
+		? $val->to_number->[0]
+		: JE::Number::_numify($val);
 	$self;
 }
 

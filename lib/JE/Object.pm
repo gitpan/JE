@@ -4,7 +4,7 @@ package JE::Object;
 sub evall { my $global = shift; my $r = eval 'local *_;' . shift;
             $@ and die; $r }
 
-our $VERSION = '0.019';
+our $VERSION = '0.020';
 
 use strict;
 use warnings;
@@ -294,8 +294,8 @@ storage space will cause autoloading, but that is subject to change.
 C<autoload> can be a string or a coderef. It will be called/evalled the
 first time the property is accessed (accessing it with a hash ref as
 described here does not count). If it is a string, it will be
-evaluated in a scope that has a variable name C<$global>, containing a 
-reference to the global object. The result will become the
+evaluated in the calling package, in a scope that has a variable named
+C<$global> that refers to the global object. The result will become the
 property's value. The value returned is not currently upgraded. The behaviour when a simple scalar or unblessed reference is returned is
 undefined. C<autoload> will be
 ignored completely if C<value> or C<fetch> is also given.
@@ -352,7 +352,7 @@ sub prop {
 		elsif(!exists $$opts{fetch} && exists $$opts{autoload}) {
 			my $auto = $$opts{autoload};
 			$$props{$name} = ref $auto eq 'CODE' ? $auto :
-				"$auto";
+				"package " . caller() . "; $auto";
 			return # ~~~ Figure out what this should
 			       #     return, if anything
 		}
@@ -591,7 +591,7 @@ sub to_object { $_[0] }
 sub global { ${+shift}->{global} }
 
 
-=begin to delete
+=begin to-delete
 
 =item I<Class>->new_constructor( $global, \&function, \&prototype_init );
 
@@ -680,7 +680,7 @@ B<To do:> Make this exportable, for classes that don't feel like inheriting
 from JE::Object (maybe this is not necessary, since one can say
 S<< C<<< __PACKAGE__->JE::Object::new_constructor >>> >>).
 
-=end to delete
+=end to-delete
 
 =cut
 
@@ -792,10 +792,10 @@ sub _init_proto {
 			function_args => ['this', 'args'],
 			function => sub {
 				JE::Boolean->new($global, 
-				    defined shift->prop({ name => shift })
+				    shift->exists(
+				        defined $_[0] ? $_[0] : 'undefined'
+				    )
 				);
-				# 'prop' with hashref syntax does not
-				# search the prototype chain
 			},
 			no_proto => 1,
 		}),
@@ -810,12 +810,12 @@ sub _init_proto {
 			argnames => ['V'],
 			function_args => ['this', 'args'],
 			function => sub {
-				my $obj = shift;
+				my ($self, $obj) = @_;
 
-				$obj->primitive and return 
+				!defined $obj || $obj->primitive and return 
 					JE::Boolean->new($global, 0);
 
-				my $id = $obj->id;
+				my $id = $self->id;
 				my $proto = $obj;
 
 				while (defined($proto = $proto->prototype))
@@ -838,9 +838,12 @@ sub _init_proto {
 			name     => 'propertyIsEnumerable',
 			argnames => ['V'],
 			function_args => ['this', 'args'],
-			function => sub {
+			function => sub {	
 				return JE::Boolean->new($global,
-					shift->is_enum(shift));
+				    shift->is_enum(
+				        defined $_[0] ? $_[0] : 'undefined'
+				    )
+				);
 			},
 			no_proto => 1,
 		}),
@@ -874,6 +877,7 @@ sub STORE    {
 			$$$self{global});
 	} elsif (ref $val eq 'ARRAY' && !blessed $val && !@$val && 
 	         svref_2object($val)->REFCNT == 2) {
+		require JE::Object::Array;
 		$val = tie @$val, 'JE::Object::Array',
 			JE::Object::Array->new($$$self{global});
 	}

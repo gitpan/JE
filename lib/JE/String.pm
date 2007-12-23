@@ -1,10 +1,10 @@
 package JE::String;
 
-our $VERSION = '0.019';
+our $VERSION = '0.020';
 
 
 use strict;
-use warnings;
+use warnings; no warnings 'utf8';
 
 use overload fallback => 1,
 	'""' => 'value',
@@ -87,9 +87,14 @@ sub value {
 	desurrogify($_[0][0]);
 }
 
+sub value16 {
+	$_[0][0]
+}
+
 
 sub typeof    { 'string' }
 sub id        { 'str:' . $_[0][0] }
+sub class     { 'String' }
 sub primitive { 1 }
 
 sub to_primitive { $_[0] }

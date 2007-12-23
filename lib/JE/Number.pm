@@ -1,9 +1,9 @@
 package JE::Number;
 
-our $VERSION = '0.019';
+our $VERSION = '0.020';
 
 use strict;
-use warnings;
+use warnings; no warnings 'utf8';
 
 
 # I need constants for inf and nan, because perl 5.8.6 interprets the
@@ -72,17 +72,22 @@ sub new    {
 			goto RETURN;
 	}
 
+	$val = _numify($val);
+
+	RETURN:
+	bless [$val, $global], $class;
+}
+
+sub _numify {
+	my $val = shift;
 	# For perls that don't interpret 0+"inf" as inf:
 	if ($val =~ /^\s*([+-]?)(inf|nan)/i) {
 		$val = lc $2 eq 'nan' ? nan :
 			$1 eq '-' ? -(inf) : inf;
 	}
 	else { $val+=0 }
-
-	RETURN:
-	bless [$val, $global], $class;
+	$val;
 }
-
 
 sub prop {
 	if(@_ > 2) { return $_[2] } # If there is a value, just return it

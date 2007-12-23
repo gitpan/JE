@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 280;
+use Test::More tests => 281;
 use strict;
 use utf8;
 
@@ -398,10 +398,11 @@ ok ( new TypeError instanceof Array === false,
 // 11.8.7 in
 // ===================================================
 
-/* Tests 278-80 */
+/* Tests 278-81 */
 
 tte('"oetnuh" in ""', 'a in b whe b is not an object')
 ok('eval' in this === true, '"in" when the property exists')
 ok('evil' in this === false, '"in" when the property does not exist')
+ok('\ud800' in [] === false, '"in" when the property contains a surrogate')
 
 --end--

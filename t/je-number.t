@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 95;
+use Test::More tests => 96;
 use Scalar::Util 'refaddr';
 use strict;
 use utf8;
@@ -17,7 +17,7 @@ BEGIN { use_ok 'JE' };
 
 
 #--------------------------------------------------------------------#
-# Tests 3-17: Object creation and the 'value' method
+# Tests 3-18: Object creation and the 'value' method
 
 our $j = JE->new,;
 isa_ok $j, 'JE', 'global object';
@@ -55,9 +55,16 @@ our $z = JE::Number->new($j,0);
 isa_ok $z, 'JE::Number', '0';
 cmp_ok $z->value, '==', 0, 'value == 0';
 
+eval {
+	local $SIG{__WARN__} = sub{}; # silence JE::Number’s warnings
+	no warnings 'utf8'; # compile-time surrogate warnings
+	new JE::Number $j, "\x{d800}";
+};
+is $@, '', 'new JE::Number with surrogate';
+
 
 #--------------------------------------------------------------------#
-# Tests 18-20: prop
+# Tests 19-21: prop
 
 {
 	my $a = $n->prop(thing => [1,2,3]);
@@ -70,7 +77,7 @@ cmp_ok $z->value, '==', 0, 'value == 0';
 
 
 #--------------------------------------------------------------------#
-# Tests 21-2: keys
+# Tests 22-3: keys
 
 is_deeply [$n->keys], [], '->keys returns empty list';
 $j->eval('Number.prototype.something')->set(undef);
@@ -78,12 +85,12 @@ is_deeply [$n->keys], ['something'], '->keys returns ("something")';
 
 
 #--------------------------------------------------------------------#
-# Test 23: delete
+# Test 24: delete
 
 is_deeply $n->delete('anything'), 1, 'delete returns true';
 
 #--------------------------------------------------------------------#
-# Tests 24-5: method
+# Tests 25-6: method
 
 {
 	isa_ok my $ret = $n->method('toString'), 'JE::String';
@@ -92,7 +99,7 @@ is_deeply $n->delete('anything'), 1, 'delete returns true';
 
 
 #--------------------------------------------------------------------#
-# Test 26: call
+# Test 27: call
 
 eval {
 	$n->call
@@ -101,7 +108,7 @@ like $@, qr/^Can't locate object method/, '$n->call dies';
 
 
 #--------------------------------------------------------------------#
-# Test 27: apply
+# Test 28: apply
 
 eval {
 	$n->apply
@@ -110,7 +117,7 @@ like $@, qr/^Can't locate object method/, 'apply dies';
 
 
 #--------------------------------------------------------------------#
-# Test 28: construct
+# Test 29: construct
 
 eval {
 	$n->construct
@@ -119,25 +126,25 @@ like $@, qr/^Can't locate object method/, 'construct dies';
 
 
 #--------------------------------------------------------------------#
-# Test 29: exists
+# Test 30: exists
 
 is_deeply $n->exists('anything'), !1, 'exists returns false';
 
 
 #--------------------------------------------------------------------#
-# Test 30: typeof
+# Test 31: typeof
 
 is_deeply typeof $n, 'number', 'typeof returns "number"';
 
 
 #--------------------------------------------------------------------#
-# Test 31: class
+# Test 32: class
 
 is_deeply $n->class, 'Number', 'class returns "Number"';
 
 
 #--------------------------------------------------------------------#
-# Tests 32-7: id
+# Tests 33-8: id
 
 # The exact return values are not documented, neither are these tests
 # normative.
@@ -152,19 +159,19 @@ is_deeply $z->id, 'num:0',  '$z->id';
 
 
 #--------------------------------------------------------------------#
-# Test 38: primitive like an ape
+# Test 39: primitive like an ape
 
 is_deeply $n->primitive, 1, 'primitive returns 1';
 
 
 #--------------------------------------------------------------------#
-# Test 39: to_primitive
+# Test 40: to_primitive
 
 cmp_ok refaddr $n->to_primitive, '==', refaddr $n, 'to_primitive';
 
 
 #--------------------------------------------------------------------#
-# Tests 40-51: to_boolean
+# Tests 41-52: to_boolean
 
 {
 	isa_ok my $thing = $inf->to_boolean, 'JE::Boolean';
@@ -183,7 +190,7 @@ cmp_ok refaddr $n->to_primitive, '==', refaddr $n, 'to_primitive';
 
 
 #--------------------------------------------------------------------#
-# Tests 52-63: to_string
+# Tests 53-64: to_string
 
 {
 	isa_ok my $thing = $inf->to_string, 'JE::String';
@@ -202,13 +209,13 @@ cmp_ok refaddr $n->to_primitive, '==', refaddr $n, 'to_primitive';
 
 
 #--------------------------------------------------------------------#
-# Test 64: to_number
+# Test 65: to_number
 
 cmp_ok refaddr $n-> to_number, '==', refaddr $n, 'to_number';
 
 
 #--------------------------------------------------------------------#
-# Tests 65-76: to_object
+# Tests 66-77: to_object
 
 {
 	isa_ok my $thing = $inf->to_object, 'JE::Object::Number';
@@ -229,13 +236,13 @@ cmp_ok refaddr $n-> to_number, '==', refaddr $n, 'to_number';
 
 
 #--------------------------------------------------------------------#
-# Test 77: global
+# Test 78: global
 
 is refaddr $j, refaddr global $n, '->global';
 
 
 #--------------------------------------------------------------------#
-# Tests 78-95: Overloading
+# Tests 79-96: Overloading
 
 is "$inf", 'Infinity', '"$inf"';
 is "$nan", 'NaN',      '"$nan"';

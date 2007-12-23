@@ -1,10 +1,10 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.019';
+our $VERSION = '0.020';
 
 
 use strict;
-use warnings;
+use warnings; no warnings 'utf8';
 
 use overload fallback => 1,
 	'""'=> 'value';
@@ -237,6 +237,7 @@ sub new {
 # Not necessary, until Perl adds a /𐐢 modifier (not likely)
 
 	# I'm not supporting /s (at least not for now)
+	no warnings 'syntax'; # so syntax errors in the eval are kept quiet
 	$flags =~ /^((?:(?!s)[\$_\p{ID_Continue}])*)\z/ and eval "qr//$1"
 		or die new JE::Object::Error::SyntaxError $global,
 		add_line_number "Invalid regexp modifiers: '$flags'";
@@ -353,6 +354,9 @@ sub new {
 		}
 		length $re and redo;
 	}
+
+	# This substitution is a workaround for a bug in perl.
+	$new_re =~ s/([\x{d800}-\x{dfff}])/sprintf '\\x{%x}', ord $1/ge;
 
 	$qr = eval { qr/(?$flags:$new_re)/ }
 		|| die JE::Object::Error::SyntaxError->new($global,
