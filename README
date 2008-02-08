@@ -1,4 +1,4 @@
-JE, version 0.020
+JE, version 0.021
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -17,8 +17,8 @@ Here are its main weakness:
     - It leaks memory (to be fixed).
 
 This is still an alpha release. The core objects are not yet complete,
-but as long as you don't need dates or methods of regular expressions,
-this module is actually usable.
+but as long as you don't need all the methods of  dates  and  regular
+expressions, this module is actually usable.
 
 If  you have the time and the interest,  please experiment  with  this
 module (or maybe even lend a hand :-). If you have any ideas as to how
@@ -27,23 +27,10 @@ the API could be improved or reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-• Bug fixes (see the Changes file)
-• The Date object has been added, though it is far from complete. Only
-  the Date object itself  (which does not yet parse strings)  and  the
-  prototype’s getTime, getYear, getMonth, getDate and
-  to(GMT|UTC)String methods have been added.
-• The escape and unescape functions have been added.
-• String.prototype.substr has been added.
-• JE::String now has a value16 method that returns the internal UTF-16
-  version of the string.
-• JE::String also has now a ‘class’ method, that returns ‘String.’
-  This is intended primarily for internal use.
-• If  JE::Object::Function->new  is called with  no_proto => 1,  the
-  resulting function will now die when called as a constructor. This
-  fixes  an  inconsistency  with  the  spec.  for  all  such  built-
-  in functions.
-• A string passed to JE::Object’s prop method’s autoload parameter is
-  now evaluated in the package that called prop.
+Due to a silly mistake made at the last minute,  the newly-added Date
+class did not work at all in the previous  release. Now this has been
+repaired,  the  Date  constructor can now parse strings,  and all the
+methods have been added, except the set* methods.
 
 
 TO DO

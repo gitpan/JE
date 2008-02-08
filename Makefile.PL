@@ -1,4 +1,9 @@
-BEGIN { require 5.008 };
+BEGIN {
+	require 5.006;
+	$] == 5.009005 and require 5.01;
+	# I’m getting tired of failure reports that are due to the buggi-
+	# ness of 5.9.5.
+}
 
 use strict;
 use ExtUtils::MakeMaker;
@@ -14,6 +19,7 @@ my %prq = (
          Exporter   => 5.57,
         'List::Util' => 0,
          Memoize      => 0,
+         re           => 0, # version???
         'Scalar::Util' => 1.1, # looks_like_number
          strict => 0,
         'Time::Local' => 0,

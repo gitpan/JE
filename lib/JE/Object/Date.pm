@@ -1,6 +1,6 @@
 package JE::Object::Date;
 
-our $VERSION = '0.020';
+our $VERSION = '0.021';
 
 
 use strict;
@@ -9,7 +9,7 @@ use warnings; no warnings 'utf8';
 use JE::Code 'add_line_number';
 use Memoize;
 use POSIX 'floor';
-use Scalar::Util qw'blessed weaken looks_like_number';
+use Scalar::Util 1.1 qw'blessed weaken looks_like_number';
 use Time::Local 'timegm_nocheck';
 use Time::Zone 'tz_local_offset';
 
@@ -44,12 +44,16 @@ This class implements JavaScript Date objects for JE.
 
 =head1 METHODS
 
-See L<JE::Types> for descriptions of most of the methods. Only what
+See L<JE::Types> and L<JE::Object> for descriptions of most of the methods. 
+Only what
 is specific to JE::Object::Date is explained here.
 
 =over
 
 =cut
+
+my %mon_numbers = qw/ Jan 0 Feb 1 Mar 2 Apr 3 May 4 Jun 5 Jul 6 Aug 7 Sep 8
+                      Oct 9 Nov 10 Dec 11 /;
 
 sub new {
 	my($class, $global) = (shift, shift);
@@ -61,17 +65,17 @@ sub new {
 		my($year,$month,$date,$hours,$minutes,$seconds,$ms) = @_;
 		for($year,$month) {
 			defined()
-			? defined blessed $_ && can $_ 'to_number' &&
+			? defined blessed $_ && $_->can('to_number') &&
 			  ($_ = $_->to_number->value)
 			: ($_ = sin 9**9**9);
 		}
 		defined $date
-		? defined blessed $date && can $date 'to_number' &&
+		? defined blessed $date && $date->can('to_number') &&
 		  ($date = $date->to_number->value)
 		: ($date = 1);
 		for($hours,$minutes,$seconds,$ms) {
 			no warnings 'uninitialized'; # undef --> 0
-			$_ = defined blessed $_ and can $_ 'to_number'
+			$_ = defined blessed $_ && (can $_ 'to_number')
 			?	$_->to_number->value
 			:	0+$_;
 		}
@@ -83,9 +87,11 @@ sub new {
 		
 	}
 	elsif (@_ and
-            defined blessed $_[0] ? $_[0]->isa('JE::String') :
-	   !looks_like_number $_[0]) {
-		die add_line_number "The Date constructor cannot yet parse date strings like $_[0]";
+            defined blessed $_[0]
+	    ? (my $prim = $_[0]->to_primitive)->isa('JE::String')
+	    : !looks_like_number $_[0]) {
+		$$$self{value} = _parse_date("$_[0]");
+			
 	} elsif(@_) {
 		$$$self{value} = _time_clip (
 			defined $_[0]
@@ -133,9 +139,9 @@ L<JE>, L<JE::Types>, L<JE::Object>
 
 
 # Most of these functions were copied directly from ECMA-262. Those were
-# not optimised for speed, but apparently either for clarity or obfuscation
-# --I’ve yet to ascertain which. These need to be optimized, and many (such
-# as _in_leap_year) completely rewritten.
+# not optimised for speed,  but apparently either for clarity or obfusca-
+# tion--I’ve yet to ascertain which. These need to be optimized, and many
+# completely rewritten.
 
 # ~~~ Are these useful enough to export them?
 sub MS_PER_DAY() { 86400000 }
@@ -147,6 +153,28 @@ use constant LOCAL_TZA => do {
 
 # ~~~ I still need to figure which of these (if any) actually benefit from
 #     memoisation.
+
+# This stuff was is based on code from Time::Local 1.11, with various
+# changes (particularly the removal of stuff we don’t need).
+my @MonthDays = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31);
+my %Cheat;
+sub _daygm {
+    $_[3] + ($Cheat{pack("ll",@_[4,5])} ||= do {
+        my $month = ($_[4] + 10) % 12;
+        my $year = $_[5] - int $month/10;
+        365*$year + int($year/4) - int($year/100) + int($year/400) +
+            int(($month*306 + 5)/10) - 719469
+    });
+}
+sub _timegm {
+	my ($sec,$min,$hour,$mday,$month,$year) = @_;
+
+	my $days = _daygm(undef, undef, undef, $mday, $month, $year);
+	my $xsec = $sec + 60*$min + 3600*$hour;
+
+	$xsec + 86400 * $days;	
+}
+
 
 sub _day($) { floor $_[0] / MS_PER_DAY }
 sub _time_within_day($) { $_[0] % MS_PER_DAY }
@@ -167,7 +195,7 @@ sub _year_from_time($) { # ~~~ test this rigorously
 	# This line adjusts the  time  so  that  1/Mar/2000  is  0,  and
 	# 29/Feb/2400, the extra leap day in the quadricentennium, is the
 	# last day therein.  (So a qcm is  4 centuries  +  1  leap  day.)
-	my $time = $_[0] - 954547200_000;
+	my $time = $_[0] - 951868800_000;
 
 	(my $prec, $time) = _div $time, MS_PER_DAY * (400 * 365 + 97);
 	$prec *= 400; # number of years preceding the current quadri-
@@ -225,11 +253,12 @@ sub _week_day($) { (&_day + 4) % 7 }
 # day, $_dumdeedum[1] the nearest beginning on Monday, etc.
 # @_dumdeedum[7..15] are for leap years.
 # For the life of me I can't think of a name for this array!
-my @_dumdeedum; 
 {
+	my @_dumdeedum; 
+
 	my $this_year = (gmtime(my $time = time))[5]+1900;
 	$_dumdeedum[_week_day($time) +
-		7 * _in_leap_year $this_year] = $this_year;
+		7 * (_days_in_year($this_year)==366) ] = $this_year;
 
 	my $next_past = my $next_future = $this_year;
 	my $count = 1; my $index;
@@ -258,10 +287,15 @@ my @_dumdeedum;
 	sub _ds_time_adjust($) {
 		my $year = _year_from_time(my $time = $_[0]);
 		my $ddd_index = (_day_from_year($year) + 4) % 7 +
-				7 * _in_leap_year $year;
+				7 * (_days_in_year $year == 366);
 		my $time_within_year = $time - _time_from_year $year;
-		(localtime $time_within_year +
-		    _time_from_year $_dumdeedum[$ddd_index])[8] * 3600_000
+		(localtime
+		  +(
+		    $time_within_year +
+		    _time_from_year $_dumdeedum[$ddd_index]
+		  ) / 1000 # convert to seconds
+		  + EPOCH_OFFSET
+		)[8] * 3600_000
 	}
 }
 
@@ -270,7 +304,7 @@ sub _gm2local($) {
 }
 
 sub _local2gm($) {
-	$_[0] - LOCAL_TZA - &_ds_time_adjust - LOCAL_TZA
+	$_[0] - LOCAL_TZA - _ds_time_adjust $_[0] - LOCAL_TZA
 }
 
 sub _hours_from_time($) { floor($_[0] / 3600_000) % 24 }
@@ -297,7 +331,7 @@ sub _make_day($$$) {
 		$$_ = int $$_; # ~~~ Is it sufficient?
 	}
 	$month <0 || $month > 11 and return sin 9**9**9; # ~~~ I sthis necessary?
-	(timegm_nocheck(0,0,0,$date,$month,$year) - EPOCH_OFFSET)
+	_timegm(0,0,0,$date,$month,$year)
 		/
 	(MS_PER_DAY/1000)
 }
@@ -313,11 +347,47 @@ sub _make_date($$) {
 sub _time_clip($) {
 	my ($time) = @_;
 	$time + 1 == $time or $time != $time and return sin 9**9**9;
-	(my $ret = abs($time)) > 8.64e15 and return sin 9**9**9;
-	int $ret
+	abs($time) > 8.64e15 and return sin 9**9**9;
+	int $time
 }
 
+sub _parse_date($) {
+	# If the date matches the format output by
+	# to(GMT|UTC|Locale)?String, we need to parse it ourselves.
+	# Otherwise, we pass it on to Date::Parse, and live with
+	# the latter’s limited range.
+	# ~~~ (Maybe I should change this to use
+	#      DateTime::Format::Natural.)
+
+	my $str = shift;
+	my $time;
+	if($str =~ /^(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)[ ]
+            (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[ ]
+            ([ \d]\d)\ (\d\d):(\d\d):(\d\d)\ (\d{4,})
+            [ ]([+-]\d{2})(\d{2})
+          \z/x) {
+		$time = _timegm($5,$4,$3,$2,$mon_numbers{$1},$6)
+			+ $7*-3600 + $8*60;
+	} elsif($str =~ /^(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat),[ ]
+            (\d\d?)[ ]
+            (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[ ]
+	    (\d{4,})\ (\d\d):(\d\d):(\d\d)\ GMT 
+          \z/x) {
+		$time = _timegm($6,$5,$4,$1,$mon_numbers{$2},$3);
+	} else {
+		require Date::Parse;
+		if(defined($time = Date::Parse::str2time($str))) {
+			$time -= EPOCH_OFFSET
+		}
+	}
+	defined $time ? $time * 1000 :
+		sin 9**9**9;
+}
+
+my @days = qw/ Sun Mon Tue Wed Thu Fri Sat Sun /;
+my @mon  = qw/ Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec /;
 sub _new_constructor {
+	() = (@days, @mon); # work-around for perl bug #16302
 	my $global = shift;
 	my $f = JE::Object::Function->new({
 		name            => 'Date',
@@ -326,9 +396,12 @@ sub _new_constructor {
 		                        seconds ms/],
 		function         => sub {
 			my $time = time;
+			my $offset = tz_local_offset($time);
+			my $sign = qw/- +/[$offset >= 0];
 			return JE::String->new($global,
-				localtime($time) . ' ' .
-				time2str '%z',$time
+				localtime($time) . " $sign" .
+				sprintf '%02d%02d',
+					_div abs($offset)/60, 60
 			);
 		},
 		function_args    => [],
@@ -339,7 +412,7 @@ sub _new_constructor {
 		constructor_args => ['scope','args'],
 	});
 
-	0 and $f->prop({
+	$f->prop({
 		name  => 'parse',
 		value => JE::Object::Function->new({
 			scope  => $global,
@@ -349,10 +422,44 @@ sub _new_constructor {
 			function_args => ['args'],
 			function => sub {
 				my $str = shift;
-				# ...
+				JE::Number->new($global, 
+				    defined $str
+				    ? _parse_date $str->to_string->value
+				    : 'nan'
+				);
 			},
 		}),
 		dontenum => 1,
+	});
+
+	$f->prop({
+	  name  => 'UTC',
+	  value => JE::Object::Function->new({
+	    scope  => $global,
+	    name    => 'UTC',
+	    argnames => [qw 'year month date hours minutes
+	                     seconds ms' ],
+	    no_proto => 1,
+	    function_args => ['args'],
+	    function => sub {
+	      my($year,$month,$date,$hours,$minutes,$seconds,$ms) = @_;
+	      for($year,$month) {
+	        $_ = defined() ? $_->to_number->value : sin 9**9**9
+	      }
+	      $date = defined $date ? $date->to_number->value : 1;
+	      for($hours,$minutes,$seconds,$ms) {
+	        $_ = defined $_ ? $_->to_number->value : 0;
+	      }
+	      $year >= 0 and int($year) <= 99 and $year += 1900;
+	      JE::Number->new($global, 
+	        _time_clip(_make_date(
+	          _make_day($year,$month,$date),
+	          _make_time($hours,$minutes,$seconds,$ms),
+	        ))
+	      );
+	    },
+	  }),
+	  dontenum => 1,
 	});
 
 	my $proto = bless $f->prop({
@@ -361,7 +468,132 @@ sub _new_constructor {
 		readonly => 1,
 	}), __PACKAGE__;
 
-	$$$proto{value} = 0;
+	$$$proto{value} = sin 9**9**9;
+
+	$proto->prop({
+		name  => 'toString',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'toString',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number
+			      "Arg to toString ($_[0]) is not a date")
+			    unless $_[0]->isa('JE::Object::Date');
+			  # Can’t use localtime because of its lim-
+			  # ited range.
+			  my $v = $${+shift}{value};
+			  my $time = _gm2local $v;
+			  my $offset = ($time - $v) / 60_000;
+			  my $sign = qw/- +/[$offset >= 0];
+			  return JE::String->new($global,
+			    sprintf
+			      '%s %s %2d %02d:%02d:%02d %04d %s%02d%02d',
+			      $days[_week_day $time],       # Mon
+			      $mon[_month_from_time $time], # Dec
+			      _date_from_time $time,        # 31
+			      _hours_from_time $time,       # 11:42:40
+			      _min_from_time $time,         
+			      _sec_from_time $time,
+			      _year_from_time $time,        # 2007
+			      $sign,                        # -
+			      _div abs($offset), 60         # 0800
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'toDateString',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'toString',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number
+			      "Arg to toDateString ($_[0]) is not a date")
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $time = _gm2local $${+shift}{value};
+			  return JE::String->new($global,
+			    sprintf
+			      '%s %s %d %04d',
+			      $days[_week_day $time],       # Mon
+			      $mon[_month_from_time $time], # Dec
+			      _date_from_time $time,        # 31
+			      _year_from_time $time,        # 2007
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'toTimeString',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'toTimeString',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number
+			      "Arg to toTimeString ($_[0]) is not a date")
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $time = _gm2local $${+shift}{value};
+			  return JE::String->new($global,
+			    sprintf
+			      '%02d:%02d:%02d',
+			      _hours_from_time $time, 
+			      _min_from_time $time,         
+			      _sec_from_time $time,
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	# ~~~ How exactly should I make these three behave? Should I leave
+	#     them as they is?
+	$proto->prop({
+		name => 'toLocaleString',
+		value => $proto->prop('toString'),
+		dontenum => 1,
+	});
+	$proto->prop({
+		name => 'toLocaleDateString',
+		value => $proto->prop('toDateString'),
+		dontenum => 1,
+	});
+	$proto->prop({
+		name => 'toLocaleTimeString',
+		value => $proto->prop('toTimeString'),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'valueOf',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'valueOf',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number
+			      "Arg to valueOf ($_[0]) is not a date")
+			    unless $_[0]->isa('JE::Object::Date');
+				JE::Number->new(
+					$global,$${+shift}{value}
+				);
+			},
+		}),
+		dontenum => 1,
+	});
 
 	$proto->prop({
 		name  => 'getTime',
@@ -386,8 +618,398 @@ sub _new_constructor {
 		dontenum => 1,
 	});
 
-	my @days = qw/ Sun Mon Tue Wed Thu Fri Sat Sun /;
-	my @mon  = qw/ Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec /;
+	$proto->prop({
+		name  => 'getYear',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getYear',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number
+			      "Arg to getYear ($_[0]) is not a date")
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _year_from_time(_gm2local $v) - 1900
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'getFullYear',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getFullYear',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number
+			      "Arg to getFullYear ($_[0]) is not a date")
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _year_from_time(_gm2local $v)
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'getUTCFullYear',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getUTCFullYear',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number "getUTCFullYear cannot be " .
+			     "called on an object of type " . $_[0]->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _year_from_time( $v)
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+
+	$proto->prop({
+		name  => 'getMonth',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getMonth',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number
+			      "Arg to getMonth ($_[0]) is not a date")
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _month_from_time(_gm2local $v)
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'getUTCMonth',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getUTCMonth',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number "getUTCMonth cannot be called".
+			      " on an object of type " . $_[0]->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _month_from_time($v)
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'getDate',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getDate',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number
+			    "getDate cannot be called on an object of type"
+			    . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _date_from_time(_gm2local $v)
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'getUTCDate',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getUTCDate',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number "getUTCDate cannot be called ".
+			    "on an object of type"
+			    . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _date_from_time($v)
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'getDay',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getDay',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number
+			    "getDay cannot be called on an object of type"
+			    . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _week_day(_gm2local $v)
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'getUTCDay',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getUTCDay',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number "getUTCDay cannot be called ".
+			    "on an object of type"
+			    . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _week_day($v)
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'getHours',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getHours',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number
+			   "getHours cannot be called on an object of type"
+			    . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _hours_from_time(_gm2local $v)
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'getUTCHours',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getUTCHours',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number "getUTCHours cannot be called".
+			    " on an object of type"
+			    . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _hours_from_time($v)
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'getMinutes',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getMinutes',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number "getMinutes cannot be called" .
+			      " on an object of type"
+			      . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _min_from_time(_gm2local $v)
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'getUTCMinutes',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getUTCMinutes',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number "getUTCMinutes cannot be " .
+			      "called on an object of type"
+			      . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _min_from_time($v)
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'getSeconds',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getSeconds',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number "getSeconds cannot be called" .
+			      " on an object of type"
+			      . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _sec_from_time(_gm2local $v)
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name => 'getUTCSeconds',
+		value => $proto->prop('getSeconds'),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'getMilliseconds',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getMilliseconds',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number "getMilliseconds cannot be" .
+			      " called on an object of type"
+			      . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    _ms_from_time(_gm2local $v)
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name => 'getUTCMilliseconds',
+		value => $proto->prop('getMilliseconds'),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'getTimezoneOffset',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'getTimezoneOffset',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number "getTimezoneOffset cannot be" .
+			      " called on an object of type"
+			      . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $v = $${+shift}{value};
+			  $v == $v or return JE::Number->new($global,$v);
+			  JE::Number->new( $global,
+			    ($v - _gm2local $v) / 60_000
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	# ~~~ setTime
+	# ~~~ setMilliseconds
+	# ~~~ setUTCMilliseconds
+	# ~~~ setSeconds
+	# ~~~ setUTCSeconds
+	# ~~~ setMinutes
+	# ~~~ setUTCMinutes
+	# ~~~ setHours
+	# ~~~ setUTCHours
+	# ~~~ setDate
+	# ~~~ setUTCDate
+	# ~~~ setMonth
+	# ~~~ setUTCMonth
+	# ~~~ setFullYear
+	# ~~~ setUTCFullYear
+
 	my $tgs = $proto->prop({
 		name  => 'toGMTString',
 		value => JE::Object::Function->new({
@@ -396,6 +1018,11 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number "toGMTString cannot be" .
+			      " called on an object of type"
+			      . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
 			  my $v = $${+shift}{value};
 			  JE::String->new( $global,
 			    sprintf "%s, %02d %s %04d %02d:%02d:%02d GMT",
@@ -412,59 +1039,6 @@ sub _new_constructor {
 		{name => toUTCString => value => $tgs => dontenum => 1}
 	);
 
-	$proto->prop({
-		name  => 'getYear',
-		value => JE::Object::Function->new({
-			scope  => $global,
-			name    => 'getYear',
-			no_proto => 1,
-			function_args => ['this'],
-			function => sub {
-			  my $v = $${+shift}{value};
-			  $v == $v or return JE::Number->new($global,$v);
-			  JE::Number->new( $global,
-			    _year_from_time(_gm2local $v) - 1900
-			  );
-			},
-		}),
-		dontenum => 1,
-	});
-
-	$proto->prop({
-		name  => 'getMonth',
-		value => JE::Object::Function->new({
-			scope  => $global,
-			name    => 'getMonth',
-			no_proto => 1,
-			function_args => ['this'],
-			function => sub {
-			  my $v = $${+shift}{value};
-			  $v == $v or return JE::Number->new($global,$v);
-			  JE::Number->new( $global,
-			    _month_from_time(_gm2local $v) - 1900
-			  );
-			},
-		}),
-		dontenum => 1,
-	});
-
-	$proto->prop({
-		name  => 'getDate',
-		value => JE::Object::Function->new({
-			scope  => $global,
-			name    => 'getDate',
-			no_proto => 1,
-			function_args => ['this'],
-			function => sub {
-			  my $v = $${+shift}{value};
-			  $v == $v or return JE::Number->new($global,$v);
-			  JE::Number->new( $global,
-			    _date_from_time(_gm2local $v) - 1900
-			  );
-			},
-		}),
-		dontenum => 1,
-	});
 	weaken $global;
 	$f;
 }

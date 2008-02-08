@@ -1,5 +1,12 @@
 Revision history for JE
 
+0.021   8 February, 2008
+        Due to a silly mistake made at the last  minute,  the  newly-
+        added Date class did not work at all in the previous release.
+        Now this has been repaired,  the  Date  constructor can  now
+        parse strings, Date.parse and Date.UTC have been added,  and
+        all the methods have been added, except for the set* methods.
+
 0.020   23 December, 2007
         Additions/changes:
         • The Date object has been added, though it is far from com-

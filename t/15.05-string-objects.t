@@ -6,12 +6,64 @@ function is_nan(n){ // checks to see whether the number is *really* NaN
 	return n!=n
 }
 
+// Every call to this runs 10 tests + the number of no-arg tests
+function method_boilerplate_tests(proto,meth,length,noargobjs,noargresults)
+{
+	is(typeof proto[meth], 'function', 'typeof ' + meth);
+	is(Object.prototype.toString.apply(proto[meth]),
+		'[object Function]',
+		'class of ' + meth)
+	ok(proto[meth].constructor === Function, meth + '\'s prototype')
+	var $catched = false;
+	try{ new proto[meth] } catch(e) { $catched = e }
+	ok($catched, 'new ' + meth + ' fails')
+	ok(!('prototype' in proto[meth]), meth +
+		' has no prototype property')
+	ok(proto[meth].length === length, meth + '.length')
+	ok(! proto[meth].propertyIsEnumerable('length'),
+		meth + '.length is not enumerable')
+	ok(!delete proto[meth].length, meth + '.length cannot be deleted')
+	is((proto[meth].length++, proto[meth].length), length,
+		meth + '.length is read-only')
+	ok(!Object.prototype.propertyIsEnumerable(meth),
+		meth + ' is not enumerable')
+	for (var i = 0; i < noargobjs.length; ++i)
+		ok(noargobjs[i][meth]() === noargresults[i],
+			noargobjs[i] + '.' + meth + ' without args')
+}
+
+
 // ===================================================
 // 15.5.1: String as a function
-// ?? tests
+// 7 tests
 // ===================================================
 
-// to be written
+ok(String() === '', 'String()')
+ok(String(void 0) === 'undefined', 'String(undefined)')
+ok(String(876) === '876', 'String(number)')
+ok(String(true) === 'true', 'String(boolean)')
+ok(String('ffo') === 'ffo', 'String(str)')
+ok(String(null) === 'null', 'String(null)')
+ok(String({}) === '[object Object]', 'String(object)')
+
+
+// ===================================================
+// 15.5.2: new String
+// 9 tests
+// ===================================================
+
+ok(new String().constructor === String, 'prototype of new String')
+is(Object.prototype.toString.apply(new String()), '[object String]',
+	'class of new String')
+ok(new String().valueOf() === '', 'value of new String')
+ok(new String('foo').valueOf() === 'foo', 'value of new String(foo)')
+
+ok(new String(void 0).valueOf() === 'undefined', 'new String(undefined)')
+ok(new String(876).valueOf() === '876', 'new String(number)')
+ok(new String(true).valueOf() === 'true', 'new String(boolean)')
+ok(new String(null).valueOf() === 'null', 'new String(null)')
+ok(new String({}).valueOf() === '[object Object]', 'new String(object)')
+
 
 // ...
 
