@@ -1,13 +1,17 @@
 package JE::Code;
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 use strict;
 use warnings; no warnings 'utf8';
 
 #use Data::Dumper;
 use Exporter 5.57 'import';
+use Scalar::Util 'tainted';
+
 our @EXPORT_OK = 'add_line_number';
+
+use constant T => ${AINT}; # perl doesn’t optimise if(${AINT}) away
 
 require JE::Object::Error::ReferenceError;
 require JE::Object::Error::SyntaxError;
@@ -64,6 +68,8 @@ sub execute {
 	my $scope = shift || bless [$global], 'JE::Scope';
 
 	my $code_type = shift || 0;
+
+	local our $taint = substr(${$$code{source}},0,0) if T;
 
 	my $rv;
 	eval {
@@ -126,6 +132,9 @@ sub execute {
 		         # the call stack (fixed in 5.9.5).
 	};
 
+	T and defined $rv and tainted $taint and $rv->can('taint')
+		and $rv = taint $rv $taint;
+
 	if(ref $@ eq '' and $@ eq '') {
 		!defined $rv and $rv = $scope->undefined;
 	}
@@ -144,6 +153,7 @@ our $this;
 our $scope;
 our $parser;
 our $pos; # position within the source code; used to calculate a line no.
+our $taint;
 
 sub add_line_number {
 	my $msg = shift;
@@ -169,7 +179,7 @@ sub add_line_number {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 use subs qw'_create_vars _eval_term';
 use List::Util 'first';
@@ -605,7 +615,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 # B::Deparse showed me how to get these values.
 use constant nan => sin 9**9**9;
@@ -613,11 +623,14 @@ use constant inf => 9**9**9;
 
 use subs qw'_eval_term';
 use POSIX 'fmod';
+use Scalar::Util 'tainted';
 
 import JE::Code 'add_line_number';
 sub add_line_number;
 
 our($_global);
+
+BEGIN{*T = *JE::Code::T;}
 
 
 #----------for reference------------#
@@ -999,7 +1012,7 @@ our($_global);
 	};
 }
 
-=begin for me
+=begin for-me
 
 Types of expressions:
 
@@ -1025,7 +1038,7 @@ Types of expressions:
 
 'function' ident? params statements
 
-=end for me
+=end for-me
 
 =cut
 
@@ -1097,6 +1110,8 @@ sub eval {  # evalate (sub)expression
 					$terms[-1], $val
 				);
 			$val = $val->get if ref $val eq 'JE::LValue'; 
+			T and tainted $taint and $val->can('taint')
+				and $val = taint $val $taint;
 			eval { (pop @terms)->set($val) };
 			$@ and die new JE::Object::Error::ReferenceError
 				$_global, add_line_number "Cannot assign to a non-lvalue";
@@ -1160,8 +1175,14 @@ sub eval {  # evalate (sub)expression
 		return $ret;
 	}
 	if ($type eq 'new') {
-		return _eval_term($$expr[2])
-		       ->construct( @$expr == 4 ? $$expr[-1]->list : () );
+		return _eval_term($$expr[2])->construct(
+			@$expr == 4
+			? T && tainted $taint
+				? map $_->can('taint') ?taint $_ $taint:$_,
+					$$expr[-1]->list
+				: $$expr[-1]->list
+			: ()
+		);
 	}
 	if($type eq 'member/call') {
 		my $obj = _eval_term $$expr[2];
@@ -1172,7 +1193,14 @@ sub eval {  # evalate (sub)expression
 				$obj = new JE::LValue $obj, $_->str_val;
 			}
 			else {
-				$obj = $obj->call($_->list);
+				$obj = $obj->call(
+					T && tainted $taint
+					? map $_->can('taint')
+						? taint $_ $taint
+						: $_,
+					  $_->list
+					: $_->list
+				);
 				# If $obj is an lvalue,
 				# JE::LValue::call will make
 				# the lvalue's base object the 'this'
@@ -1268,7 +1296,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1280,7 +1308,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 sub list {
 	my $self = shift;

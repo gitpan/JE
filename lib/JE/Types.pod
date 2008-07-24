@@ -361,6 +361,17 @@ of JE::Object.
 
 Returns a reference to the global object.
 
+=item taint($taint_brush)
+
+This will only be called if it is implemented. Of JE's types, only 
+primitive strings and numbers implement this.
+
+C<$taint_brush> will always be a tainted empty string. If the
+object's internal value is not tainted, this method should return a tainted 
+clone 
+of
+the object. Otherwise, it should return the object itself.
+
 =back
 
 =head1 SEE ALSO

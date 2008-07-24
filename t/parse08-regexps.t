@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 38;
+use Test::More tests => 41;
 use strict;
 use utf8;
 no warnings 'utf8';
@@ -48,13 +48,21 @@ t26 = /\s[\s]/
 t27 = /\S[\S]/
 t28 = /\w[\w]/
 t29 = /\W[\W]/
-t30 = /[]/
-t31 = /[^]/
+t31 = /[^]/      
 
 t32 = /[.a]/   // negative and positive char classes together
 t33 = /[a]/    // positive only
 t34 = /[.]/    // negative only
 t35 = /[\D\W]/ // two negatives
+
+// Combination of literal unescaped ] in a char class with char
+// class escapes
+t30 = /[]]/
+t36 = /[]\d]/
+t37 = /[][]/
+t38 = /[]\D]/
+
+
 
 --end--
 
@@ -69,10 +77,11 @@ $code2->execute;
 is($@, '', 'execute code with surrogates in regexp literals');
 
 #--------------------------------------------------------------------#
-# Tests 5-37: Check to see whether regexps were parse and compiled properly
+# Tests 5-40: Check to see whether regexps were parse and compiled properly
 
 my $B = qr/^\(\?-\w+:\(\?/;  # begin re
 my $E = qr/\)\)/;            # end re
+my $C = qr/\(\?-\w+:\(\?\{\E[^}]+}\)\)/; # embedded code
 
 # Each regexp is embedded within (?-xism:(?<flags>: ... ))
 # $B matches everything up to <flags>. 'xism' may be expanded in future
@@ -81,30 +90,30 @@ my $E = qr/\)\)/;            # end re
 
 my $tmp;
 
-like( $j->prop('t4'), qr/$B  i: a  $E/x, '/i' );
+like( $j->prop('t4'), qr/$B  i: $C a  $E/x, '/i' );
 
 $tmp = $j->prop('t5');
-ok( $tmp =~ /$B  : a  $E/x && $tmp->prop('global'), '/g' );
+ok( $tmp =~ /$B  : $C a  $E/x && $tmp->prop('global'), '/g' );
 
-like( $j->prop('t6'), qr/$B  m: a  $E/x, '/m' );
+like( $j->prop('t6'), qr/$B  m: $C a  $E/x, '/m' );
 
 $tmp = $j->prop('t7');
-ok( $tmp =~ /$B  m: a  $E/x && $tmp->prop('global'), '/mg' );
+ok( $tmp =~ /$B  m: $C a  $E/x && $tmp->prop('global'), '/mg' );
 
 $tmp = $j->prop('t8');
-ok( $tmp =~ /$B  i: a  $E/x && $tmp->prop('global'), '/gi' );
+ok( $tmp =~ /$B  i: $C a  $E/x && $tmp->prop('global'), '/gi' );
 
-like( $j->prop('t9'), qr/$B  mi: a  $E/x, '/mi' );
+like( $j->prop('t9'), qr/$B  mi: $C a  $E/x, '/mi' );
 
 $tmp = $j->prop('t10');
-ok( $tmp =~ /$B  mi: a  $E/x && $tmp->prop('global'), '/mgi' );
+ok( $tmp =~ /$B  mi: $C a  $E/x && $tmp->prop('global'), '/mgi' );
 
-like( $j->prop('t11'), qr/$B  : a  $E/x, 'no modifiers' );
+like( $j->prop('t11'), qr/$B  : $C a  $E/x, 'no modifiers' );
 
 
 sub re_ok($$$) { # ignores flags
 	my($var, $should_be, $test_name) = @_;
-	like($j->prop($var), qr/$B\w*:\Q$should_be\E$E/, $test_name);
+	like($j->prop($var), qr/$B\w*:$C\Q$should_be\E$E/, $test_name);
 }
 
 re_ok t12 => '^[^a]',                                    '/^[^a]/';
@@ -127,17 +136,21 @@ re_ok t26 => '[\p{Zs}\s\ck][\p{Zs}\s\ck]',              '/\s[\s]/';
 re_ok t27 => '[^\p{Zs}\s\ck][^\p{Zs}\s\ck]',            '/\S[\S]/';
 re_ok t28 => '[A-Za-z0-9_][A-Za-z0-9_]',                '/\w[\w]/';
 re_ok t29 => '[^A-Za-z0-9_][^A-Za-z0-9_]',              '/\W[\W]/';
-re_ok t30 => '(?!)',                                    '/[]/';
+re_ok t30 => '[]]',                                     '/[]]/';
 re_ok t31 => '(?s:.)',                                  '/[^]/';
 re_ok t32 => '(?:[^\cm\cj\x{2028}\x{2029}]|[a])',       '/[.a]/';
 re_ok t33 => '[a]',                                     '/[a]/';
 re_ok t34 => '[^\cm\cj\x{2028}\x{2029}]',               '/[.]/';
 re_ok t35 => '(?:[^0-9]|[^A-Za-z0-9_])',                '/[\D\W]/';
 
+re_ok t36 => '[]0-9]',         '/[]\d]/';
+re_ok t37 => '[][]',           '/[][]/';
+re_ok t38 => '(?:[^0-9]|[]])', '/[]\D]/';
+
 re_ok foo => '\x{dfff}\x{d800}',                        'surrogates';
 
 #--------------------------------------------------------------------#
-# Test 38: Make sure invalid regexp modifiers do not warn
+# Test 41: Make sure invalid regexp modifiers do not warn
 
 $SIG{__WARN__} = sub {
 	warn @_;

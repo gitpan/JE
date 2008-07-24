@@ -1,32 +1,6 @@
 #!perl -T
 do './t/jstest.pl' or die __DATA__
 
-// Every call to this runs 10 tests + the number of no-arg tests
-function method_boilerplate_tests(proto,meth,length,noargobjs,noargresults)
-{
-	is(typeof proto[meth], 'function', 'typeof ' + meth);
-	is(Object.prototype.toString.apply(proto[meth]),
-		'[object Function]',
-		'class of ' + meth)
-	ok(proto[meth].constructor === Function, meth + '\'s prototype')
-	var $catched = false;
-	try{ new proto[meth] } catch(e) { $catched = e }
-	ok($catched, 'new ' + meth + ' fails')
-	ok(!('prototype' in proto[meth]), meth +
-		' has no prototype property')
-	ok(proto[meth].length === length, meth + '.length')
-	ok(! proto[meth].propertyIsEnumerable('length'),
-		meth + '.length is not enumerable')
-	ok(!delete proto[meth].length, meth + '.length cannot be deleted')
-	is((proto[meth].length++, proto[meth].length), length,
-		meth + '.length is read-only')
-	ok(!Object.prototype.propertyIsEnumerable(meth),
-		meth + ' is not enumerable')
-	for (var i = 0; i < noargobjs.length; ++i)
-		ok(noargobjs[i][meth]() === noargresults[i],
-			noargobjs[i] + '.' + meth + ' without args')
-}
-
 // ===================================================
 // 15.3.1 Function()
 // ===================================================
@@ -226,12 +200,28 @@ ok(Function.prototype.constructor === Function,
 // 15.3.4.2 Function.prototype.toString
 // ===================================================
 
- // 2 tests
-// ok(Function.prototype.hasOwnProperty('constructor'),
-//	'Function.prototype has its own constructor property')
- //ok(Function.prototype.constructor === Function,
-//	'value of Function.prototype.constructor')
+// 10 tests
+method_boilerplate_tests(Function.prototype,'toString',0)
 
+// 4 tests
+
+try{ Function.prototype.toString.call({});
+  fail('toString dies on non-functions')}
+catch(oo){ok(oo instanceof TypeError, 'toString dies on non-functions')}
+
+try { is(eval("0,"+new Function('return "foo"//').toString())(), 'foo',
+	'new Function(...).toString()') }
+catch(e) { fail('new Function(...).toString()'); diag(e) }
+
+ok(function(){ return "bar" }.toString().match(
+	/^function anon\d+\(\) { return "bar" \n}$/
+), 'toString() on function created by function expression')
+	|| diag(function(){ return "bar" } + ' does not match');
+
+ok(eval.toString().match(/native code/), 'toString on native function')
+
+
+// ...
 
 
 // ---------------------------------------------------
@@ -241,3 +231,5 @@ var error
 try { Function.prototype.apply(3,4) }
 catch(it) { it instanceof TypeError && (error = 1) }
 ok(error, 'Function.prototype.apply(3,4) throws a TypeError')
+
+diag("to do: finish writing this script")

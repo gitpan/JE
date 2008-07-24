@@ -1,6 +1,6 @@
 package JE::Number;
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -51,7 +51,7 @@ use overload fallback => 1,
 	 },
 	 cmp  =>  sub { "$_[0]" cmp $_[1] };
 
-use Scalar::Util 'blessed';
+use Scalar::Util qw 'blessed tainted';
 
 require JE::String;
 require JE::Boolean;
@@ -158,6 +158,15 @@ sub to_object {
 }
 
 sub global { $_[0][1] }
+
+sub taint {
+	my $self = shift;
+	tainted $self->[0] and return $self;
+	my $alter_ego = [@$self];
+	no warnings 'numeric';
+	$alter_ego->[0] += shift();
+	return bless $alter_ego, ref $self;
+}
 
 
 =head1 NAME

@@ -1,6 +1,6 @@
 package JE::Object::Proxy;
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -8,7 +8,7 @@ use warnings; no warnings 'utf8';
 # ~~~ delegate overloaded methods?
 
 use JE::Code 'add_line_number';
-use Scalar::Util 1.08 qw'refaddr';
+use Scalar::Util 1.09 qw'refaddr';
 
 require JE::Object;
 
@@ -169,7 +169,7 @@ sub to_number {
 
 
 package JE::Object::Proxy::Array; # so this extra stuff doesn't slow down
-our $VERSION = '0.021';           # 'normal' usage
+our $VERSION = '0.022';           # 'normal' usage
 our @ISA = 'JE::Object::Proxy';
 
 sub prop {

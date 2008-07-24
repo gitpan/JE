@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 
 use strict;
@@ -262,12 +262,11 @@ sub new {
 
 	$$guts{function} =
 	  ref($opts{function}) =~ /^(?:JE::Code|CODE)\z/ ? $opts{function}
-	: length $opts{function} ?
+	: length $opts{function} &&
 		(
-		  $$guts{func_src} = $opts{function},
 		  parse $global $opts{function} or die
 		)
-	: ($$guts{func_src} = '');
+	;
 
 	$self->prop({
 		name     => 'length',
@@ -427,7 +426,14 @@ sub apply { # ~~~ we need to upgrade the args passed to apply, but still
 			: 	undef;
 		}
 		return $global->upgrade(
-			scalar $$guts{function}->(@args)
+			# This list slice is necessary to work around a bug
+			# in perl5.8.8 (but not in 5.8.6 or 5.10). Try
+			# running this code to see what  I  mean:
+			# 
+			# bless ($foo=[]); sub bar{print "ok\n"}
+			# $foo->bar(sub{warn;return "anything"}->())
+			#
+			(scalar $$guts{function}->(@args))[0]
 			# ~~~ Add support for list context once I've
 			#     figured out the exact behaviour--if it makes
 			#     sense.
@@ -520,17 +526,37 @@ sub _init_proto {
 				my $guts = $$self;
 				my $str = 'function ';
 				JE::String->new($scope,
-					'function ' .
-					( exists $$guts{func_name} ?
-					  $$guts{func_name} :
-					  'anon'.$self->id) .
-					'(' .
-					join(',', @{$$guts{func_argnames}})
-					. ") {" .
-					( ref $$guts{function} eq 'CODE' ?
-					  "\n    // [native code]\n" :
-					  $$guts{func_src}
-					) . '}'
+				  'function ' .
+				  ( exists $$guts{func_name} ?
+				    $$guts{func_name} :
+				    'anon'.$self->id) .
+				  '(' .
+				  join(',', @{$$guts{func_argnames}})
+				  . ") {" .
+				  ( ref $$guts{function}
+				    eq 'JE::Code'
+				    ? do {
+				      my $code = 
+				        $$guts{function};
+				      my $offsets =
+				        $$guts{function}
+				          {tree}[0];
+				      $code = substr ${$$code{source}},
+				                     $$offsets[0],
+				                     $$offsets[1] -
+				                       $$offsets[0];
+				      # We have to check for a final line
+				      # break in case it ends with a sin-
+				      # gle-line comment.
+				      $code =~ /[\cm\cj\x{2028}\x{2029}]\z/
+				      ? $code : $code . "\n"
+				    }
+				    : "\n    // [native code]\n"
+				  ) . '}'
+# ~~~ perhaps this should be changed so it doesn't comment out the
+#     the [native code] thingy. That way an attempt to
+#     eval the strung version will fail. (In this case, I need to add a
+#     teest too make sure it dies.)
 				);
 			},
 		}),
@@ -622,7 +648,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -699,7 +725,7 @@ sub delete {
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 our @ISA = 'JE::Object';
 

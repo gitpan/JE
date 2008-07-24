@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 
 use strict;
@@ -13,6 +13,7 @@ use Scalar::Util 'blessed';
 
 our @ISA = 'JE::Object';
 
+require JE::Boolean;
 require JE::Code;
 require JE::Object;
 require JE::String;
@@ -20,13 +21,13 @@ require JE::String;
 import JE::Code 'add_line_number';
 sub add_line_number;
 
+our @Match;
+our @EraseCapture;
+
 #import JE::String 'desurrogify';
 #sub desurrogify($);
 # Only need to turn these on when Perl starts adding regexp modifiers
 # outside the BMP.
-
-# ~~~ Add support for JavaScript's \c, which differs from Perl's
-#     \c` in JavaScript means \x00, while in Perl it means \x20
 
 # JS regexp features that Perl doesn't have, or which differ from Perl's,
 # along with their Perl equivalents
@@ -54,13 +55,15 @@ sub add_line_number;
 #    \S         [^\p{Zs}\s\ck]
 #    \w         [A-Za-z0-9_]
 #    \W         [^A-Za-z0-9_]
-#    []         (?!)  (ECMAScript allows an empty character class, which
-#                    always fails.)
 #    [^]	(?s:.)
+# ('/[]]/' is a syntax error in ECMAScript. A positive char class cannot be
+# empty,  nor can the first character within a char  class  be  a  closing
+# bracket.  JE  is  more  lenient  and  allows  Perl’s  behaviour  [i.e.,
+# '/[\]]/'].)
 
 # Other differences
 #
-# A quantifier in a JE regexp will,  when repeated,  clear all values  cap-
+# A quantifier in a JS regexp will,  when repeated,  clear all values  cap-
 # tured by capturing parentheses in the term that it quantifies. This means
 # that /((a)?b)+/, when matched against "abb" will leave $2 undefined, even
 # though the second () matched  "a"  the first time the first  ()  matched.
@@ -74,6 +77,23 @@ sub add_line_number;
 # b,a
 #
 # perl5.9.4 produces the same. perl5.002_01 crashes quite nicely.
+# 
+# We can emulate  ECMAScript’s  behaviour  by  putting  a  (?{})  marker
+# within each pair of capturing parentheses before the closing paren, and
+# within it’s  enclosing  group  at  the  end:  (?:(a+)?b)+  will  become
+# (?: ( a+ (?{...}) )? b (?{...}) )+  (spaced out for  readability). The
+# last code  interpolation  sees  whether  the  re  engine  is  making
+# it  past  the  (a+).  The inner  (first)  code  interpolation  will
+# only be triggered if  the  a+  matches.  If the  final  code  inter-
+# polation is triggered without the inner one being  triggered  first,
+# then the  capture  from  the  parentheses  is  to  be  erased  after-
+# wards.  It’s actually slightly more  complicated  than  that,  because
+# we may have  alternatives  directly  inside  the  outer  grouping;  e.g.,
+# (?:a|(b))+,  so we have to wrap the contents thereof within (?:),  making
+# ‘(?:(?:a|(b(?{...})))(?{...}))+’.  Whew!  Anyway,  we store the  info  in
+# $EraseCapture, using (?{$EraseCapture[n]=0}) and (?{++$EraseCapture[n]}),
+# where n is the number of the capture. If $EraseCapture[n] > 1 afterwards,
+# then undefined is to be returned in place of $1.
 #
 #
 # In ECMAScript, when the pattern inside a (?! ... ) fails (in which case
@@ -88,15 +108,24 @@ sub add_line_number;
 # $ perl5.9.4 -le 'print "a" =~ /(?!(a)b)a/;'
 # a
 #
+# This is solved with a (?{}) that comes *after* the (?!)’s final clos-
+# ing paren, that marks the captures for erasure.
+#
 #
 # In ECMAScript, as in Perl, a pair of capturing parentheses will produce
-# the undefined value if the parens were not part of the final match.  In
-# ECMAScript,  undefined will still be produced if there is a \digit back-
-# reference to those parens. In Perl, this value changes to a null string
-# instead. (After /(?:|())/, $1 contains undef; after /(?:|())\1/, $1 con-
-# tains "".) Safari, incidentally, does it the same way as Perl, *if* the
+# the undefined value if the parens were not  part  of  the  final  match.
+# Undefined will still be produced if there  is  a  \digit  backreference
+# reference to those parens. In ECMAScript, such a back-reference is equiv-
+# alent to (?:); in Perl it is equivalent to (?!). Therefore, ECMAScript’s
+# \1  is equivalent to Perl’s  (?(1)\1).  (It  would  seem,  upon  testing
+# /(?:|())/ vs. /(?:|())\1/ in perl, that the \1 back-reference always suc-
+# ceeds, and ends up setting $1 to "" [as opposed to undef]. What is actu-
+# ally happening is that the failed \1 causes backtracking, so the second
+# alternative in (?:|()) matches, setting $1 to the empty string. Safari,
+# incidentally, does what Perl *appears* to do at first glance, *if* the
 # backreference itself is within capturing parentheses (as in
 # /(?:|())(\1)/).
+
 
 
 
@@ -133,7 +162,8 @@ C<to_string> method (the way it stringifies in JS).
 Since JE's regular expressions use Perl's engine underneath, the 
 features that Perl provides that are not part of the ECMAScript spec are
 supported, except for C<(?s)>
-and C<(?m)>, which don't do anything.
+and C<(?m)>, which don't do anything, and C<(?|...)>, which is 
+unpredictable.
 
 =head1 METHODS
 
@@ -175,6 +205,26 @@ our %_class_patterns = qw/
 \s  \p{Zs}\s\ck
 \w  A-Za-z0-9_
 /;
+
+my $clear_captures = qr/(?{@Match=@EraseCapture=()})/;
+my $save_captures = do { no strict 'refs';
+  qr/(?{$Match[$_]=($EraseCapture[$_]||0)>1?undef:$$_ for 1..$#+})/; };
+# These are pretty scary, aren’t they?
+my $plain_regexp =
+	qr/^((?:[^\\[()]|\\.|\((?:\?#|\*)[^)]*\))[^\\[()]*(?:(?:\\.|\((?:\?#|\*)[^)]*\))[^\\[()]*)*)/s;
+my $plain_regexp_x_mode =
+	qr/^((?:[^\\[()]|\\.|\(\s*(?:\?#|\*)[^)]*\))[^\\[()]*(?:(?:\\.|\(\s*(?:\?#|\*)[^)]*\))[^\\[()]*)*)/s;
+my $plain_regexp_wo_pipe =
+	qr/^((?:[^\\[()|]|\\.|\((?:\?#|\*)[^)]*\))[^\\[()|]*(?:(?:\\.|\((?:\?#|\*)[^)]*\))[^\\[()|]*)*)/s;
+my $plain_regexp_x_mode_wo_pipe =
+	qr/^((?:[^\\[()|]|\\.|\(\s*(?:\?#|\*)[^)]*\))[^\\[()|]*(?:(?:\\.|\(\s*(?:\?#|\*)[^)]*\))[^\\[()|]*)*)/s;
+
+sub _capture_erasure_stuff {
+	map ref() # if we have a reference, its from a (?!)
+		  ? map "\$EraseCapture[$_]=2",@$_
+		  : "local\$EraseCapture[$_]=(\$EraseCapture[$_]||0)+1",
+		@{+shift}
+}
 
 sub new {
 	my ($class, $global, $re, $flags) = @_;
@@ -272,10 +322,39 @@ sub new {
 
 	unless (defined $qr) { # processing begins here
 
+	use constant::private {
+		posi => 0, type => 1, xmod => 2, parn => 3, #capn => 4,
+		reg => 0, cap => 1, itrb => 2, brch => 3, cond => 4
+	};
+
 	my $new_re = '';
 	my $sub_pat;
+	my @stack = [0,0,$flags =~ /x/];
+	my $capture_num; # number of the most recently started capture
+	my @to_erase = []; # arys of numbers of captures to be marked with
+	                   # (?{}) for potential erasure
+	my @interrobang; # arys of nos. of captures w/in interrobang group;
+                         # we keep a separate list in addition to @to_erase
+	                 # because even those captures that do  participate
+	                 # in the final iteration of a  quantified  subpat-
+	                 # tern are to be erased.  Furthermore,  we  can’t
+	                 # erase them till we reached the end of the inner-
+	                 # most enclosing group,  because the interrobang
+	                 # group may be quantified.
+	my @capture_nums;   # numbers of the captures we’re inside
+	my @add_extra_paren; # levels at which a closing paren needs to
+	                     # be inserted
+#my $warn;
+#++$warn if $re eq '(?p{})';
 	{
-		if($re =~ s/^((?:[^\\[]|\\.)[^\\[]*(?:\\.[^\\[]*)*)//s) {
+		if( $stack[-1][xmod]
+		  ? $stack[-1][type] == cond || $stack[-1][type] == brch
+		    ? $re =~ s/$plain_regexp_x_mode_wo_pipe//
+		    : $re =~ s/$plain_regexp_x_mode//
+		  : $stack[-1][type] == cond || $stack[-1][type] == brch
+		    ? $re =~ s/$plain_regexp_wo_pipe//
+		    : $re =~ s/$plain_regexp//
+		) {
 			($sub_pat = $1) =~
 			s/
 				([\^\$])
@@ -303,11 +382,8 @@ sub new {
 			/egxs;
 			$new_re .= $sub_pat;
 		}
-		if($re =~ s/^\[([^]\\]*(?:\\.[^]\\]*)*)]//s) {
-			if ($1 eq '') {
-				$new_re .= '(?!)';
-			}
-			elsif($1 eq '^') {
+		elsif($re=~s/^\[((?:[^\\]|\\.)[^]\\]*(?:\\.[^]\\]*)*)]//s){
+			if($1 eq '^') {
 				$new_re .= '(?s:.)';
 			}
 			else {
@@ -345,7 +421,107 @@ sub new {
 				      ')';
 			}
 		}
+		elsif( $stack[-1][xmod]
+		             ? $re =~ s/^(\(\s*\?([\w]*)(?:-([\w]*))?\))//
+		             : $re =~ s/^(\(   \?([\w]*)(?:-([\w]*))?\))//x
+		) {
+			$new_re .= $1;
+			defined $3 && index($3,'x')+1
+			? $stack[-1][xmod]=0
+			: $2 =~ /x/ && ++$stack[-1][xmod];
+		}
+		elsif( $stack[-1][xmod]
+		 ? $re=~s/^(\((?:\s*\?([\w-]*:|[^:{?<p]|<.|([?p]?\{)))?)//
+		 : $re=~s/^(\((?:   \?([\w-]*:|[^:{?<p]|<.|([?p]?\{)))?)//x
+		) {
+#			warn "$new_re-$1-$2-$3-$re" if $warn;
+			$3 and  die add_line_number
+				"Embedded code in regexps is not "
+				    . "supported";
+			$new_re .= $1;
+			my $caq = $2; # char(s) after question mark
+			my @current;
+			if(defined $caq) {  # (?...) patterns
+				if($caq eq '(') {
+				  $re =~ s/^([^)]*\))//;
+				  $new_re .= $1;
+				  $1 =~ /^\?[?p]?\{/ && die add_line_number
+				    "Embedded code in regexps is not " 
+				    . "supported\n";
+				  $current[type] = cond;
+				}
+				elsif($caq =~ /^[<'P](?![!=])/) {
+				  ++$capture_num;
+				  $caq eq "'" ? $re =~ s/^(.*?')//
+				              : $re =~ s/^(.*?>)//;
+				  $new_re .= $1;
+				  $current[type] = reg;
+				}
+				else {
+				  $current[type] = (reg,itrb)[$caq eq '!'];
+				}
+				$current[posi] = length $new_re;
+				if($caq eq '!') {
+					push @interrobang,[];
+				}
+			}else{ # capture
+				++$capture_num;
+				substr($new_re,$stack[-1][posi],0) = "(?:",
+				push @add_extra_paren, $#stack
+				  unless $stack[-1][type] == itrb ||
+				    @add_extra_paren
+				    && $add_extra_paren[-1] == $#stack;
+				push @capture_nums, $capture_num;
+				$current[posi] = length $new_re;
+				$current[type] = cap;
+				@interrobang and
+				  push @{$interrobang[-1]}, $capture_num;
+			}
+			$current[xmod] = $stack[-1][xmod];
+			push @stack, \@current;
+			push @to_erase, [];
+		}
+		elsif($re =~ s/^\)//) {
+			my @commands;
+			if($stack[-1][type] != itrb) {
+				push @commands,
+				  _capture_erasure_stuff pop @to_erase;
+				if($stack[-1][type] == cap) {
+				  # we are exiting a capturing group
+				  push @commands, "local" .
+				    "\$EraseCapture[$capture_nums[-1]]=0";
+				  push @{$to_erase[-1]}, pop @capture_nums;
+				}
+				$new_re .= ')', pop @add_extra_paren
+				  if @add_extra_paren
+				  && $add_extra_paren[-1] == $#stack;
+			}
+			else { # ?!
+				pop @to_erase; # don't need this
+				push @{$to_erase[-1]}, pop @interrobang;
+				$new_re .= ')';
+			}
+			$new_re .= '(?{' . join(';',@commands) . '})'
+				if @commands;
+			$new_re .= ')' unless $stack[-1][type] == itrb;;
+			pop @stack;
+		}
+		elsif($re =~ s/^\|//) {
+			my @commands;
+			push @commands, map "local\$EraseCapture[$_]=" .
+				"\$EraseCapture[$_]+1",
+				@{$to_erase[-1]};
+			@{$to_erase[-1]} = ();
+			$new_re .= ')', pop @add_extra_paren
+			  if @add_extra_paren
+			  && $add_extra_paren[-1] == $#stack;
+			$new_re .= '(?{' . join(';',@commands) . '})'
+				if @commands;
+			$new_re .= '|';
+			$stack[-1][posi] = length $new_re;
+		}
 		elsif($re) {
+#warn $re;
 			die JE::Object::Error::SyntaxError->new($global,
 			    add_line_number
 			    $re =~ /^\[/
@@ -354,12 +530,23 @@ sub new {
 		}
 		length $re and redo;
 	}
+	$new_re .= ')' if @add_extra_paren;
+	$new_re .= '(?{'.join(
+		';', _capture_erasure_stuff pop @to_erase
+	).'})'
+		if @{$to_erase[-1]};
+
 
 	# This substitution is a workaround for a bug in perl.
 	$new_re =~ s/([\x{d800}-\x{dfff}])/sprintf '\\x{%x}', ord $1/ge;
 
-	$qr = eval { qr/(?$flags:$new_re)/ }
-		|| die JE::Object::Error::SyntaxError->new($global,
+	$qr = eval {
+		use re 'eval'; no warnings 'regexp';
+		$capture_num
+		  ? qr/(?$flags:$clear_captures$new_re$save_captures)/
+		  : qr/(?$flags:$clear_captures$new_re)/
+	} or $@ =~ s/\.?$ \n//x,
+	     die JE::Object::Error::SyntaxError->new($global,
 			add_line_number $@);
 
 	} # end of pattern processing
@@ -449,7 +636,7 @@ sub new_constructor {
 			argnames => ['string'],
 			no_proto => 1,
 			function_args => ['this','args'],
-			function => sub {
+			function => my $exec = sub {
 				my ($self,$str) = @_;
 
 				die JE::Object::Error::TypeError->new(
@@ -478,10 +665,9 @@ sub new_constructor {
 					    JE::Number->new($global, 0)),
 					  return $global->null;
 
-					@ary = substr($str, $-[0],
+					@ary = @Match;
+					$ary[0] = substr($str, $-[0],
 						$+[0] - $-[0]);
-					no strict 'refs';
-					push @ary, map $$_, 1..$#+;
 					$indx = $-[0];
 
 					$self->prop(lastIndex =>
@@ -494,10 +680,9 @@ sub new_constructor {
 					    JE::Number->new($global, 0)),
 					  return $global->null;
 
-					@ary = substr($str, $-[0],
+					@ary = @Match;
+					$ary[0] = substr($str, $-[0],
 						$+[0] - $-[0]);
-					no strict 'refs';
-					push @ary, map $$_, 1..$#+;
 					$indx = $-[0];
 
 				}
@@ -512,6 +697,44 @@ sub new_constructor {
 					));
 				
 				$ary;
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'test',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'test',
+			argnames => ['string'],
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => sub {
+				my ($self,$str) = @_;
+				my $ret = &$exec($self,$str);
+				JE::Boolean->new(
+					$global, $ret->id ne 'null'
+				);
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'toString',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'toString',
+			no_proto => 1,
+			function_args => ['this'],
+			function => sub {
+				my ($self,) = @_;
+				JE::String->new(
+					$global,
+					"/" . $self->prop('source')->value
+					. "/$$$self{regexp_flags}"
+				);
 			},
 		}),
 		dontenum => 1,

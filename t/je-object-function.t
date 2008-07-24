@@ -1,6 +1,6 @@
 #!perl  -T
 
-use Test::More tests => 6;
+use Test::More tests => 7;
 use strict;
 
 
@@ -39,6 +39,12 @@ is &$func, 34, '&{} overloading';
 	};
 	ok !eval { $func->construct;1 }, 'construct dies with no_proto';
 }
+
+#--------------------------------------------------------------------#
+# Test 7: The really weird ‘warn’ bug
+
+ok eval{local $SIG{__WARN__}=sub{};
+        $j->upgrade(sub{warn})->();1}, 'the really weird warn bug';
 
 diag 'TO DO: Finish writing this script.';
 

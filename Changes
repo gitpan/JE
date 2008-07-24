@@ -1,5 +1,64 @@
 Revision history for JE
 
+0.022   24 July, 2008
+        New features:
+        • RegExp.prototype.test and RegExp.prototype.toString have
+          been added, so the RegExp class is complete.
+        • Date.prototype’s setTime, setMilliseconds and
+          setUTCMilliseconds methods has been added.
+        • [] in a regular expression used to be an always-fail asser-
+          tion.  This is no longer the case.  Now it follows  Perl’s
+          behaviour  (the  ]  is interpreted as a literal  character
+          within the class). I originally misread the spec.  This is
+          actually a syntax error in ECMAScript.
+        • Added an ‘unwrap’ option to bind_class, that makes it behave
+          more sensibly in the author’s opinion.  This may become  the
+          default in a future release.
+        • Tainted code can now be run safely, and can no longer
+          untaint its own data.
+        Bug fixes:
+        • String.prototype.replace
+          • used to be a no-op when the second arg was a string (now
+            it actually works); and
+          • it used to die when either arg was null or undefined.
+        • Quantified capturing parentheses in regular expressions now
+          produce undefined if they do not participate in  the  match
+          the last time the quantified subpattern matches.  This used
+          to follow  perl’s  behaviour,  which is  inconsistent  (try
+          matching "abb" against /((a)?b)+/  and  /((a+)?b)+/  to see
+          what I mean). (Backreferences within a pattern still follow
+          perl’s behaviour.)
+        • Capturing parentheses within a negative lookahead assertion
+          now produce undefined.  It used to be that a  pattern  like
+          (?!(a)(?!) would put return 'a'  for the first capture (the
+          way perl does it).  (Back-references within a pattern still
+          follow perl’s behaviour.)
+        • String.prototype.split
+          • used to return an array extended with undefined values
+            when the limit was greater than the number of elements
+            that the returned array should have had;
+          • used to put an empty string at the  end  of  its  returned
+            array if the separator was the empty string  or  a  regexp
+            that could match the empty string (null matches at the end
+            of the string are not supposed to count); and
+          • used to die when passed undefined or null as its
+            first argument.
+        • Fixed a bug that caused a Function object that was  a  Perl
+          subroutine underneath to die on returning if it happened to
+          call ‘warn’ with no arguments. (Actually, I worked around a
+          perl 5.8.8 bug.)
+        • Quantified zero-width assertions in regular expressions
+          with no maximum (i.e.,  quantified with * + {num,})  no
+          longer warn.
+        • String.fromCharCode now actually works, instead of return-
+          ing a string of null bytes equal in  length  to  the  num-
+          ber of args.
+	• A String object’s length property (as opposed to that of a
+          string) used to be a Perl scalar, which caused JE’s inter-
+          nals to hiccough on it.
+        • Functions now stringify properly. Thanks to Alex Robinson
+          for drawing my attention to it.
+
 0.021   8 February, 2008
         Due to a silly mistake made at the last  minute,  the  newly-
         added Date class did not work at all in the previous release.

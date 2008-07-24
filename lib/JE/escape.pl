@@ -2,7 +2,7 @@ package JE;
 
 use strict;
 use warnings; no warnings 'utf8';
-use Encode qw< decode_utf8 encode_utf8 FB_CROAK >;
+use Encode 2.08 qw< decode_utf8 encode_utf8 FB_CROAK >;
 
 sub _decodeURI {
 	my $global = shift;

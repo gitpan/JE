@@ -1,6 +1,6 @@
 package JE::Object::Date;
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 
 use strict;
@@ -191,7 +191,7 @@ sub _div($$) {
     my $mod = $_[0] % $_[1];
     return +($_[0] - $mod) / $_[1], $mod;
 }
-sub _year_from_time($) { # ~~~ test this rigorously
+sub _year_from_time($) {
 	# This line adjusts the  time  so  that  1/Mar/2000  is  0,  and
 	# 29/Feb/2400, the extra leap day in the quadricentennium, is the
 	# last day therein.  (So a qcm is  4 centuries  +  1  leap  day.)
@@ -225,7 +225,6 @@ sub _year_from_time($) { # ~~~ test this rigorously
 	$prec + 2000 + $tmp +    # Add 1 if we are past Dec.:
 		($time >= (31+30+31+30+31+31+30+31+30+31) * MS_PER_DAY);
 		           # days from Mar 1 to Jan 1
-	# ~~~ to test: should that be >= or > ?
 }
 sub _in_leap_year($) { _days_in_year &_year_from_time == 366 }
 sub _day_within_year($) { &_day - _day_from_year &_year_from_time }
@@ -994,9 +993,69 @@ sub _new_constructor {
 		dontenum => 1,
 	});
 
-	# ~~~ setTime
-	# ~~~ setMilliseconds
-	# ~~~ setUTCMilliseconds
+	$proto->prop({
+		name  => 'setTime',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'setTime',
+			argnames => ['time'],
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number "setTime cannot be" .
+			      " called on an object of type"
+			      . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  JE::Number->new( $global, $${$_[0]}{value} = 
+			    _time_clip(
+			      defined $_[1] ? $_[1]->to_number->value :
+			        sin 9**9**9
+			    )
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name  => 'setMilliseconds',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'setMilliseconds',
+			argnames => ['ms'],
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => sub {
+			  die JE::Object::TypeError->new($global,
+			    add_line_number "setMilliseconds cannot be" .
+			      " called on an object of type"
+			      . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $ms = defined $_[1] ? $_[1]->to_number->value
+			    : sin 9**9**9;
+			  my $v = _gm2local $${$_[0]}{value};
+			  JE::Number->new( $global, $${$_[0]}{value} = 
+			    _time_clip _local2gm _make_date
+			      _day $v,
+			      _make_time
+			        _hours_from_time $v,
+			        _min_from_time $v,
+			        _sec_from_time $v,
+			        defined $_[1] ? $_[1]->to_number->value :
+			          sin 9**9**9
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+	$proto->prop({
+		name => 'setUTCMilliseconds',
+		value => $proto->prop('setMilliseconds'),
+		dontenum => 1,
+	});
+
 	# ~~~ setSeconds
 	# ~~~ setUTCSeconds
 	# ~~~ setMinutes

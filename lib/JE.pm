@@ -7,16 +7,16 @@ package JE;
 # Note also that comments like "# E 7.1" refer to the indicated
 # clause (7.1 in this case) in the ECMA-262 standard.
 
-use 5.008;
+use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
 use JE::_FieldHash;
-use Scalar::Util 1.08 qw'blessed refaddr weaken';
+use Scalar::Util 1.09 qw'blessed refaddr weaken';
 
 our @ISA = 'JE::Object';
 
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.021 (alpha release)
+Version 0.022 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -1177,6 +1177,18 @@ and passed a method name, coderef, or hash.
 
 =end comment
 
+=item unwrap => 1
+
+If you specify this and it's true, objects passed as arguments to the 
+methods or code
+refs specified above are 'unwrapped' if they are proxies for Perl objects
+(see below). And null and undefined are converted to C<undef>.
+
+This is experimental right now. I might actually make this the default.
+Maybe this should provide more options for fine-tuning, or maybe what is
+currently the default behaviour should be removed. If
+anyone has any opinions on this, please e-mail the author. 
+
 =item isa => 'ClassName'
 
 =item isa => $prototype_object
@@ -1208,16 +1220,18 @@ If C<wrapper> is supplied, no constructor will be created.
 
 =back
 
-After binding a class, objects of the Perl class will, when passed
+After a class has been bound, objects of the Perl class will, when passed
 to JavaScript (or the C<upgrade> method), appear as instances of the
 corresponding JS class. Actually, they are 'wrapped up' in a proxy object 
 (a JE::Object::Proxy 
-object), such that operators like C<typeof> and C<===> will work. If the 
+object), that provides the interface that JS operators require (see 
+C<JE::Types>). If the 
 object is passed back to Perl, it is the I<proxy,>
 not the original object that is returned. The proxy's C<value> method will
-return the original object. B<Note:> I might change this slightly so that
-objects passed to JS functions created by C<bind_class> will be unwrapped.
-I still trying to figure out what the exact behaviour should be.
+return the original object. I<But,> if the C<unwrap> option above is used
+when a class is bound, the original Perl object will be passed to any 
+methods or properties belonging to that class. B<This behaviour is still
+subject to change.> See L</unwrap>, above. 
 
 Note that, if you pass a Perl object to JavaScript before binding its 
 class,
@@ -1253,6 +1267,18 @@ sub _cast {
 	}
 }
 
+sub _unwrap {
+	my ($self)  = shift;
+	my @ret;
+	for(@_){
+		push @ret,
+			ref =~ /^JE::(?:Object::Proxy|Undefined|Null)\z/
+			? $_->value
+			: $_
+	}
+	@ret;
+}
+
 sub bind_class {
 	require JE::Object::Proxy;
 
@@ -1284,6 +1310,8 @@ sub bind_class {
 	my %class = ( name => $class );
 	$$$self{classes}{$pack} = $$$self{classes_by_name}{$class} =
 		\%class;
+
+	my $unwrap = delete $opts{unwrap};
 
 	my ($constructor,$proto,$coderef);
 	if (exists $opts{constructor}) {
@@ -1333,7 +1361,15 @@ sub bind_class {
 			my($m, $type) = _split_meth $_;
 			if (defined $type) {
 				$proto->new_method(
-					$m => sub {
+					$m => $unwrap
+					? sub {
+					  $self->_cast(
+					    scalar shift->value->$m(
+					      $self->_unwrap(@_)),
+					    $type
+					  );
+					}
+					: sub {
 					  $self->_cast(
 					    scalar shift->value->$m(@_),
 					    $type
@@ -1342,14 +1378,21 @@ sub bind_class {
 				);
 			}else {
 				$proto->new_method(
-					$m => sub { shift->value->$m(@_) },
+					$m => $unwrap
+					? sub { shift->value->$m(
+						$self->_unwrap(@_)) }
+					: sub { shift->value->$m(@_) },
 				);
 			}
 		}} else { # it'd better be a hash!
 		while( my($name, $m) = each %$methods) {
 			if(ref $m eq 'CODE') {
 				$proto->new_method(
-					$name => sub {
+					$name => $unwrap
+					? sub {
+					    &$m($self->_unwrap(@_))
+					  }
+					: sub {
 					    &$m($_[0]->value,@_[1..$#_])
 					  }
 				);
@@ -1357,13 +1400,24 @@ sub bind_class {
 				my ($method, $type) = _split_meth $m;
 				$proto->new_method(
 				  $name => defined $type
-				    ? sub {
-				      $self->_cast(
-				        scalar shift->value->$method(@_),
-				        $type
-				      );
-				    }
-				    : sub { shift->value->$m(@_) },
+				    ? $unwrap
+				      ? sub {
+				        $self->_cast(
+				          scalar shift->value->$method(
+				            $self->_unwrap(@_)),
+				          $type
+				        );
+				      }
+				      : sub {
+				        $self->_cast(
+				          scalar shift->value->$method(@_),
+				          $type
+				        );
+				      }
+				    : $unwrap
+				      ? sub { shift->value->$m(
+				              $self->_unwrap(@_)) }
+				      : sub { shift->value->$m(@_) },
 				);
 			}
 		}}
@@ -1375,10 +1429,18 @@ sub bind_class {
 			my($m, $type) = _split_meth $_;
 			$constructor->new_function(
 				$m => defined $type
-					? sub { $self->_cast(
+					? $unwrap
+					  ? sub { $self->_cast(
+					      scalar $pack->$m(
+					        $self->_unwrap(@_)), $type
+					  ) }
+					  : sub { $self->_cast(
 						scalar $pack->$m(@_), $type
-					) }
-					: sub { $pack->$m(@_) }
+					  ) }
+					: $unwrap
+					  ? sub { $pack->$m(
+						$self->_unwrap(@_)) }
+					  : sub { $pack->$m(@_) }
 			);
 			 # new_function makes the functions  enumerable,
 			 # unlike new_method. This code is here to make
@@ -1392,7 +1454,13 @@ sub bind_class {
 		while( my($name, $m) = each %$methods) {
 			if(ref $m eq 'CODE') {
 				$constructor->new_function(
-					$name => sub {
+					$name => $unwrap
+					? sub {
+					    @_ = $self->_unwrap(@_);
+					    unshift @_, $pack;
+					    goto $m;
+					}
+					: sub {
 					    unshift @_, $pack;
 					    goto $m;
 					}
@@ -1405,7 +1473,10 @@ sub bind_class {
 							scalar $pack->$m,
 							$type
 						) }
-						: sub { $pack->$m(@_) },
+						: $unwrap
+						  ? sub { $pack->$m(
+						    $self->_unwrap(@_)) }
+						  : sub { $pack->$m(@_) },
 				);
 			}
 			 # new_function makes the functions  enumerable,
@@ -1446,7 +1517,10 @@ sub bind_class {
 				  : sub {
 				    $self->upgrade(scalar $_[0]->value->$p)
 				  },
-				store => sub { $_[0]->value->$p($_[1]) },
+				store => $unwrap
+					? sub { $_[0]->value->$p(
+						$self->_unwrap($_[1])) }
+					: sub { $_[0]->value->$p($_[1]) },
 			];
 		    }
 		} else { # it'd better be a hash!
@@ -1478,12 +1552,22 @@ sub bind_class {
 				    my $store = $$p{store};
 				    push @prop_args, ( store =>
 				        ref $store eq 'CODE'
-				        ? sub {
+				        ? $unwrap
+					  ? sub {
+				            &$store($_[0]->value,
+				              $self->_unwrap($_[1]))
+				          }
+				          : sub {
 				            &$store($_[0]->value, $_[1])
-				        }
-				        : sub {
+				          }
+				        : $unwrap
+				          ? sub {
+				            $_[0]->value->$store(
+				              $self->_unwrap($_[1]))
+				          }
+				          : sub {
 				            $_[0]->value->$store($_[1])
-				        }
+				          }
 				    );
 				}
 				else {
@@ -1496,7 +1580,14 @@ sub bind_class {
 					    fetch => sub { $self->upgrade(
 				                scalar &$p($_[0]->value)
 				            ) },
-					    store => sub {
+					    store => $unwrap
+					    ? sub {
+				              &$p(
+					        scalar $_[0]->value,
+					        $self->_unwrap($_[1])
+					      )
+				            }
+					    : sub {
 				              &$p(
 					        scalar $_[0]->value, $_[1]
 					      )
@@ -1512,7 +1603,12 @@ sub bind_class {
 					    : sub { $self->upgrade(
 				                scalar $_[0]->value->$p
 				              ) },
-					    store => sub {
+					    store => $unwrap
+					    ? sub {
+				                $_[0]->value->$p(
+					          $self->_unwrap($_[1]))
+				            }
+					    : sub {
 				                $_[0]->value->$p($_[1])
 				            },
 					);
@@ -1547,7 +1643,9 @@ sub bind_class {
 				  : sub { $self->upgrade(
 				      scalar $pack->$p
 				    ) },
-				store => sub { $pack->$p($_[1]) },
+				store => $unwrap
+				  ? sub {$pack->$p($self->_unwrap($_[1]))}
+				  : sub { $pack->$p($_[1]) },
 			});
 		}} else { # it'd better be a hash!
 		while( my($name, $p) = each %$props) {
@@ -1581,12 +1679,22 @@ sub bind_class {
 				    my $store = $$p{store};
 				    push @prop_args, ( store =>
 				        ref $store eq 'CODE'
-				        ? sub {
+				        ? $unwrap
+				          ? sub {
+				            &$store($pack,
+				                    $self->_unwrap($_[1]))
+				          }
+				          : sub {
 				            &$store($pack, $_[1])
-				        }
-				        : sub {
+				          }
+				        : $unwrap
+				          ? sub {
+				            $pack->$store(
+				                  $self->_unwrap($_[1]))
+				          }
+				          : sub {
 				            $pack->$store($_[1])
-				        }
+				          }
 				    );
 				}
 				else {
@@ -1600,7 +1708,12 @@ sub bind_class {
 				                $self->upgrade(
 					          scalar &$p($pack))
 				            },
-					    store => sub {
+					    store => $unwrap
+					    ? sub {
+				                &$p($pack,
+					            $self->_unwrap($_[1]))
+				            }
+					    : sub {
 				                &$p($pack, $_[1])
 				            },
 					);
@@ -1616,7 +1729,12 @@ sub bind_class {
 				                $self->upgrade(
 					          scalar $pack->$p)
 				              },
-					    store => sub {
+					    store => $unwrap
+					    ? sub {
+				                $pack->$p(
+					          $self->_unwrap($_[1]))
+				            }
+					    : sub {
 				                $pack->$p($_[1])
 				            },
 					);
@@ -1828,6 +1946,21 @@ sub new_parser {
 1;
 __END__
 
+=head1 TAINTING
+
+If a piece of JS code is tainted, you can still run it, but any strings or
+numbers returned, assigned or passed as arguments by the tainted code will
+be tainted (even if it did not originated from within the code). E.g.,
+
+  use Taint::Util;
+  taint($code = "String.length");
+  $foo = 0 + new JE  ->eval($code);  # $foo is now tainted
+
+This does not apply to string or number I<objects>, but, if the code
+created the object, then its internal value I<will> be tainted, because it
+created the object by passing a simple string or number argument to a 
+constructor.
+
 =head1 IMPLEMENTATION NOTES
 
 Apart from items listed under L</BUGS>, below, JE follows the ECMAScript v3
@@ -1867,7 +2000,13 @@ act like C<return> without arguments.
 
 =item *
 
-Reserved words can be used as identifiers when there is no ambiguity.
+Reserved words (except C<case> and C<break>) can be used as identifiers 
+when there is no ambiguity.
+
+=item *
+
+Regular expression syntax that is not valid ECMAScript in general follows
+Perl's behaviour. (See L<JE::Object::RegExp> for the exceptions.)
 
 =back
 
@@ -1875,16 +2014,13 @@ Reserved words can be used as identifiers when there is no ambiguity.
 
 To report bugs, please e-mail the author.
 
+=head2 Bona Fide Bugs
+
 =over 4
 
 =item *
 
-JE is not necessarily IEEE 754-compliant. It depends on the OS. For this
-reason the Number.MIN_VALUE and Number.MAX_VALUE properties do not exist.
-
-=item *
-
-The RegExp and Date classes are incomplete.
+The Date class is incomplete.
 
 =item *
 
@@ -1930,6 +2066,83 @@ welcome.
 
 =item *
 
+Sometimes line numbers reported in error messages are off. E.g., in the
+following code--
+
+  foo(
+      (4))
+
+--, if C<foo> is not a function, line 2 will be reported instead of line 1.
+
+=item *
+
+Back-references in regular expressions sometimes try to match the string
+that a previous capture matched even when the capture buffer should have
+been erased; specifically in the case of a quantified capture that did not
+participate in the match during the last iteration of the quantified
+subpattern (C</(?:a|(b))\1/.exec('bab')>), and in the case of a capture
+within a successful negative lookahead (C</(?!(a)b)a/.exec('a')>).
+
+=item *
+
+Currently, [:blahblahblah:]-style character classes don’t work if followed
+by a character class escape (\s, \d, etc.) within the class.
+C</[[:alpha:]\d]/> is interpreted as C</[\[:alph]\d\]/>.
+
+=item *
+
+If, in perl 5.8.x, you call the C<value> method of a JE::Object that has a
+custom fetch subroutine for one of its enumerable properties that throws an
+exception, you'll get an 'Attempt to free unreferenced scalar' warning.
+
+=begin comment
+
+This is not really a bug, come to think of it. It probably should be an
+error (as it is); maybe the error message could be improved.
+
+=item *
+
+Currently, if you take a Perl object whose class has been bound with
+C<bind_class> and assign it to a JS function's C<prototype> property, and
+then call the function's constructor (via C<new> in JS or the C<construct>
+method in Perl), and then call a method that belongs to the aforementioned
+Perl class on the resulting object, you can't expect reasonable results.
+You'll probably just get a meaningless error message.
+
+=end comment
+
+=back
+
+=head2 Limitations
+
+=over 4
+
+=item *
+
+JE is not necessarily IEEE 754-compliant. It depends on the OS. For this
+reason the Number.MIN_VALUE and Number.MAX_VALUE properties do not exist.
+
+=back
+
+=head2 perl Incompatibilities
+
+=over 4
+
+=item *
+
+Invalid regular expression flags cause irrepressible warnings in perl 
+5.8.3.
+
+=back
+
+=head2 Incompatibilities with ECMAScript...
+
+...that are probably due to typos in the spec.
+
+=over 4
+
+=item *
+
 In a try-catch-finally statement, if the 'try' block throws an error and
 the 'catch' and 'finally' blocks exit normally--i.e., not as a result of
 throw/return/continue/break--, the error
@@ -1955,21 +2168,23 @@ to step 4.'
 
 =item *
 
-Sometimes line numbers reported in error messages are off. E.g., in the
-following code--
+The C<setTime> method of a Date object does what one would expect (it sets
+the number of milliseconds stored in the Date object and returns that
+number).
+According the obfuscated definition in the ECMAScript specification, it 
+should always set it to NaN and return NaN.
 
-  foo(
-      (4))
-
---, if C<foo> is not a function, line 2 will be reported instead of line 1.
+I think I've found I<yet another> typo in the spec. In clause 15.9.5.27,
+'Result(1)' and and 'Result(2)' are probably supposed to be 'Result(2)' and
+'Result(3)', respectively.
 
 =back
 
 =head1 PREREQUISITES
 
-perl 5.8.0 or higher
+perl 5.8.3 or higher
 
-Scalar::Util 1.10 or higher
+Scalar::Util 1.14 or higher
 
 Exporter 5.57 or higher
 
@@ -1978,7 +2193,7 @@ Tie::RefHash::Weak, for perl versions earlier than 5.9.4
 The TimeDate distribution (more precisely, Time::Zone and 
 Date::Parse)
 
-If you are using perl 5.8.5 or lower, you will need to upgrade Encode.
+Encode 2.08 or highter
 
 B<Note:> JE will probably end up with Unicode::Collate in
 the list of dependencies.
@@ -1998,8 +2213,9 @@ letting
 me use
 his tests,
 
-to Andy Armstrong S<< [ andyE<nbsp>E<nbsp>hexten net ] >> and Yair Lenga
-S<< [ yair lengaE<nbsp>E<nbsp>gmail com ] >> for their suggestions,
+to Andy Armstrong S<< [ andyE<nbsp>E<nbsp>hexten net ] >>, Yair Lenga
+S<< [ yair lengaE<nbsp>E<nbsp>gmail com ] >> and Alex Robinson
+S<< [ alexE<nbsp>E<nbsp>solidgoldpig com ] >> for their suggestions,
 
 and to the CPAN Testers for their helpful reports.
 

@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 
 use strict;
@@ -11,9 +11,11 @@ sub desurrogify($);
 
 our @ISA = 'JE::Object';
 
+use POSIX qw 'floor ceil';
 use Scalar::Util 'blessed';
 
 require JE::Code;
+require JE::Number;
 require JE::Object                 ;
 require JE::Object::Error::TypeError;
 require JE::Object::Function        ;
@@ -71,7 +73,9 @@ sub new {
 sub prop {
 	my $self = shift;
 	if($_[0] eq 'length') {
-		return length $$$self{value};
+		return JE::Number->new(
+			$$$self{global},length $$$self{value}
+		);
 	}
 	SUPER::prop $self @_;
 }
@@ -127,6 +131,7 @@ sub _new_constructor {
 		constructor_args => ['scope','args'],
 	});
 
+	# E 15.5.3.2
 	$f->prop({
 		name  => 'fromCharCode',
 		value => JE::Object::Function->new({
@@ -139,9 +144,12 @@ sub _new_constructor {
 				my $str = '';
 				my $num;
 				for (@_) {
-					$num = $_->to_number->value %
-						2**16 ;
-					$str .= chr $num == $num && $num;
+					# % 2**16 is buggy in perl
+					$num = $_->to_number->value;
+					$num = 
+					  ($num < 0 ? ceil$num : floor$num)
+						% 2**16 ;
+					$str .= chr($num == $num && $num);
 						# change nan to 0
 				}
 				JE::String->new($global, $str);
@@ -415,7 +423,8 @@ sub _new_constructor {
 					# as in s/foo/bar/
 
 				my $g; # global?
-				if(defined $foo && $foo->class eq 'RegExp') 
+				if(defined $foo && $foo->can('class') &&
+					$foo->class eq 'RegExp') 
 				{
 					$g = $foo->prop('global')->value;
 					$foo = $$$foo{value};
@@ -427,35 +436,33 @@ sub _new_constructor {
 					   : 'undefined';
 				}
 
-				if (defined $bar &&
+				if (defined $bar && $bar->can('class') &&
 				    $bar->class eq 'Function') {
+					my $replace = sub {
+					    $_[0]->call(
+					      JE::String->new($global,
+					        substr $str, $-[0],
+					          $+[0] - $-[0]),
+					      map(JE::String->new(
+					        $global,
+					        $JE'Object'RegExp'Match[$_]
+					      ), 1..$#+),
+					      JE::Number->new($global,
+					        $-[0]),
+					      $_[1]
+					    )->to_string->[0]	
+					};
+
 					my $je_str = JE::String->new(
 						$global, $str);
 
-					no strict 'refs'; # for map $$_
-					# The following two s///'s are
-					# identical except for the /g
 					$g
-					? $str =~ s/$foo/$bar->call(
-					    JE::String->new($global,
-					        substr $str, $-[0],
-					            $+[0] - $-[0]),
-					    map(JE::String->new($global,
-					        $$_), 1..$#+),
-					    JE::Number->new($global,
-					        $-[0]),
-					    $je_str
-					  )->to_string->[0]/ge
-					: $str =~ s/$foo/$bar->call(
-					    JE::String->new($global,
-					        substr $str, $-[0],
-					            $+[0] - $-[0]),
-					    map(JE::String->new($global,
-					        $$_), 1..$#+),
-					    JE::Number->new($global,
-					        $-[0]),
-					    $je_str
-					  )->to_string->[0]/e;
+					? $str =~ s/$foo/
+					    &$replace($bar, $je_str)
+					/ge
+					: $str =~ s/$foo/
+					    &$replace($bar, $je_str)
+					/e
 				}
 				else {
 					# replacement string instead of
@@ -485,14 +492,17 @@ sub _new_constructor {
 					$bar =~ s/\\\$(?:
 						\\([\$&`'])
 						  |
-						(\\[1-9][0-9]?|0[0-9])
+						([1-9][0-9]?|0[0-9])
 					)/
 						defined $1 ? $_replace{$1}
-						: "\$$2"
+						: "\$JE::Object::RegExp::"
+						. "Match[$2]";
 					/gex;
 
-					$g ? s/$foo/"$bar"/gee
-					   : s/$foo/"$bar"/ee;
+					no warnings 'uninitialized';
+					$g ? s/$foo/qq'"$bar"'/gee
+					   : s/$foo/qq'"$bar"'/ee
+					for $str;
 				}
 					
 				JE::String->new($global, $str);
@@ -565,43 +575,45 @@ return  JE::String->new($global, substr $str, $start, $end);
 	});
 
 
-=begin split notes
+=begin split-notes
 
-These are the possibitilites for the separator:
+If the separator is a non-empty string, we need to quotemeta it.
 
-1. //
-2. 'string'
-3. /regexp/
+If we have an empty string, we mustn’t allow a match at the end of the
+string, so we use qr/(?!\z/.
 
-Case 1: use separator as-is
-Case 2: use quotemeta on the separator
-Case 3: a successful zero-width match that occurs at the same position as
-        the end of the previous match needs to be turned into a failure
-        (no backtracking after the initial successful match), so as to
-        produce the aardvark result below.
+If we have a regexp, then there are several issues:
 
-I can make / ... / fail on a successful null match by wrapping it in an
-atomic group: /(?> ... )/
+A successful zero-width match that occurs at the same position as
+the end of the previous match needs to be turned into a failure
+(no backtracking after the initial successful match), so as to
+produce the aardvark result below. We could accomplish this by
+wrapping it in an atomic group: /(?> ... )/. But then we come
+to the second issue:
 
-Perl automatically behaves as though something similar to the following is
-appended to the regexp: (?(?{ $pos == pos })(?!)|(?{ $pos = pos }))
+To ensure correct (ECMAScript-compliant) capture erasure in cases
+like 'cbazyx'.split(/(a|(b))+/) (see 15.10-regexps-objects.t), we need to
+use @JE::Object::RegExp::Match, rather than $1, $2, etc.
 
-But I also need to make sure that a null match does not occur at the end of
+This precludes the use of perl’s split operator (at least for regexp sepa-
+rators), so we have to implement it ourselves.
+
+We also need to make sure that a null match does not occur at the end of
 a string. Since a successful match that begins at the end of a string can-
-not but be a zero-length match, this should take care of that:
-
-/(?!\z)(?> ... )/
+not but be a zero-length match,  we could conceptually put (?!\z)  at the
+beginning of the match,  but qr/...$a_qr_with_embedded_code/ causes weird
+scoping issues (the embedded code, although it was compiled in a separate
+package,  somehow makes its way into the package that combined it  in  a
+larger regexp); hence the somewhat complex logic below.
 
 
 join ',', split /a*?/, 'aardvark'       gives ',,r,d,v,,r,k'
 'aardvark'.split(/a*?/).toString()      gives 'a,a,r,d,v,a,r,k'
 
-/(?=\w)a*?/ has to produce the same result.
-
 -----
 JS's 'aardvark'.split('', 3) means (split //, 'aardvark', 4)[0..2]
 
-=end split notes
+=end split-notes
 
 =cut
 
@@ -615,41 +627,79 @@ JS's 'aardvark'.split('', 3) means (split //, 'aardvark', 4)[0..2]
 			no_proto => 1,
 			function_args => ['this','args'],
 			function => sub {
-my($str, $sep, $limit) = @_;
+				my($str, $sep, $limit) = @_;
 
-$str = $str->to_string->[0];
+				$str = (my $je_str = $str->to_string)->[0];
 
-if(!defined $limit || $limit->id eq 'undef') {
-	$limit = -2;
-}
-elsif(defined $limit) {
-	$limit = int($limit->to_number->value) % 2 ** 32;
-	$limit = $limit == $limit && $limit;  # Nan --> 0
-}
+				if(!defined $limit ||
+				   $limit->id eq 'undef') {
+					$limit = -2;
+				}
+				elsif(defined $limit) {
+				  $limit = int($limit->to_number->value)
+				    % 2 ** 32;
+				  $limit = $limit == $limit && $limit;
+				    # Nan --> 0
+				}
+				
+				if (defined $sep) {
+				  if ($sep->can('class')
+				      && $sep->class eq 'RegExp') {
+				    $sep = $sep->value;
+				  }
+				  elsif($sep->id eq 'undef') {
+				    return JE::Object::Array->new(
+				      $global, $je_str
+				    );
+				  }
+				  else {
+				    $sep = $sep->to_string->[0];
+				  }
+				}
+				else {
+				    return JE::Object::Array->new(
+				      $global, $je_str
+				    );
+				}
+				
+				my @split;
 
-if (defined $sep) {
-	if ($sep->class eq 'RegExp') {
-		$sep = $sep->value;
-	}
-	else {
-		$sep = $sep->to_string->[0];
-	}
-}
-else {
-	$sep = '';
-}
+				if (!ref $sep) {
+				  $sep = length $sep ? quotemeta $sep :
+				    qr/(?!\z)/;
+				  @split = split $sep, $str, $limit+1;
+				  goto returne;
+				}
 
-my $pos = 0;
+				!length $str and
+				  ''=~ $sep || (@split = ''),
+				  goto returne;
+				
+				my$pos = 0;
+				while($str =~ /$sep/gc) {
+				  $pos == pos $str and ++pos $str, next;
+				    # That ++pos won’t go past the end of
+				    # the string, so it may end up being a
+				    # no-op;  but the  ‘next’  bypasses the
+				    # pos assignment below, so perl refuses
+				    # to match again at the same  position.
+				  $-[0] == length $str and last;
+				  push @split,substr($str,$pos,$-[0]-$pos),
+				    @JE::Object::RegExp::Match[
+				      1..$#JE::Object::RegExp::Match
+				    ];
+				  $pos = pos $str = pos $str;
+				    # Assigning pos to itself has the same
+				    # effect as using an atomic group
+				    # with split
+				}
+				push @split, substr($str, $pos);
 
-if (!ref $sep) { $sep = quotemeta $sep }
-elsif ($sep !~ /^\(\?-\w*:(?:\(\?\w*:\))?\)\z/ # empty regex
-      ) {
-	$sep = qr/(?!\z)(?>$sep)/;
-}
-
-my @split = split $sep, $str, $limit+1;
-JE::Object::Array->new($global,
-	$limit == -2 ? @split : @split[0..$limit-1]);
+				returne:
+				JE::Object::Array->new($global,
+				  $limit == -2 ? @split : @split ? @split[
+				    0..(@split>$limit?$limit-1:$#split)
+				  ] : @split);
 
 			},
 		}),

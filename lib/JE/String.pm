@@ -1,6 +1,6 @@
 package JE::String;
 
-our $VERSION = '0.021';
+our $VERSION = '0.022';
 
 
 use strict;
@@ -12,15 +12,19 @@ use overload fallback => 1,
 
 use Carp;
 use Memoize;
-use Scalar::Util 'blessed';
-memoize 'desurrogify'; #, LIST_CACHE => 'MERGE';  # If a memoised func-
-memoize 'surrogify'; #,  LIST_CACHE => 'MERGE';  # tion is  called  in
-                                               # list context the first
-                                             # time it is called with a
-                                          # particular set of arguments,
-                                       # LIST_CACHE => MERGE will  cause
-                                   # an array ref to be cached instead of
-                              # the actual return value, as of Memoize.pm
+use Scalar::Util qw 'blessed tainted';
+
+use constant T => ${AINT};
+sub _normalize { no warnings; T && tainted $_[0] ? "T$_[0]" : "_$_[0]" }
+memoize 'desurrogify', NORMALIZER => '_normalize';  
+memoize 'surrogify', NORMALIZER => '_normalize'; # I can’t use
+                                            # LIST_CACHE => MERGE,
+                                       # because, if a memoised func-
+                                  # tion is called in list context the
+                              # first time it is called with  a  partic-
+                           # ular  set  of  arguments,  it  will  cause
+                         # an  array  ref  to  be  cached  instead  of
+                        # the actual return value,  as of Memoize.pm
                         # version 1.01.
 
 # ~~~ Perhaps memoize is a bad idea, because it would create a memory leak
@@ -128,6 +132,14 @@ sub to_number  {
 
 sub global { $_[0][1] }
 
+sub taint {
+	my $self = shift;
+	tainted $self->[0] and return $self;
+	my $alter_ego = [@$self];
+	$alter_ego->[0] .= shift();
+	return bless $alter_ego, ref $self;
+}
+
 
 sub desurrogify($) {
 	my $ret = shift;
@@ -202,11 +214,12 @@ The stringification operator is overloaded.
 
 =head1 THE FUNCTION
 
-There is one exportable function, C<desurrogify>, which will convert
-surrogate pairs in its string input argument into the characters they
-represent, and return the modified string. E.g.:
+There are two exportable functions, C<surrogify> and C<desurrogify>, which
+convert characters outside the BMP into surrogate pairs, and convert
+surrogate pairs in the string input argument into the characters they
+represent, respectively, and return the modified string. E.g.:
 
-  use JE::String 'desurrogify';
+  use JE::String qw 'desurrogify surrogify';
   
   {
           no warnings 'utf8';
@@ -214,6 +227,7 @@ represent, and return the modified string. E.g.:
   }
 
   $str = desurrogify $str;  # $str now contains "\x{1d12b}" (double flat)
+  $str = surrogify $str;    # back to "\x{d834}\x{dd2b}"
 
 =head1 SEE ALSO
 

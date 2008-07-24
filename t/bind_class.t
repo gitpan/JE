@@ -4,7 +4,7 @@ BEGIN { require './t/test.pl' }
 
 use Test::More tests => 195;
 use strict;
-use Scalar::Util 'refaddr';
+use Scalar::Util 1.14 'refaddr';
 use utf8;
 no warnings 'utf8';
 
