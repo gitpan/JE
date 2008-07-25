@@ -1,4 +1,4 @@
-JE, version 0.022
+JE, version 0.023
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -25,8 +25,12 @@ module (or maybe even lend a hand :-). If you have any ideas as to how
 the API could be improved or reworked, please e-mail me.
 
 
-CHANGES IN THIS RELEASE
+RECENT CHANGES
 
+0.023: No functional changes; I just forgot to add a dependency to
+       Makefile.PL in the previous release.
+
+0.022:
 • RegExp.prototype.test and RegExp.prototype.toString have been added,
   so the RegExp class is complete.
 • Date.prototype’s setTime, setMilliseconds and setUTCMilliseconds

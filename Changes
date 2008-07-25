@@ -1,5 +1,10 @@
 Revision history for JE
 
+0.023   25 July, 2008
+        No functional changes. constant::private is now declared as a
+        dependency in  Makefile.PL.  I forgot  to  add  this  to  the
+        last release.
+
 0.022   24 July, 2008
         New features:
         • RegExp.prototype.test and RegExp.prototype.toString have
