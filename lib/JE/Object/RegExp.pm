@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.023';
+our $VERSION = '0.024';
 
 
 use strict;
@@ -322,7 +322,7 @@ sub new {
 
 	unless (defined $qr) { # processing begins here
 
-	use constant::private {
+	use constant::lexical {
 		posi => 0, type => 1, xmod => 2, parn => 3, #capn => 4,
 		reg => 0, cap => 1, itrb => 2, brch => 3, cond => 4
 	};
@@ -689,7 +689,8 @@ sub new_constructor {
 			
 				my $ary = JE::Object::Array->new(
 					$global, \@ary);
-				$ary->prop(index => $indx);
+				$ary->prop(index =>
+					JE::Number->new($global,$indx));
 				$ary->prop(input => defined $je_str
 					? $je_str :
 					JE::String->new(

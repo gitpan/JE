@@ -1,4 +1,4 @@
-JE, version 0.023
+JE, version 0.024
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -25,27 +25,22 @@ module (or maybe even lend a hand :-). If you have any ideas as to how
 the API could be improved or reworked, please e-mail me.
 
 
-RECENT CHANGES
+CHANGES IN THIS RELEASE
 
-0.023: No functional changes; I just forgot to add a dependency to
-       Makefile.PL in the previous release.
-
-0.022:
-• RegExp.prototype.test and RegExp.prototype.toString have been added,
-  so the RegExp class is complete.
-• Date.prototype’s setTime, setMilliseconds and setUTCMilliseconds
-  methods has been added.
-• []  in a regular expression used to be  an  always-fail  assertion.
-  This is no longer the case. Now it follows Perl’s behaviour (the ]
-  is interpreted as a literal character within the class).  I  origi-
-  nally misread the  spec.  This  is  actually  a  syntax  error  in
-  ECMAScript.
-• Added an ‘unwrap’ option to bind_class,  that makes it behave more
-  sensibly in the author’s opinion. This may become the default in a
-  future release.
-• Tainted code can now be run safely, and can no longer untaint
-  its own data.
-• Bug fixes--see the Changes file.
+Changed the dependency on constant::private to constant::lexical,
+since that module has been renamed.
+Bug fixes:
+• String.length is now 1, not 0.
+• String.prototype.charAt and .charCodeAt no longer warn and behave
+  incorrectly when passed something other than a number.
+• String.prototype.match and .search no longer die when passed
+  null or undefined.
+• The index property of arrays returned by String.prototype.match and
+  RegExp.prototype.exec  is now a number,  and  no  longer  a  string.
+• Fixed an obscure bug in the date module’s daylight saving adjustment
+  which would sometimes use the wrong year.
+• str.indexOf('', num), where num > str.length, no longer returns num
+  in perl 5.10.0, but str.length, as it should.
 
 
 TO DO

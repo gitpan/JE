@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.023';
+our $VERSION = '0.024';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -2024,12 +2024,6 @@ The Date class is incomplete.
 
 =item *
 
-Functions objects do not always stringify properly. The body of the 
-function is
-missing. This produces warnings, too.
-
-=item *
-
 The JE::Scope class, which has an C<AUTOLOAD> sub that 
 delegates methods to the global object, does not yet implement 
 the C<can> method, so if you call $scope->can('to_string')
@@ -2110,6 +2104,12 @@ Perl class on the resulting object, you can't expect reasonable results.
 You'll probably just get a meaningless error message.
 
 =end comment
+
+=item *
+
+On Solaris in perl 5.10.0, the Date class can cause an 'Out of memory'
+error which I find totally inexplicable. Patches welcome. (I don't have
+Solaris, so I can't experiment with it.)
 
 =back
 

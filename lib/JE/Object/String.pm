@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.023';
+our $VERSION = '0.024';
 
 
 use strict;
@@ -124,6 +124,7 @@ sub _new_constructor {
 				JE::String->new($global, '');
 		},
 		function_args    => ['args'],
+		argnames         => ['value'],
 		constructor      => sub {
 			unshift @_, __PACKAGE__;
 			goto &new;
@@ -220,7 +221,7 @@ sub _new_constructor {
 				
 				my $str = $self->to_string->[0];
 				if (defined $pos) {
-					$pos = int $pos->to_string->[0];
+					$pos = int $pos->to_number->[0];
 					$pos = 0 unless $pos == $pos;
 				}
 
@@ -246,7 +247,7 @@ sub _new_constructor {
 				
 				my $str = $self->to_string->[0];
 				if (defined $pos) {
-					$pos = int $pos->to_string->[0];
+					$pos = int $pos->to_number->[0];
 					$pos = 0 unless $pos == $pos;
 				}
 
@@ -288,14 +289,19 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this','args'],
 			function => sub {
-				JE::Number->new($global, index
-					shift->to_string->[0],
-					defined $_[0]
+				my $str = shift->to_string->[0];
+				my $find = defined $_[0]
 						? $_[0]->to_string->[0]
-						: 'undefined',
-					defined $_[1]
-						? $_[1]->to_number->value
-						: 0
+						: 'undefined';
+				my $start = defined $_[1]
+							? $_[1]->to_number
+								->value
+							: 0;
+				JE::Number->new($global,
+					!length $find
+					  && $start > length $str
+					? length $str
+					: index $str, $find, $start
 				);
 			},
 		}),
@@ -367,7 +373,7 @@ sub _new_constructor {
 				$str = $str->to_string;
 
 				!defined $re_obj || 
-					$re_obj->class ne 'RegExp'
+				    (eval{$re_obj->class}||'') ne 'RegExp'
 				 and $re_obj =	
 					JE::Object::RegExp->new($global, 
 						$re_obj);
@@ -523,7 +529,7 @@ sub _new_constructor {
 sub {
 	my($str, $re) = @_;
 
-	$re = defined $re ? $re->class eq 'RegExp' ? $re->value :
+	$re = defined $re ?(eval{$re->class}||'')eq 'RegExp' ? $re->value :
 		JE::Object::RegExp->new($global, $re)->value : qr//;
 
 	return JE::Number->new($global, $str->to_string->[0] =~ $re ?

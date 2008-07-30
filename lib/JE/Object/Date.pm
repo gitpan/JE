@@ -1,6 +1,6 @@
 package JE::Object::Date;
 
-our $VERSION = '0.023';
+our $VERSION = '0.024';
 
 
 use strict;
@@ -256,7 +256,7 @@ sub _week_day($) { (&_day + 4) % 7 }
 	my @_dumdeedum; 
 
 	my $this_year = (gmtime(my $time = time))[5]+1900;
-	$_dumdeedum[_week_day($time) +
+	$_dumdeedum[_week_day(_time_from_year _year_from_time $time*1000) +
 		7 * (_days_in_year($this_year)==366) ] = $this_year;
 
 	my $next_past = my $next_future = $this_year;

@@ -4,8 +4,6 @@ do './t/jstest.pl' or die __DATA__
 
 Array.prototype.joyne = function(){return peval('join ",",@{+shift}',this)}
 
-/// ~~~ I need a test for new String().length’s type
-
 // ===================================================
 // 15.5.1: String as a function
 // 7 tests
@@ -38,7 +36,26 @@ ok(new String(null).valueOf() === 'null', 'new String(null)')
 ok(new String({}).valueOf() === '[object Object]', 'new String(object)')
 
 
-// ...
+// ===================================================
+// 15.5.3 String
+// ===================================================
+
+// 10 tests (boilerplate stuff for constructors)
+is(typeof String, 'function', 'typeof String');
+is(Object.prototype.toString.apply(String), '[object Function]',
+	'class of String')
+ok(String.constructor === Function, 'String\'s prototype')
+ok(String.length === 1, 'String.length')
+ok(!String.propertyIsEnumerable('length'),
+	'String.length is not enumerable')
+ok(!delete String.length, 'String.length cannot be deleted')
+is((String.length++, String.length), 1, 'String.length is read-only')
+ok(!String.propertyIsEnumerable('prototype'),
+	'String.prototype is not enumerable')
+ok(!delete String.prototype, 'String.prototype cannot be deleted')
+cmp_ok((String.prototype = 7, String.prototype), '!=', 7,
+	'String.prototype is read-only')
+
 
 // ===================================================
 // 15.5.3.2: fromCharCode
@@ -59,13 +76,211 @@ is(String.fromCharCode(
    "\x00\x02\ufffe\uffff\x00\x01\x02\uffff￠ꈀ\ud800\u0e00\ufffe\x02\x01" +
    "\x00\uffff\ufffe", 'fromCharCode')
 
-// ...
+// ===================================================
+// 15.5.4: fromCharCode
+// ===================================================
+
+// 3 tests
+is(Object.prototype.toString.apply(String.prototype),
+	'[object String]',
+	'class of String.prototype')
+is(String.prototype, '',
+	'String.prototype as string')
+ok(peval('shift->prototype',String.prototype) === Object.prototype,
+	'String.prototype\'s prototype')
+
+
+// ===================================================
+// 15.5.4.1 String.prototype.constructor
+// ===================================================
+
+// 2 tests
+ok(String.prototype.hasOwnProperty('constructor'),
+	'String.prototype has its own constructor property')
+ok(String.prototype.constructor === String,
+	'value of String.prototype.constructor')
+
+
+// ===================================================
+// 15.5.4.2: toString
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(String.prototype,'toString',0)
+
+// 3 tests for misc this values
+0,function(){
+	var f = String.prototype.toString;
+	var testname='toString with number for this';
+	try{f.call(8); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+	var testname='toString with object for this';
+	try{f.call({}); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+	var testname='toString with boolean for this';
+	try{f.call(true); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+}()
+
+// 1 test more
+ok(new String("foo").toString() === 'foo', 'toString')
+
+
+// ===================================================
+// 15.5.4.3: valueOf
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(String.prototype,'valueOf',0)
+
+// 3 tests for misc this values
+0,function(){
+	var f = String.prototype.valueOf;
+	var testname='valueOf with number for this';
+	try{f.call(8); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+	var testname='valueOf with object for this';
+	try{f.call({}); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+	var testname='valueOf with boolean for this';
+	try{f.call(true); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+}()
+
+// 1 test more
+ok(new String("foo").valueOf() === 'foo', 'valueOf')
+
+
+// ===================================================
+// 15.5.4.4: charAt
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(String.prototype,'charAt',1)
+
+// 3 tests for misc this values
+0,function(){
+	var f = String.prototype.charAt;
+	is(f.call(87.3,1), 7, 'charAt with number for this')
+	is(f.call({},0), '[', 'charAt with object for this')
+	is(f.call(false,2), 'l', 'charAt with boolean for this')
+}()
+
+// 5 tests: various types for the pos
+is('The best laid schemes o’ mice an’ men'.charAt(true),'h','charAt(bool)')
+is('gang aft agley,'.charAt(null), 'g', 'charAt(null)')
+is('And lea’e us nought but grief an’ pain'.charAt(undefined), "A",	
+	'charAt(undef)')
+is('for promised joy.'.charAt({}),'f','charAt(obj)')
+is('—Robert Burns'.charAt("7"), ' ', 'charAt(str)')
+
+// 4 tests more
+ok("34567".charAt(1.7) === '4', 'charAt(non-integer)')
+ok('hello'.charAt(-336) === '', 'charAt(negative)')
+ok('hello'.charAt(377) === '', 'charAt(big number)')
+is('\ud834\udd2b is the symbol for double flat'.charAt(7), 'h',
+	"charAt with extra-BMP chars")
+
+
+// ===================================================
+// 15.5.4.5: charCodeAt
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(String.prototype,'charCodeAt',1)
+
+// 3 tests for misc this values
+0,function(){
+	var f = String.prototype.charCodeAt;
+	is(f.call(87.3,1), 0x37, 'charCodeAt with number for this')
+	is(f.call({},0), 0x5b, 'charCodeAt with object for this')
+	is(f.call(false,2), 0x6c, 'charCodeAt with boolean for this')
+}()
+
+// 5 tests: various types for the pos
+is('The best laid schemes o’ mice an’ men'.charCodeAt(true),0x68,
+	'charCodeAt(bool)')
+is('gang aft agley,'.charCodeAt(null), 0x67, 'charCodeAt(null)')
+is('And lea’e us nought but grief an’ pain'.charCodeAt(undefined), 0x41,
+	'charCodeAt(undef)')
+is('for promised joy.'.charCodeAt({}),0x66,'charCodeAt(obj)')
+is('—Robert Burns'.charCodeAt("7"), 32, 'charCodeAt(str)')
+
+// 4 tests more
+ok("34567".charCodeAt(1.7) === 0x34, 'charCodeAt(non-integer)')
+ok(is_nan('hello'.charCodeAt(-336)), 'charCodeAt(negative)')
+ok(is_nan('hello'.charCodeAt(377)), 'charCodeAt(big number)')
+is('\ud834\udd2b is the symbol for double flat'.charCodeAt(7), 0x68,
+	"charCodeAt with extra-BMP chars")
+
+
+// ===================================================
+// 15.5.4.6: concat
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(String.prototype,'concat',1)
+
+// 3 tests for misc this values
+0,function(){
+	var f = String.prototype.concat;
+	is(f.call(87.3,1), '87.31', 'concat with number for this')
+	is(f.call({},0), '[object Object]0', 'concat with object for this')
+	is(f.call(false,2), 'false2', 'concat with boolean for this')
+}()
+
+// 2 test
+ok(new String("ooooo").concat() === 'ooooo', 'concat with no args')
+ok(new String('foo').concat(true,false,null,undefined,38.6,"foo",{},[,,])
+	=== 'footruefalsenullundefined38.6foo[object Object],',
+	'concat with args')
+
+// ===================================================
+// 15.5.4.7: indexOf
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(String.prototype,'indexOf',1)
+
+// 18 tests
+0,function(){
+	var f = String.prototype.indexOf;
+	ok(f.call(778, '7') === 0, 'indexOf with number for this')
+	ok(f.call({}, 'c') === 5, 'indexOf with object for this')
+	ok(f.call(false, 'a') === 1, 'indexOf with boolean this')
+}()
+ok('undefined undefined'.indexOf(undefined) === 0,
+	'indexOf with undefined search string')
+ok('true true'.indexOf(true) === 0, 'indexOf w/boolean search str')
+ok('null null'.indexOf(null) === 0, 'indexOf w/null search str');
+ok ('3 3'.indexOf(3) === 0, 'lastIndex of with numeric serach string')
+ok('[object Object] [object Object]'.indexOf({}) === 0,
+	'indexOf with objectionable search string')
+
+ok('   '.indexOf('', undefined) === 0, 'indexOf w/undefined pos')
+	|| diag('   '.indexOf('', undefined) + ' !== 0')
+ok('   '.indexOf('', false) === 0, 'indexOf w/boolean pos');
+ok('   '.indexOf(' ', '1') === 1, 'indexOf w/str pos');
+ok('   '.indexOf(' ', {}) === 0, 'indexOf w/objectionable pos')
+ok('   '.indexOf(' ', null) === 0, 'indexOf w/null pos');
+
+ok('   '.indexOf(' ', 1.2) === 1, 'indexOf w/ fractional pos');
+ok('   '. indexOf(' ', -3) === 0, 'indexOf w/neg pos');
+ok('   '. indexOf(' ', 76) === -1, 'indexOf w pos > length (failed)');
+ok('   '. indexOf('', 76) === 3, 'indexOf w pos > length (matched)')
+	|| diag('   '. indexOf('', 76) + ' !== 3') ;
+
+ok('   '.indexOf('ntue') === -1, 'indexOf w/failed match')
+
 
 // ===================================================
 // 15.5.4.8: lastIndexOf
-// 18 tests
 // ===================================================
 
+// 10 tests
+method_boilerplate_tests(String.prototype,'lastIndexOf',1)
+
+// 18 tests
 0,function(){
 	var f = String.prototype.lastIndexOf;
 	ok(f.call(778, '7') === 1, 'lastIndexOf with number for this')
@@ -93,34 +308,70 @@ ok('   '. lastIndexOf(' ', 76) === 2, 'lastIndexOf w pos > length');
 
 ok('   '.lastIndexOf('ntue') === -1, 'lastIndexOf w/failed match')
 
-// ...
+
+// ===================================================
+// 15.5.4.9: localeCompare
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(String.prototype,'localeCompare',1)
+
+// ~~~ I can’t test this properly yet, because I haven’t quite decided how
+//     it should work.
+
 
 // ===================================================
 // 15.5.4.10: match
- // 18 tests or so
 // ===================================================
 
-/* cases to test
+// 10 tests
+method_boilerplate_tests(String.prototype,'match',1)
 
-different input types for the this value
+// 3 tests: misc this values
+0,function(){
+	var f = String.prototype.match;
+	is(f.call(778, '7[^7]'), '78',
+		'match with number for this')
+	is(f.call({}, 'c.'), 'ct', 'match with object for this')
+	is(f.call(false, 'a.'), 'al', 'match with boolean this')
+}()
 
-regexp.[[Class]] is RegExp
-	if global is false
-	if global is true
-		if there is a match with an empty string
-		if there is no match with an empty string
-regexp of different types
-	if global is false
-	if global is true
-		if there is a match with an empty string
-		if there is no match with an empty string
-omitted regexp
-	if global is false
-	if global is true
-		if there is a match with an empty string
-		if there is no match with an empty string
+// 10 tests: real RegExp objects
+0,function(){
+	var ret = '  a '.match(/(.)(?!\1)../)
+	is({}.toString.call(ret), '[object Array]','class of match retval')
+	is(ret.length, '2', 'length of match retval')
+	is(ret, ' a , ', 'elements of match retval')
+	ok(ret.index===1, 'match retval.index') || diag(typeof ret.index)
+	ok(ret.input==='  a ', 'match retval.input')
+	
+	var ret = ' a '.match(/ ?/g);
+	is({}.toString.call(ret), '[object Array]',
+		'class of global match retval')
+	is(ret.length, '4', 'length of global match retval')
+	is(ret, ' ,, ,', 'elements of global match retval')
+	ok(!('index' in ret), 'global match retval has no index property')
+	ok(!('input' in ret), 'global match retval has no input property')
 
-*/
+}()
+
+// 12 tests: regexps of different types
+0,function(){
+	is(' true '.match(true), 'true','successful match(bool)')
+	ok(' tru '.match(true) ===null,'failed match(bool)')
+	ok(' null '.match(null),'successful match(null)')
+	ok(' tru '.match(null) === null,'failed match(null)')
+	is(' 45 '.match(45), '45','successful match(num)')
+	ok(' 4 '.match(45) ===null,'failed match(num)')
+	is(' undefined'.match(void 0), '',
+		'match(undef)')
+	is(' 45 '.match('4(\\d)'), '45,5','successful match(str)')
+	ok(' 4 '.match('4(\\d)') ===null,'failed match(str)')
+	is('undefined'.match({}), 'e','successful match(obj)')
+	ok('4'.match({}) ===null,'failed match(obj)')
+	is('ndefinedundefined'.match(),'', 'match without args')
+}()
+
 
 // ===================================================
 // 15.5.4.11: replace
@@ -308,6 +559,43 @@ is('fooundefined'.replace(void 0,8), 'foo8',
 // 1 test
 is("$1,$2".replace(/(\$(\d))/g, "$$1-$1$2"), "$1-$11,$1-$22",
 	"$ example from the spec.")
+
+
+// ===================================================
+// 15.5.4.12: search
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(String.prototype,'search',1)
+
+// 3 tests: misc this values
+0,function(){
+	var f = String.prototype.search;
+	is(f.call(778, '7[^7]'), 1,
+		'search with number for this')
+	is(f.call({}, 'c.'), '5', 'search with object for this')
+	is(f.call(false, 'a.'), '1', 'search with boolean this')
+}()
+
+// 16 tests
+ok('   a '.search(/(.)(?!\1)../) === 2, 'search with RegExp')
+ok('   a '.search(/(.)(?!\1).../) === -1, 'failed search with RegExp')
+ok(' a a a a'.search(/\w/g) === 1, 'search with global RegExp')
+ok(' a a a a'.search(/b/g) === -1, 'failed search with global RegExp')
+is(' true '.search(true), '1','successful search(bool)')
+is(' tru '.search(true), -1,'failed search(bool)')
+is(' null '.search(null),1,'successful search(null)')
+is(' tru '.search(null), -1,'failed search(null)')
+is('  45 '.search(45), 2,'successful search(num)')
+is(' 4 '.search(45),-1,'failed search(num)')
+is(' undefined'.search(void 0), 0,
+	'search(undef)')
+is(' 345 '.search('4(\\d)'), 2,'successful search(str)')
+is(' 4 '.search('4(\\d)'),-1,'failed search(str)')
+is('undefined'.search({}), 3,'successful search(obj)')
+is('4'.search({}),-1,'failed search(obj)')
+is('ndefinedundefined'.search(),0, 'search without args')
+
 
 
 // ...

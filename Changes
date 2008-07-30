@@ -1,5 +1,24 @@
 Revision history for JE
 
+0.024   
+        Changed the dependency on constant::private
+        to constant::lexical, since that module has
+        been renamed.
+        Bug fixes:
+        • String.length is now 1, not 0.
+        • String.prototype.charAt and .charCodeAt no longer warn
+          and behave incorrectly  when  passed  something  other
+          than a number.
+        • String.prototype.match and .search no longer die when passed
+          null or undefined.
+        • The index property of arrays returned by String.prototype
+         .match and RegExp.prototype.exec  is now a number,  and no
+          longer a string.
+        • Fixed an obscure bug in the date module’s daylight saving
+          adjustment which  would  sometimes  use  the  wrong  year.
+        • str.indexOf('', num), where num > str.length,  no longer
+          returns num in perl 5.10.0, but str.length, as it should.
+
 0.023   25 July, 2008
         No functional changes. constant::private is now declared as a
         dependency in  Makefile.PL.  I forgot  to  add  this  to  the

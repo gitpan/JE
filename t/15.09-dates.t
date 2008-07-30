@@ -51,7 +51,12 @@ interval = Math.abs(interval);
 ok(thyme.substr(-5, 1) == sign &&
    (interval - interval % 60) / 60 == thyme.substr(-4,2) &&
    (interval % 60) == thyme.substring(thyme.length-2),
-	'Date() time zone');
+	'Date() time zone')
+|| diag(
+	'"' + thyme + '".substr(-5, 1)' + '==' + sign + '&&' +
+	(interval - interval % 60) / 60 + '==' + thyme.substr(-4,2) + '&&'+
+	(interval % 60) + '==' + thyme.substring(thyme.length-2)
+);
 
 ok(rosemary.match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)[ ]
                     (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[ ]

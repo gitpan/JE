@@ -8,7 +8,7 @@ BEGIN {
 use ExtUtils::MakeMaker;
 
 my %prq = (
-         constant::private => 0,
+         constant::lexical => 0,
 #        'Date::Parse' => 0, # I will need this later
          Encode     => 2.08, # ‘decode_utf8 "\xef\xbb", FB_CROAK’
          Exporter   => 5.57,

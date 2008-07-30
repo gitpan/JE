@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.023';
+our $VERSION = '0.024';
 
 use strict;
 use warnings; no warnings 'utf8';
