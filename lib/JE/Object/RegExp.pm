@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.024';
+our $VERSION = '0.025';
 
 
 use strict;
@@ -47,7 +47,6 @@ our @EraseCapture;
 #    \v         \cK
 #    \n         \cj  (whether \n matches \cj in Perl is system-dependent)
 #    \r         \cm
-#    \cX        (Matches the character produced by chr ord('X') % 32)
 #    \uHHHH     \x{HHHH}
 #    \d         [0-9]
 #    \D         [^0-9]
@@ -78,23 +77,6 @@ our @EraseCapture;
 #
 # perl5.9.4 produces the same. perl5.002_01 crashes quite nicely.
 # 
-# We can emulate  ECMAScript’s  behaviour  by  putting  a  (?{})  marker
-# within each pair of capturing parentheses before the closing paren, and
-# within it’s  enclosing  group  at  the  end:  (?:(a+)?b)+  will  become
-# (?: ( a+ (?{...}) )? b (?{...}) )+  (spaced out for  readability). The
-# last code  interpolation  sees  whether  the  re  engine  is  making
-# it  past  the  (a+).  The inner  (first)  code  interpolation  will
-# only be triggered if  the  a+  matches.  If the  final  code  inter-
-# polation is triggered without the inner one being  triggered  first,
-# then the  capture  from  the  parentheses  is  to  be  erased  after-
-# wards.  It’s actually slightly more  complicated  than  that,  because
-# we may have  alternatives  directly  inside  the  outer  grouping;  e.g.,
-# (?:a|(b))+,  so we have to wrap the contents thereof within (?:),  making
-# ‘(?:(?:a|(b(?{...})))(?{...}))+’.  Whew!  Anyway,  we store the  info  in
-# $EraseCapture, using (?{$EraseCapture[n]=0}) and (?{++$EraseCapture[n]}),
-# where n is the number of the capture. If $EraseCapture[n] > 1 afterwards,
-# then undefined is to be returned in place of $1.
-#
 #
 # In ECMAScript, when the pattern inside a (?! ... ) fails (in which case
 # the (?!) succeeds), values captured by parentheses within the negative
@@ -107,9 +89,6 @@ our @EraseCapture;
 # a
 # $ perl5.9.4 -le 'print "a" =~ /(?!(a)b)a/;'
 # a
-#
-# This is solved with a (?{}) that comes *after* the (?!)’s final clos-
-# ing paren, that marks the captures for erasure.
 #
 #
 # In ECMAScript, as in Perl, a pair of capturing parentheses will produce
@@ -125,9 +104,25 @@ our @EraseCapture;
 # incidentally, does what Perl *appears* to do at first glance, *if* the
 # backreference itself is within capturing parentheses (as in
 # /(?:|())(\1)/).
-
-
-
+#
+# These issues are solved with embedded code snippets, as explained below,
+# where the actual code is.
+#
+#
+# In ECMAScript,  case-folding inside the regular expression engine is not
+# allowed to change the length of a string.  Therefore,  "ß"  never matches
+# /ss/i, and vice versa. I’m disinclined to be ECMAScript compliant in this
+# regard though, because it would affect performance. The inefficient solu-
+# tion I have in mind is to change /x/i to /(?-i:x)/  for every character
+# that has a multi-character uppercase equivalent; and to change /xx/i to
+# /(?-i:[Xx][Xx])/  where xx  represents a multi-character sequence that
+# could match a single character in Perl. The latter is the main problem.
+# How are we to find out which character sequences need  this?  We  could
+# change /x/i to /[xX]/ for every literal character in the string, but how
+# would we take /Σ/ -> /[Σσς]/ into account? And does perl’s regexp engine
+# slow down if we feed it a ton of character classes instead  of  literal
+# text? (Need to do some benchmarks.) (If we do fix this, we need to re-
+# enable the skipped tests.)
 
 
 
@@ -208,7 +203,7 @@ our %_class_patterns = qw/
 
 my $clear_captures = qr/(?{@Match=@EraseCapture=()})/;
 my $save_captures = do { no strict 'refs';
-  qr/(?{$Match[$_]=($EraseCapture[$_]||0)>1?undef:$$_ for 1..$#+})/; };
+  qr/(?{$Match[$_]=$EraseCapture[$_]?undef:$$_ for 1..$#+})/; };
 # These are pretty scary, aren’t they?
 my $plain_regexp =
 	qr/^((?:[^\\[()]|\\.|\((?:\?#|\*)[^)]*\))[^\\[()]*(?:(?:\\.|\((?:\?#|\*)[^)]*\))[^\\[()]*)*)/s;
@@ -220,10 +215,8 @@ my $plain_regexp_x_mode_wo_pipe =
 	qr/^((?:[^\\[()|]|\\.|\(\s*(?:\?#|\*)[^)]*\))[^\\[()|]*(?:(?:\\.|\(\s*(?:\?#|\*)[^)]*\))[^\\[()|]*)*)/s;
 
 sub _capture_erasure_stuff {
-	map ref() # if we have a reference, its from a (?!)
-		  ? map "\$EraseCapture[$_]=2",@$_
-		  : "local\$EraseCapture[$_]=(\$EraseCapture[$_]||0)+1",
-		@{+shift}
+	"(?{local\@EraseCapture[" . join(',',@{$_[0]}) . "]=(1)x"
+		. @{$_[0]} . '})'
 }
 
 sub new {
@@ -322,8 +315,51 @@ sub new {
 
 	unless (defined $qr) { # processing begins here
 
+	# This horrific piece of code converts an ECMAScript regular
+	# expression into a Perl one, more or less.
+
+	# Since Perl sometimes fills in $1, etc., where they are supposed
+	# to be undefined in ECMAScript, we use embedded code snippets to
+	# put the values into @Match[1..whatever] instead.
+
+	# The cases we have to take into account are
+	# 1) quantified captures; i.e., (...)+ or (?:()?)+ ; and
+	# 2) captures within interrobang groups: (?!())
+
+	# The solution is to mark captures as erasure candidates with the
+	# @EraseCapture array.
+
+	# To solve case 1, we have to put (?{}) markers at the begin-
+	# ning of each grouping construct that has captures  in  it,
+	# and a quantifier within each pair of capturing  parenthe-
+	# ses before the closing paren.  (?:(a+)?b)+  will  become
+	# (?: (?{...}) ( a+ (?{...}) )? b )+  (spaced out for reada-
+	# bility). The first code interpolation sets $EraseCapture[n]
+	# to 1  for  all  the  captures  within  that  group.  The  sec-
+	# ond code  interpolation  will  only  be  triggered  if  the  a+
+	# matches,  and there we  set  $EraseCapture[n]  to  0.  It’s actu-
+	# ally  slightly  more  complicated  than  that,  because  we  may
+	# have alternatives directly  inside  the  outer  grouping;  e.g.,
+	# (?:a|(b))+,  so we have to wrap the contents  thereof  within
+	# (?:),  making ‘(?:(?{...})(?:a|(b(?{...}))))+’.  Whew!
+
+	# For case 2 we change (?!...) to (?:(?!...)(?{...})). The embedded
+	# code marks the captures inside  (?!)  for erasure.  The  (?:  is
+	# needed because the (?!) might be quantified. (We used not to add
+	# the extra (?:),  but put the (?{})  at the end of the innermost
+	# enclosing group,  but that causes the  same  \1  problem  men-
+	# tioned above.
+
 	use constant::lexical {
-		posi => 0, type => 1, xmod => 2, parn => 3, #capn => 4,
+		# array indices within each item on the @stack:
+		posi => 0, # position within $new_re where the current
+		           # group’s contents start, or before the opening
+		           # paren for interrobang groups
+		type => 1, # type of group; see constants below
+		xmod => 2, # whether /x mode is active
+		capn => 3, # array ref of capture numbers within this group
+
+		# types of parens:
 		reg => 0, cap => 1, itrb => 2, brch => 3, cond => 4
 	};
 
@@ -331,22 +367,14 @@ sub new {
 	my $sub_pat;
 	my @stack = [0,0,$flags =~ /x/];
 	my $capture_num; # number of the most recently started capture
-	my @to_erase = []; # arys of numbers of captures to be marked with
-	                   # (?{}) for potential erasure
-	my @interrobang; # arys of nos. of captures w/in interrobang group;
-                         # we keep a separate list in addition to @to_erase
-	                 # because even those captures that do  participate
-	                 # in the final iteration of a  quantified  subpat-
-	                 # tern are to be erased.  Furthermore,  we  can’t
-	                 # erase them till we reached the end of the inner-
-	                 # most enclosing group,  because the interrobang
-	                 # group may be quantified.
 	my @capture_nums;   # numbers of the captures we’re inside
-	my @add_extra_paren; # levels at which a closing paren needs to
-	                     # be inserted
 #my $warn;
 #++$warn if $re eq '(?p{})';
 	{
+		@stack or die new JE::Object::Error::SyntaxError $global,
+			add_line_number "Unmatched ) in regexp";
+
+		# no parens or char classes:
 		if( $stack[-1][xmod]
 		  ? $stack[-1][type] == cond || $stack[-1][type] == brch
 		    ? $re =~ s/$plain_regexp_x_mode_wo_pipe//
@@ -361,11 +389,11 @@ sub new {
 				  |
 				(\.|\\[bBvnrdDsSwW])
 				  |
-				\\c(.)
-				  |
 				\\u([A-Fa-f0-9]{4})
 				  |
-				(\\.)
+				\\([1-9][0-9]*)
+				  |
+				(\\(?:[^c]|c.))
 			/
 			  defined $1
 			  ? $1 eq '^'
@@ -376,12 +404,15 @@ sub new {
 			      ? '(?:\z|(?=[\cm\cj\x{2028}\x{2029}]))'
 			      : '\z'
 			  : defined $2 ? $_patterns{$2} :
-			    defined $3 ? sprintf('\x%02x', ord($3) % 32) :
-			    defined $4 ? "\\x{$4}"      :
+			    defined $3 ? "\\x{$3}"      :
+			    defined $4 ? "(?(?{defined\$$4&&"
+			                ."!\$EraseCapture[$4]})\\$4)" :
 			    $5
 			/egxs;
 			$new_re .= $sub_pat;
 		}
+
+		# char class:
 		elsif($re=~s/^\[((?:[^\\]|\\.)[^]\\]*(?:\\.[^]\\]*)*)]//s){
 			if($1 eq '^') {
 				$new_re .= '(?s:.)';
@@ -393,19 +424,15 @@ sub new {
 				    |
 				  (\.|\\[DSW])
 				    |
-				  \\c(.)
-				    |
 				  \\u([A-Fa-f0-9]{4})
 				    |
-				  (\\.)
+				  (\\(?:[^c]|c.))
 				/
 			  	  defined $1 ? $_class_patterns{$1} :
 				  defined $2 ? ((push @full_classes,
 					$_patterns{$2}),'') :
-				  defined $3 ?
-				     sprintf('\x%02x', ord($3) % 32) :
-				  defined $4 ? "\\x{$4}"  :
-			    	  $5
+				  defined $3 ? "\\x{$3}"  :
+			    	  $4
 				/egxs;
 
 				$new_re .= length $sub_pat
@@ -421,6 +448,8 @@ sub new {
 				      ')';
 			}
 		}
+
+		# (?mods) construct (no colon) :
 		elsif( $stack[-1][xmod]
 		             ? $re =~ s/^(\(\s*\?([\w]*)(?:-([\w]*))?\))//
 		             : $re =~ s/^(\(   \?([\w]*)(?:-([\w]*))?\))//x
@@ -430,14 +459,19 @@ sub new {
 			? $stack[-1][xmod]=0
 			: $2 =~ /x/ && ++$stack[-1][xmod];
 		}
+
+		# start of grouping construct:
 		elsif( $stack[-1][xmod]
 		 ? $re=~s/^(\((?:\s*\?([\w-]*:|[^:{?<p]|<.|([?p]?\{)))?)//
 		 : $re=~s/^(\((?:   \?([\w-]*:|[^:{?<p]|<.|([?p]?\{)))?)//x
 		) {
 #			warn "$new_re-$1-$2-$3-$re" if $warn;
-			$3 and  die add_line_number
-				"Embedded code in regexps is not "
-				    . "supported";
+			$3 and  die JE'Object'Error'SyntaxError->new(
+				      $global, add_line_number
+				        "Embedded code in regexps is not " 
+				        . "supported"
+				    );
+			my $pos_b4_parn = length $new_re;
 			$new_re .= $1;
 			my $caq = $2; # char(s) after question mark
 			my @current;
@@ -445,9 +479,12 @@ sub new {
 				if($caq eq '(') {
 				  $re =~ s/^([^)]*\))//;
 				  $new_re .= $1;
-				  $1 =~ /^\?[?p]?\{/ && die add_line_number
-				    "Embedded code in regexps is not " 
-				    . "supported\n";
+				  $1 =~ /^\?[?p]?\{/ && die
+				    JE'Object'Error'SyntaxError->new(
+				      $global, add_line_number
+				        "Embedded code in regexps is not " 
+				        . "supported"
+				    );
 				  $current[type] = cond;
 				}
 				elsif($caq =~ /^[<'P](?![!=])/) {
@@ -460,66 +497,76 @@ sub new {
 				else {
 				  $current[type] = (reg,itrb)[$caq eq '!'];
 				}
-				$current[posi] = length $new_re;
-				if($caq eq '!') {
-					push @interrobang,[];
-				}
+				$current[posi] = $caq eq '!' ? $pos_b4_parn
+					: length $new_re;
 			}else{ # capture
 				++$capture_num;
-				substr($new_re,$stack[-1][posi],0) = "(?:",
-				push @add_extra_paren, $#stack
-				  unless $stack[-1][type] == itrb ||
-				    @add_extra_paren
-				    && $add_extra_paren[-1] == $#stack;
 				push @capture_nums, $capture_num;
+				push @{$$_[capn]}, $capture_num for @stack;
 				$current[posi] = length $new_re;
 				$current[type] = cap;
-				@interrobang and
-				  push @{$interrobang[-1]}, $capture_num;
 			}
 			$current[xmod] = $stack[-1][xmod];
 			push @stack, \@current;
-			push @to_erase, [];
 		}
+
+		# closing paren:
 		elsif($re =~ s/^\)//) {
 			my @commands;
-			if($stack[-1][type] != itrb) {
-				push @commands,
-				  _capture_erasure_stuff pop @to_erase;
-				if($stack[-1][type] == cap) {
+			my $cur = $stack[-1];
+			if($$cur[type] != itrb) {
+				if($$cur[type] == cap) {
 				  # we are exiting a capturing group
-				  push @commands, "local" .
-				    "\$EraseCapture[$capture_nums[-1]]=0";
-				  push @{$to_erase[-1]}, pop @capture_nums;
+				  $new_re .= "(?{local" .
+				    "\$EraseCapture[$capture_nums[-1]]=0"
+				   ."})";
+				  pop @capture_nums;
 				}
-				$new_re .= ')', pop @add_extra_paren
-				  if @add_extra_paren
-				  && $add_extra_paren[-1] == $#stack;
-			}
-			else { # ?!
-				pop @to_erase; # don't need this
-				push @{$to_erase[-1]}, pop @interrobang;
+				if($$cur[capn] && @{$$cur[capn]} &&
+				   $re =~ /^[+{*?]/) { # quantified group
+				  substr $new_re,$$cur[posi],0 =>=
+				    _capture_erasure_stuff($$cur[capn])
+					. "(?:";
+				   $new_re .= ")";
+				}
 				$new_re .= ')';
 			}
-			$new_re .= '(?{' . join(';',@commands) . '})'
-				if @commands;
-			$new_re .= ')' unless $stack[-1][type] == itrb;;
+			else {{ # ?!
+				$new_re .= ')';
+				last unless($$cur[capn] && @{$$cur[capn]});
+
+				# change (?!...) to (?!...)(?{...})
+				$new_re .= _capture_erasure_stuff(
+					$$cur[capn]
+				);
+
+				# wrap (?!)(?{}) in (?:) if necessary
+				$re =~ /^[+{*?]/ and
+					substr $new_re,$$cur[posi],0 
+						=>= '(?:',
+					$new_re .= ')';
+			}}
 			pop @stack;
 		}
+
+		# pipe within (?()|) or (?|) (the latter doesn’t work yet):
 		elsif($re =~ s/^\|//) {
-			my @commands;
-			push @commands, map "local\$EraseCapture[$_]=" .
-				"\$EraseCapture[$_]+1",
-				@{$to_erase[-1]};
-			@{$to_erase[-1]} = ();
-			$new_re .= ')', pop @add_extra_paren
-			  if @add_extra_paren
-			  && $add_extra_paren[-1] == $#stack;
-			$new_re .= '(?{' . join(';',@commands) . '})'
-				if @commands;
+			my $cur = $stack[-1];
+			if($$cur[capn] && @{$$cur[capn]}
+			   #&& $re =~ /^[+{*?]/ # We can’t actually tell
+			) {         # at this point whether the enclosing
+			 # group is quantified. Does anyone have any ideas?
+				substr $new_re,$$cur[posi],0 =>=
+					_capture_erasure_stuff(
+						$$cur[capn]
+					);
+				@{$$cur[capn]} = ();
+			}
 			$new_re .= '|';
-			$stack[-1][posi] = length $new_re;
+			$$cur[posi] = length $new_re;
 		}
+
+		# something invalid left over:
 		elsif($re) {
 #warn $re;
 			die JE::Object::Error::SyntaxError->new($global,
@@ -530,20 +577,27 @@ sub new {
 		}
 		length $re and redo;
 	}
-	$new_re .= ')' if @add_extra_paren;
-	$new_re .= '(?{'.join(
-		';', _capture_erasure_stuff pop @to_erase
-	).'})'
-		if @{$to_erase[-1]};
+	@stack or die new JE::Object::Error::SyntaxError $global,
+		add_line_number "Unmatched ) in regexp";
 
 
 	# This substitution is a workaround for a bug in perl.
 	$new_re =~ s/([\x{d800}-\x{dfff}])/sprintf '\\x{%x}', ord $1/ge;
 
+#warn $new_re;
 	$qr = eval {
 		use re 'eval'; no warnings 'regexp';
-		$capture_num
-		  ? qr/(?$flags:$clear_captures$new_re$save_captures)/
+
+		# The warnings pragma doesn’t make it into the re-eval, so
+		# we have to localise  $^W,  in case the  string  contains
+		# @EraseCapture[1]=(1)x1  and someone is using  -w.
+		local $^W;
+
+		# We have to put (?:)  around $new_re in the first case,
+		    # because it may contain a top-level disjunction, but
+		         # not in the second,  because the array  modifica-
+		$capture_num  # tions in $clear_captures are not localised.
+		  ? qr/(?$flags:$clear_captures(?:$new_re)$save_captures)/
 		  : qr/(?$flags:$clear_captures$new_re)/
 	} or $@ =~ s/\.?$ \n//x,
 	     die JE::Object::Error::SyntaxError->new($global,

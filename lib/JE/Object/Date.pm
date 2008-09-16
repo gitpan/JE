@@ -1,6 +1,6 @@
 package JE::Object::Date;
 
-our $VERSION = '0.024';
+our $VERSION = '0.025';
 
 
 use strict;
@@ -128,6 +128,11 @@ Returns the string 'Date'.
 =cut
 
 sub class { 'Date' }
+
+
+
+sub to_primitive { SUPER::to_primitive{shift}@_?@_:'string' }
+
 
 =back
 

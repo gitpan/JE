@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.024';
+our $VERSION = '0.025';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.023 (alpha release)
+Version 0.025 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -320,7 +320,7 @@ sub new {
 	$func_constr->prop(
 	    {name=>'length',dontenum=>1,value=>new JE::Number $self,1}
 	);
-	$func_proto->prop({name=>'length', value=>0});
+	$func_proto->prop({name=>'length', value=>0, dontenum=>1});
 
 	JE::Object::_init_proto($obj_proto);
 	JE::Object::Function::_init_proto($func_proto);
@@ -2070,15 +2070,6 @@ following code--
 
 =item *
 
-Back-references in regular expressions sometimes try to match the string
-that a previous capture matched even when the capture buffer should have
-been erased; specifically in the case of a quantified capture that did not
-participate in the match during the last iteration of the quantified
-subpattern (C</(?:a|(b))\1/.exec('bab')>), and in the case of a capture
-within a successful negative lookahead (C</(?!(a)b)a/.exec('a')>).
-
-=item *
-
 Currently, [:blahblahblah:]-style character classes don’t work if followed
 by a character class escape (\s, \d, etc.) within the class.
 C</[[:alpha:]\d]/> is interpreted as C</[\[:alph]\d\]/>.
@@ -2110,6 +2101,14 @@ You'll probably just get a meaningless error message.
 On Solaris in perl 5.10.0, the Date class can cause an 'Out of memory'
 error which I find totally inexplicable. Patches welcome. (I don't have
 Solaris, so I can't experiment with it.)
+
+=item *
+
+Case-tolerant regular expressions allow a single character to match
+multiple characters, and vice versa, in those cases where a character's
+uppercase equivalent is more than one character; e.g., C</ss/> can match 
+the double S ligature. This is contrary to the ECMAScript spec. See the
+source code of JE::Object::RegExp for more details.
 
 =back
 

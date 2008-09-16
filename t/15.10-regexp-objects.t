@@ -125,13 +125,101 @@ is(joyne(',',/(?:a(b)?bc)+..c/.exec('abbcabc')), 'abbcabc,b',
 // 15.10.2.6 Assertion
 // ===================================================
 
-// ~~~ ...
+// 7 tests: ^
+is('foo\nbar'.search(/^/), 0, '^ at beginning of string')
+is('foo\nbar'.search(/^/m), 0, '/^/m at beginning of string')
+is('foo\nbar'.search(/.^/), -1, '^ without m fails after beginning')
+is('foo\nbar'.match(/[^]^/m), '\n', '/^/m matches an lf')
+is('foo\rbar'.match(/[^]^/m), '\r', '/^/m matches a cr')
+is('foo\u2028bar'.match(/[^]^/m), '\u2028', '/^/m matches an ls')
+is('foo\u2029bar'.match(/[^]^/m), '\u2029', '/^/m matches a ps')
+
+// 7 tests: $
+is('foo\nbar'.search(/$/), 7, '$ at end of string')
+is('foobar'.search(/$/m), 6, '/$/m at end of string')
+is('foo\nbar'.search(/$\n/), -1, '$ without m fails before end of str')
+is('foo\nbar'.match(/$[^]/m), '\n', '/$/m matches an lf')
+is('foo\rbar'.match(/$[^]/m), '\r', '/$/m matches a cr')
+is('foo\u2028bar'.match(/$[^]/m), '\u2028', '/$/m matches an ls')
+is('foo\u2029bar'.match(/$[^]/m), '\u2029', '/^/m matches a ps')
+
+// 7 tests: \b
+is('a'.search(/^\b/), 0, 'successful \\b at beginning of string')
+is('a'.search(/\b$/), 1, 'successful \\b at end of string')
+is('.'.search(/^\b/), -1, 'failed \\b at beginning of string')
+is('.'.search(/\b$/), -1, 'failed \\b at end of string')
+is('føø'.search(/(?!^)\b/), 1,
+	'non-ASCII chars following \\b are not word chars')
+is('føo'.search(/\b.$/), 2,
+	'non-ASCII chars preceding \\b are not word chars')
+is('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890_'
+	.search(/(?!^)\b/), 63, '\\b word chars');
+
+// 7 tests: \B
+is('.'.search(/^\B/), 0, 'successful \\B at beginning of string')
+is('.'.search(/\B$/), 1, 'successful \\B at end of string')
+is('a'.search(/^\B/), -1, 'failed \\B at beginning of string')
+is('a'.search(/\B$/), -1, 'failed \\B at end of string')
+is('føø'.search(/\B/), 2, // skips past fø
+	'non-ASCII chars following \\B are not word chars')
+is('ḟoo'.search(/(?!^)\B/), 2,
+	'non-ASCII chars preceding \\B are not word chars')
+is('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890_'
+	.match(/\B/g).length, 62, '\\B word chars');
+
+
+// ===================================================
+// 15.10.2.7 Quantifiers
+// 18 tests
+// ===================================================
+
+// {n,m} is tested above under 15.10.2.5 Term
+
+is(''.match(/.*/), '', '* minimum')
+// We can’t actually test the maximum, because we would need an infinite
+// string. This test should suffice, as it’s unlikely that anyone would put
+// an arbitrary ‘68’ in the regexp engine.
+is('oeautnnttetttttttttttttttttttttttttttttttttttttttttttttttttttttttttt'
+   .match(/.*/)[0].length, 68, '* maximum')
+is('aaaaaaaaaaaa'.match(/.*?/), '', '*? minimum')
+is('aaaaaaaaaaaaaaaaaaaaaaaaaab'.match(/.*?b/)[0].length, 27, '*? maximum')
+is('1'.match(/(.*)(.+)/), '1,,1', '+ minimum')
+is('oeautnnttetttttttttttttttttttttttttttttttttttttttttttttttttttttttttt'
+   .match(/.+/)[0].length, 68, '+ maximum')
+is('zaaaaaaaaaaa'.match(/.+?/), 'z', '+? minimum')
+is('aaaaaaaaaaaaaaaaaaaaaaaaaab'.match(/.+?b/)[0].length, 27, '+? maximum')
+is('1'.match(/(.?)(.?)/), '1,1,', '? min')
+is('abcde'.match(/.?/), 'a', '? max')
+is('aaa'.match(/.??/), '', '?? min')
+is('abcde'.match(/.??c/), 'bc', '?? max')
+is('abc'.match(/.{2}/), 'ab', '{m}')
+is('abc'.match(/.{2}?/), 'ab', '{m}?')
+is('1234'.match(/.*(.{2,})/), '1234,34', '{m,} minimum')
+is('oeautnnttetttttttttttttttttttttttttttttttttttttttttttttttttttttttttt'
+   .match(/.{2,}/)[0].length, 68, '{m,} maximum')
+is('zaaaaaaaaaaa'.match(/.{2,}?/), 'za', '{m,}? minimum')
+is('aaaaaaaaaaaaaaaaaaaaaaaaaab'.match(/.{2,}?b/)[0].length, 27,
+	'{m,}? maximum')
+
 
 // ===================================================
 // 15.10.2.8 Atom
 // ===================================================
 
-// ...
+// 7 test
+is("\x00 <>1234_ABC-'\xff\u0100\ud800".match(
+	/\0 <>1234_ABC-'\xff\u0100\ud800/
+), "\x00 <>1234_ABC-'\xff\u0100\ud800", 'characters that match themselves')
+is('\u2028\u2029\n\r\f\x00 <>1234_ABC-"\xff\u0100\ud800'.match(/./g)
+	.join(''),
+   '\f\x00 <>1234_ABC-"\xff\u0100\ud800', '.')
+is("owt eerht".match(/((.).)((.).)/), 'owt ,ow,o,t ,t','captures')
+is('eeno'.match('(?:...)').length, 1, '(?:)')
+is('eeno'.match('(?=ee)ee'), 'ee', '(?=)')
+is('aaa aaae'.match('(?=(a*))\\1(a|e)')[0],'aaae',
+	'(?=) is not back-tracked into')
+is(/(?=(a+))a*b\1/.exec("baaabac"),'aba,a',
+	'(?=) is not back-tracked into (ECMAScript example)')
 
 // 6 tests: interrobang groups
 
@@ -149,23 +237,153 @@ is(peval('my $warnings=0; local $SIG{__WARN__}=sub{++$warnings};'
      + '$je->{RegExp}("(?!(a)(?!))+"); $warnings;'
    ),0, 'quantified interrobangs don\'t warn')
 
+
+// ===================================================
+// 15.10.2.9 AtomEscape
+// ===================================================
+
+// 13 tests: DecimalEscape (15.10.2.11) (back-references and \0)
+
+is("\x00".match(/\0/), "\x00", '\\0')
+
+is(	joyne(',',/(.*?)a(?!(a+)b\2c)\2(.*)/.exec("baaabaac")),
+ 	'baaabaac,ba,undefined,abaac',
+	'back-reference to (?!(...))' // example from the spec
+)
+is(joyne(',',/(?:a|(x))\1/.exec("ab")), 'a,undefined',
+	'back-reference to undefined (without interrobang)')
+is(joyne(',',/(?:(a)?b\1)+/.exec("abab")), 'abab,undefined',
+	'another back-reference-to-undefined test (quantified capture)')
+is(/(a{3})b\1/.exec('aaabaa'), null,
+	'back-reference to string longer than the number of chars left')
+is(/(.)\1/.exec('abba'), 'bb,b',
+	'simple successful back-ref; no special cases')
+ok(/(.)\1/i.test('iI'), 'case-insensitivity in back-references ...')
+ok(!/(.)\1/.test('iI'),' ... but not without /i')
+ok(!/(.)\1/i.test('ıI'), 'does not apply to dotlessi')
+try{skip("doesn't work", 1);ok(!/(.)\1/i.test('ßSS'), 'nor to double s')}
+catch(e){}
+is(/()()()()()()()()()()()(.)\12/.exec('abba'), 'bb,,,,,,,,,,,,b',
+	'multi-digit back-ref')
+is(/(?:\1|(^a)){2}/.exec('aa'), ',', 'forward ref')
+	// (with Perl’s behaviour, it produces 'aa,a')
+is(/\12()()()()()()()()()()()()/.exec(''), ',,,,,,,,,,,,',
+	'multi-digit forward-ref')
+
+
+// ===================================================
+// 15.10.2.10 CharacterEscape
+// ===================================================
+
+// 4 tests: \cX
+is('\x00'.match(/\c@/), '\x00', '\\c@')
+is('\x01'.match(/\cA/), '\x01', '\\cA')
+is(' '.match(/\c`/), ' ', '\\c`')
+is(String.fromCharCode(26).match(/\cz/), String.fromCharCode(26),
+	'\\c with lc char')
+
+// ~~~ Need more tests here, for things like ß
+
+// 2 tests: \xHH
+is('\x00'.match(/\x00/), '\x00','\\x00')
+is('\xff'.match(/\xfF/), '\xff','\\xfF')
+
+// 2 tests: \uHHHH
+is('\x00'.match(/\u0000/), '\x00','\\u0000')
+is('\uffff'.match(/\ufffF/), '\uffff','\\ufffF')
+
+// 1 test: IdentityEscape
+is(' !"#$%&\'()*+,-./;:<=>?@[\\]^_`{|}~¡¢£·'.match(
+	/\ \!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\;\:\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~\¡\¢\£\·/), ' !"#$%&\'()*+,-./;:<=>?@[\\]^_`{|}~¡¢£·','IdentityEscapes')
+
+
+// ===================================================
+// 15.10.2.11 DecimalEscape
+// ===================================================
+
+// (See .9)
+
 // ...
 
+
+// ===================================================
+// 15.10.6.2 exec
+// ===================================================
+
+// 4 tests for misc this values
+0,function(){
+	var f = RegExp.prototype.exec;
+	var testname='exec with number for this';
+	try{f.call(8); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+	var testname='exec with non-re object for this';
+	try{f.call({}); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+	var testname='exec with string for this';
+	try{f.call('true'); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+	var testname='exec with bool for this';
+	try{f.call('true'); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+}()
+
+// 1 test: Make sure exec can be called */
+
+try{is(/a/.exec('a'), 'a', 'exec doesn\'t simply die')}
+catch(e){fail('exec doesn\'t simply die')}
+
+// ...
 
 // ===================================================
 // 15.10.6.3 test
 // 2 tests
 // ===================================================
 
+// 4 tests for misc this values
+0,function(){
+	var f = RegExp.prototype.test;
+	var testname='test with number for this';
+	try{f.call(8); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+	var testname='test with non-re object for this';
+	try{f.call({}); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+	var testname='test with string for this';
+	try{f.call('true'); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+	var testname='test with bool for this';
+	try{f.call('true'); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+}()
+
 ok(/(.)(.)(.)+/.test("abcd") === true, 'test returning true')
 ok(/./.test("\n") === false, 'test returning false');
 
+//...
+
 // ===================================================
 // 15.10.6.4 toString
-// 31 tests
 // ===================================================
 
-(function(){
+// 4 tests for misc this values
+0,function(){
+	var f = RegExp.prototype.toString;
+	var testname='toString with number for this';
+	try{f.call(8); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+	var testname='toString with non-re object for this';
+	try{f.call({}); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+	var testname='toString with string for this';
+	try{f.call('true'); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+	var testname='toString with bool for this';
+	try{f.call('true'); fail(testname) }
+	catch(e){ok(e instanceof TypeError,testname)}
+}()
+
+// 31 tests
+;(function(){
 	var re_strs =("/a/i /a/g /a/m /a/mg /a/gi /a/mi /a/mgi /a/ "
 	            + "/^[^a]/ /^[^a]/m /$[$]/ /$[$]/m /\\b[\\b]/ /\\B/ "
 	            + "/.[.]/ /\\v[\\v]/ /\\n[\\n]/ /\\r[\\r]/ "
@@ -179,18 +397,22 @@ ok(/./.test("\n") === false, 'test returning false');
 			re_strs[i]+'.toString()');
 }())
 
-// ---------------------------------------------------
-// 1 test: Make sure exec can be called */
+// ...
 
-try{is(/a/.exec('a'), 'a', 'exec doesn\'t simply die')}
-catch(e){fail('exec doesn\'t simply die')}
+
+// ~~~ Where do these go?
+// 2 tests
+try{eval('/)/');fail('eval("/)/")')}
+catch(e){ok(e instanceof SyntaxError, 'eval("/)/")')}
+try{eval('/) /');fail('eval("/) /")')}
+catch(e){ok(e instanceof SyntaxError, 'eval("/) /")')}
 
 
 // ===================================================
 // Perl features that begin with (
 // (The regexp-munging has special cases for most of these, so we have
 // to test them individually.)  
-// 48 tests
+// 60 tests
 // ===================================================
 
 is(new RegExp("fo(?#(li)o").exec('foo'), 'foo', '(?#...)');
@@ -214,22 +436,24 @@ is(/(foo)( ?(1)bar|(ba))( ?(2)(x)|y)/x.exec('foobarx foobary'),
 is(/(?>()a+)(?<!aaa)../.exec('aaaaa aabc'), 'aabc,', '(?>)')
 is(/( ?>()a+)(?<!aaa)../x.exec('aaaaa aabc'), 'aabc,', '( ?>)')
 
-function dies(what,name,like) {
+function dies(what,name,like,instance_of) {
 	try{ eval(what); fail(name); diag(name + ' doesn\'t die') }
 	catch($at){ 
 		if(like) ok(($at+'').match(like),name) || diag($at)
+		if(instance_of) ok($at instanceof instance_of,
+			name + ' error type') || diag($at)
 	}
 }
-dies('/(?{})/', '(?{})', 'mbedded')
-dies('/(??{})/', '(??{})', 'mbedded')
-dies('/(?p{})/', '(?p{})', 'mbedded')
-dies('/( ?{})/x', '( ?{})', 'mbedded')
-dies('/( ??{})/x', '( ??{})', 'mbedded')
-dies('/( ?p{})/x', '( ?p{})', 'mbedded')
-dies('/(?(?{}))/', '(?({}))', 'mbedded')
+dies('/(?{})/', '(?{})', 'mbedded', SyntaxError)
+dies('/(??{})/', '(??{})', 'mbedded', SyntaxError)
+dies('/(?p{})/', '(?p{})', 'mbedded', SyntaxError)
+dies('/( ?{})/x', '( ?{})', 'mbedded', SyntaxError)
+dies('/( ??{})/x', '( ??{})', 'mbedded', SyntaxError)
+dies('/( ?p{})/x', '( ?p{})', 'mbedded', SyntaxError)
+dies('/(?(?{}))/', '(?({}))', 'mbedded', SyntaxError)
 
-// These five don’t actually work in Perl, but if they ever do work we need
-// to block them:
+// These five (ten tests) don’t actually work in Perl, but if they ever do
+// work we need to block them:
 0,function(){
 	var a  = ['/(?(??{}))/','/(?(?p{}))/','/(?( ?{}))/x',
 	          '/(?( ??{}))/x','/(?( ?p{}))/x']
@@ -237,7 +461,7 @@ dies('/(?(?{}))/', '(?({}))', 'mbedded')
 		try{
 			if(peval('use re "eval";' + a[i] + ";1"))
 				dies(a[i],a[i],'mbedded')
-			else skip ('unnecessary',1)
+			else skip ('unnecessary',2)
 		}catch(e){}
 }()
 

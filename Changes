@@ -1,6 +1,40 @@
 Revision history for JE
 
-0.024   
+0.025   15 September, 2008
+        Incompatible change:
+        • \cX escapes used always to match chr(ord(X) % 32),  so \c`,
+          for instance, would match a null character. Non-alphabetic
+          characters after the c  are actually syntax errors in ECMA-
+          Script,  so there’s no reason we can’t follow Perl’s behav-
+          iour here, which is what we do now.
+        • Errors thrown in Perl and propagated through JavaScript now
+          become plain Error objects, rather than TypeErrors.
+        Bug fixes:
+        • new Number no longer warns.
+        • Function.prototype.apply no longer dies when the second
+          argument is null.
+        • Function.prototype.length is no longer enumerable.
+        • String.prototype.slice now actually works.  It used to  die
+          with more than one arg, and return an empty string and omit
+          warnings otherwise.
+        • String.prototype.substring no longer dies when both args are
+          greater than the string’s length.
+        • /)/ throws a SyntaxError instead of a nonsensical TypeError
+          (when parsed by JS’s  eval  or  RegExp  functions;  a plain
+          Perl string when parsed by JE’s  eval).  I  think  I  broke
+          this in 0.022.
+        • Embedded Perl code constructs  in  regular  expressions  now
+          throw SyntaxErrors instead of TypeErrors or Perl strings, as
+          in pre-0.022.
+        • Back-references in regular expression that refer  to  cap-
+          tures that did  not  participate  in  the  match,  as  in
+          /(?:a|(x))\1/.exec("ab"), now match the null string (ECMA-
+          Script-style),  instead of failing (the way Perl does it).
+        • Back-references that are >= 10 and refer to captures that
+          occur later in the pattern are now  null  string  matches
+          (ECMAScript-style), instead of octal escapes (Perl-style).
+
+0.024   29 July, 2008
         Changed the dependency on constant::private
         to constant::lexical, since that module has
         been renamed.
@@ -54,7 +88,7 @@ Revision history for JE
           perl’s behaviour.)
         • Capturing parentheses within a negative lookahead assertion
           now produce undefined.  It used to be that a  pattern  like
-          (?!(a)(?!) would put return 'a'  for the first capture (the
+          (?!(a)(?!))  would return  'a'  for the first capture  (the
           way perl does it).  (Back-references within a pattern still
           follow perl’s behaviour.)
         • String.prototype.split
@@ -74,11 +108,11 @@ Revision history for JE
         • Quantified zero-width assertions in regular expressions
           with no maximum (i.e.,  quantified with * + {num,})  no
           longer warn.
-        • String.fromCharCode now actually works, instead of return-
-          ing a string of null bytes equal in  length  to  the  num-
+        • String.fromCharCode now actually works,  instead of return-
+          ing a string of null characters equal in length to the num-
           ber of args.
 	• A String object’s length property (as opposed to that of a
-          string) used to be a Perl scalar, which caused JE’s inter-
+          string) used to be a Perl scalar,  which caused JE’s inter-
           nals to hiccough on it.
         • Functions now stringify properly. Thanks to Alex Robinson
           for drawing my attention to it.

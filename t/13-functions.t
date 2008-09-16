@@ -8,8 +8,8 @@ plan('tests', 44)
 // ===================================================
 
 // The addition of the function created by a declaration to the correct
-// variable is tested in 10.01-execution-context-definitions.t. No need
-// to test that here.
+// object (the variable object) is tested in
+// 10.01-execution-context-definitions.t. No need to test that here.
 
 /* Tests 1-5 */
 

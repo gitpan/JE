@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 44;
+use Test::More tests => 58;
 use strict;
 use utf8;
 
@@ -131,7 +131,7 @@ ok(delete everything_else,
     '[[Delete]] when the property is non-existent')
 
 // ---------------------------------------------------
-/* Tests 25-44: [[DefaultValue]] */
+/* Tests 25-58: [[DefaultValue]] */
 
 /* possible outcomes
 This chart is based on the algorithms described in 8.6.2.6
@@ -315,12 +315,20 @@ catch(e) { e instanceof TypeError && ++is_TypeError }
 ok(is_TypeError,
     '[[DefaultValue]](number) when neither valueOf nor toString exists')
 
+// When we provide no hint:
 
-// ~~~ Confirm that Date objects prefer toString but other objects prefer
-//    valueOf
+Function = Object.constructor; // we got rid of this earlier
+constructors = ('Object,Function,Array,String,Boolean,Number,Date,' +
+                'RegExp,Error,RangeError,ReferenceError,SyntaxError,' +
+                'TypeError,URIError').split(',')
 
-diag('TO DO: Finish writing constructors and then finish the'+
-	' [[DefaultValue]] tests')
+for(var i=0;i<constructors.length;++i)
+	this[constructors[i]].prototype.toString = gimme_5,
+	this[constructors[i]].prototype.valueOf  = gimme_7,
+	// The == provides no hint.
+	ok(new this[constructors[i]]() ==
+		(constructors[i] == 'Date' ? 5 : 7),
+		constructors[i] + ' primitivisation without a hint')
 
 
 --end--

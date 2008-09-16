@@ -4,7 +4,7 @@ package JE::Object;
 sub evall { my $global = shift; my $r = eval 'local *_;' . shift;
             $@ and die; $r }
 
-our $VERSION = '0.024';
+our $VERSION = '0.025';
 
 use strict;
 use warnings;
@@ -162,28 +162,6 @@ sub new {
 	         props     => \%hash,
 	         keys      => [keys %hash]  }, $class;
 }
-
-=begin bad
-
-sub ______new { # not according to spec. What *was* I thinking???
-	my($class, $global, %hash, @keys) = (shift, shift);
-	my $key;
-	while (@_) { # I have to loop through them to keep the order.
-		$key = shift;
-		push @keys, $key
-			unless exists $hash{$key};
-		$hash{$key} = $global->upgrade(shift);
-	}
-
-	my $p = $global->prop("Object")->prop("prototype");
-
-	bless \{ prototype => $p,
-	         global    => $global,
-	         props     => \%hash,
-	         keys      => \@keys  }, $class;
-}
-
-=end bad
 
 
 =item $obj->new_function($name, sub { ... })

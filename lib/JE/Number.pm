@@ -1,6 +1,6 @@
 package JE::Number;
 
-our $VERSION = '0.024';
+our $VERSION = '0.025';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -79,7 +79,7 @@ sub new    {
 }
 
 sub _numify {
-	my $val = shift;
+	my $val = shift||0;
 	# For perls that don't interpret 0+"inf" as inf:
 	if ($val =~ /^\s*([+-]?)(inf|nan)/i) {
 		$val = lc $2 eq 'nan' ? nan :

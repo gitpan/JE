@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.024';
+our $VERSION = '0.025';
 
 
 use strict;
@@ -557,21 +557,18 @@ if (defined $start) {
 	$start = int $start->to_number->value;
 	$start = $start == $start && $start; # change nan to 0
 
-	$start > $length and $start = $length;
+	$start >= $length and return JE::String->new($global, '');
+#	$start < 0 and $start = 0;
 }
 else { $start =  0; }
 
-if (defined $end) {
-	if($end->id eq 'undef') {
-		$end = undef
-	}
-	else {
-		$end = int $start->to_number->value;
-		$end = $end == $end && $end;
+if (defined $end && $end->id ne 'undef') {
+	$end = int $end->to_number->value;
+	$end = $end == $end && $end;
 
-		$end > 0 ? ($end -= $length) : ($end ||= -$length)
-	}
+	$end > 0 and $end -= $start + $length * ($start < 0);
 }
+else { $end = $length }
 
 return  JE::String->new($global, substr $str, $start, $end);
 
@@ -745,7 +742,7 @@ else {
 $start > $end and ($start,$end) = ($end,$start);
 
 no warnings 'substr'; # in case start > length
-return  JE::String->new($global, substr $str, $start, $end-$start);
+return  JE::String->new($global, my $x= substr $str, $start, $end-$start);
 
 			},
 		}),

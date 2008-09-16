@@ -1,33 +1,6 @@
 #!perl -T
 do './t/jstest.pl' or die __DATA__
 
-// Every call to this runs 10 tests + the number of no-arg tests
-function method_boilerplate_tests(proto,meth,length,noargobjs,noargresults)
-{
-	is(typeof proto[meth], 'function', 'typeof ' + meth);
-	is(Object.prototype.toString.apply(proto[meth]),
-		'[object Function]',
-		'class of ' + meth)
-	ok(proto[meth].constructor === Function, meth + '\'s prototype')
-	var $catched = false;
-	try{ new proto[meth] } catch(e) { $catched = e }
-	ok($catched, 'new ' + meth + ' fails')
-	ok(!('prototype' in proto[meth]), meth +
-		' has no prototype property')
-	ok(proto[meth].length === length, meth + '.length')
-	ok(! proto[meth].propertyIsEnumerable('length'),
-		meth + '.length is not enumerable')
-	ok(!delete proto[meth].length, meth + '.length cannot be deleted')
-	is((proto[meth].length++, proto[meth].length), length,
-		meth + '.length is read-only')
-	ok(!Object.prototype.propertyIsEnumerable(meth),
-		meth + ' is not enumerable')
-	for (var i = 0; i < noargobjs.length; ++i)
-		ok(noargobjs[i][meth]() === noargresults[i],
-			noargobjs[i] + '.' + meth + ' without args')
-}
-
-
 // ===================================================
 // 15.4.1 Array()
 // ===================================================
@@ -103,11 +76,15 @@ is(new Array('foo'), 'foo', 'new Array(str)')
 
 
 // ---------------------------------------------------
-// 2 tests: Make sure toString and toLocaleString die properly */
+// 4 tests: Make sure toString and toLocaleString die properly */
 
 try { Array.prototype.toString.apply(3) }
-catch(it) { ok(it.message.substring(0,22) == 'Object is not an Array') }
+catch(it) { ok(it.message.substring(0,22) == 'Object is not an Array')
+            ok(it instanceof TypeError) }
 try { Array.prototype.toLocaleString.apply(3) }
-catch(it) { ok(it.message.substring(0,22) == 'Object is not an Array') }
+catch(it) { ok(it.message.substring(0,22) == 'Object is not an Array')
+            ok(it instanceof TypeError) }
 
+
+diag ("To do: Finish writing this script.")
 

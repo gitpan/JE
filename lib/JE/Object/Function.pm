@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.024';
+our $VERSION = '0.025';
 
 
 use strict;
@@ -275,8 +275,9 @@ sub new {
 		                ? scalar @{$opts{argnames}} : 0)),
 		dontenum => 1,
 		dontdel  => 1, 
-		readonly => 1 # ~~~ check 15.3.5.1 for attrs
+		readonly => 1,
 	});
+warn $self->keys if $::__;
 
 	} #warnings back on
 
@@ -577,8 +578,8 @@ sub _init_proto {
 
 				no warnings 'uninitialized';
 				if(defined $args and
-				   ref $args ne 
-					'JE::Object::Function::Arguments'
+				   ref $args !~ /^JE::(Null|Undefined|
+					Object::Function::Arguments)\z/
 				   and eval{$args->class} ne 'Array') {
 					die JE::Object::Error::TypeError
 					->new($scope, add_line_number
@@ -591,8 +592,9 @@ sub _init_proto {
 					      "'Array'");
 				}
 				$@ = $at;
+				$args = $args->value if defined $args;
 				$self->apply($obj, defined $args ?
-					@{$args->value} : ());
+					@$args : ());
 			},
 		}),
 		dontenum  => 1,
@@ -648,7 +650,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.024';
+our $VERSION = '0.025';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -725,7 +727,7 @@ sub delete {
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.024';
+our $VERSION = '0.025';
 
 our @ISA = 'JE::Object';
 

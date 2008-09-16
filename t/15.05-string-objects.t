@@ -77,7 +77,7 @@ is(String.fromCharCode(
    "\x00\uffff\ufffe", 'fromCharCode')
 
 // ===================================================
-// 15.5.4: fromCharCode
+// 15.5.4: String prototype
 // ===================================================
 
 // 3 tests
@@ -598,7 +598,47 @@ is('ndefinedundefined'.search(),0, 'search without args')
 
 
 
-// ...
+// ===================================================
+// 15.5.4.13: slice
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(String.prototype,'slice',2)
+
+// 3 tests: misc this values
+0,function(){
+	var f = String.prototype.slice;
+	is(f.call(7789, 2,3), 8,
+		'slice with number for this')
+	is(f.call({}, 2,4), 'bj', 'slice with object for this')
+	is(f.call(false, 3,6), 'se', 'search with boolean this')
+}()
+
+// 21 tests
+ok('foo'.slice() === 'foo', 'slice without args')
+is('foo'.slice(undefined), 'foo','slice(undefined)')
+is('foo'.slice(null),'foo','slice(null)')
+is('foo'.slice(true),'oo','slice(bool)')
+is('foo'.slice('2'),'o','slice(str)')
+is('foo'.slice({}),'foo','slice(obj)')
+is('foo'.slice(1.7),'oo','slice(fraction)')
+is('foo'.slice(1,void 0),'oo','slice with undefined endpoint')
+is('foo'.slice(1,null),'','slice with null endpoint')
+is('foo'.slice(1,'2'),'o','slice with string endpoint')
+is('foo'.slice(0,{}),'','slice with objectionable endpoint')
+is('foo'.slice(0,true),'f','slice with boolean endpoint')
+is('bar'.slice(-1,3),'r','slice with negative start')
+is('bar'.slice(0,-1),'ba','slice with negative endpoint')
+is('bar'.slice(-2,-1),'a','slice with two negs')
+is('bar'.slice(0,2),'ba','slice with two positives')
+is('bar'.slice(-7,2),'ba',
+	'slice w/negative start reaching beyond the start of the string')
+is('bar'.slice(0,-20),'',
+	'slice w/negative end reaching beyond the start of the string')
+is('bar'.slice(78,79),'', 'slice with start > length')
+is('bar'.slice(1,79),'ar','slice with end > length')
+is('bar'.slice(2,1),'','slice with positive end > positive start')
+
 
 // ===================================================
 // 15.5.4.14: split
@@ -704,6 +744,89 @@ is("A<B>bold</B>and<CODE>coded</CODE>".split(/<(\/)?([^<>]+)>/).joyne(),
 is('aardvark'.split(/a*?/), 'a,a,r,d,v,a,r,k', 'aardvark')
 is('aardvark'.split(/(?=\w)a*?/), 'a,a,r,d,v,a,r,k', 'the aardvark again')
 
-// ...
 
-diag('TO DO: Finish writing this test script');
+// ===================================================
+// 15.5.4.15: substring
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(String.prototype,'substring',2)
+
+// 3 tests: misc this values
+0,function(){
+	var f = String.prototype.substring;
+	is(f.call(7789, 2,3), 8,
+		'substring with number for this')
+	is(f.call({}, 2,4), 'bj', 'substring with object for this')
+	is(f.call(false, 3,6), 'se', 'search with boolean this')
+}()
+
+// 19 tests
+ok('foo'.substring() === 'foo', 'substring without args')
+is('foo'.substring(undefined), 'foo','substring(undefined)')
+is('foo'.substring(null),'foo','substring(null)')
+is('foo'.substring(true),'oo','substring(bool)')
+is('foo'.substring('2'),'o','substring(str)')
+is('foo'.substring({}),'foo','substring(obj)')
+is('foo'.substring(1.7),'oo','substring(fraction)')
+is('foo'.substring(1,void 0),'oo','substring with undefined endpoint')
+is('foo'.substring(1,null),'f','substring with null endpoint')
+is('foo'.substring(1,'2'),'o','substring with string endpoint')
+is('foo'.substring(0,{}),'','substring with objectionable endpoint')
+is('foo'.substring(0,true),'f','substring with boolean endpoint')
+is('bar'.substring(-1,3),'bar','substring with negative start')
+is('bar'.substring(0,-1),'','substring with negative endpoint')
+is('bar'.substring(-2,-1),'','substring with two negs')
+is('bar'.substring(0,2),'ba','substring with two positives')
+is('bar'.substring(78,79),'', 'substring with start > length')
+is('bar'.substring(1,79),'ar','substring with end > length')
+is('bar'.substring(2,1),'a','substring with positive end > positive start')
+
+
+// ===================================================
+// 15.5.4.16: toLowerCase
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(String.prototype,'toLowerCase',0)
+
+// 2 test
+is(typeof ''.toLowerCase(), 'string', 'typeof toLowerCase')
+is('ßSSΣσς κλσ σδφκλΞΛΚΔΞΣΦΣΔΞΚΛΦ нДСФКЛФДЛСФ ontTN EUHO OETNU'
+   .toLowerCase(),
+   'ßssσσς κλσ σδφκλξλκδξσφσδξκλφ ндсфклфдлсф onttn euho oetnu',
+   'toLowerCase')
+
+
+// ===================================================
+// 15.5.4.17: toLocaleLowerCase
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(String.prototype,'toLocaleLowerCase',0)
+
+// ~~~ ?
+
+// ===================================================
+// 15.5.4.18: toUpperCase
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(String.prototype,'toUpperCase',0)
+
+// 2 test
+is(typeof ''.toUpperCase(), 'string', 'typeof toUpperCase')
+is('ßSSΣσς κλσ σδφκλΞΛΚΔΞΣΦΣΔΞΚΛΦ нДСФКЛФДЛСФ ontTN EUHO OETNU'
+   .toUpperCase(),
+   'SSSSΣΣΣ ΚΛΣ ΣΔΦΚΛΞΛΚΔΞΣΦΣΔΞΚΛΦ НДСФКЛФДЛСФ ONTTN EUHO OETNU',
+   'toUpperCase')
+
+
+// ===================================================
+// 15.5.4.19: toLocaleUpperCase
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(String.prototype,'toLocaleUpperCase',0)
+
+// ~~~ ?
