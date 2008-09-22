@@ -1,6 +1,6 @@
 package JE::Object::Error::TypeError;
 
-our $VERSION = '0.025';
+our $VERSION = '0.026';
 
 
 use strict;

@@ -1,6 +1,6 @@
 package JE::Object::Proxy;
 
-our $VERSION = '0.025';
+our $VERSION = '0.026';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -169,7 +169,7 @@ sub to_number {
 
 
 package JE::Object::Proxy::Array; # so this extra stuff doesn't slow down
-our $VERSION = '0.025';           # 'normal' usage
+our $VERSION = '0.026';           # 'normal' usage
 our @ISA = 'JE::Object::Proxy';
 
 sub prop {

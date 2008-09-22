@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.025';
+our $VERSION = '0.026';
 
 
 use strict;
@@ -583,7 +583,7 @@ return  JE::String->new($global, substr $str, $start, $end);
 If the separator is a non-empty string, we need to quotemeta it.
 
 If we have an empty string, we mustn’t allow a match at the end of the
-string, so we use qr/(?!\z/.
+string, so we use qr/(?!\z)/.
 
 If we have a regexp, then there are several issues:
 

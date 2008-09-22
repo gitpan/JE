@@ -1,5 +1,10 @@
 Revision history for JE
 
+0.026   21 September, 2008
+        One bug fix: Array.protoype.sort used to die with a custom
+        sort routine.  Thanks to Christian Forster  for  reporting
+        this (#39462).
+
 0.025   15 September, 2008
         Incompatible change:
         • \cX escapes used always to match chr(ord(X) % 32),  so \c`,

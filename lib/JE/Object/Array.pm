@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.025';
+our $VERSION = '0.026';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -597,11 +597,11 @@ sub _sort {
 			: ++$nonexistent;
 	}
 
-	$comp = defined $comp && $comp->can('call') 
-		? sub { $comp->call(@_) }
+	my $comp_sub = defined $comp && $comp->can('call') 
+		? sub { 0+$comp->call($a,$b) }
 		: sub { $a->to_string->[0] cmp $b->to_string->[0] };
 
-	my @sorted = ((sort $comp @sortable),@undef);
+	my @sorted = ((sort $comp_sub @sortable),@undef);
 
 	for (0..$#sorted) {
 		$self->prop($_ => $sorted[$_]);

@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.025';
+our $VERSION = '0.026';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.025 (alpha release)
+Version 0.026 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -901,6 +901,9 @@ sub null { # ~~~ This needs to be made more efficient.
 
 
 =item $j->bind_class( LIST )
+
+(This method can create a potential security hole. Please see L</BUGS>,
+below.)
 
 =head2 Synopsis
 
@@ -2020,6 +2023,19 @@ To report bugs, please e-mail the author.
 
 =item *
 
+C<bind_class> has a security hole: An object method’s corresponding
+Function object can be applied to any Perl object or class from within JS.
+(E.g., if you have allow a Foo object's C<wibbleton> method to be called
+from JS,
+then a Bar object's method of the same name can be, too.)
+
+Fixing this is a bit complicated. If anyone would like to help, please let
+me know. (The problem is that the same code would be repeated a dozen times
+in C<bind_class>'s closures--a maintenance nightmare likely to result in
+more security bugs. Is there any way to eliminate all those closures?)
+
+=item *
+
 The Date class is incomplete.
 
 =item *
@@ -2110,6 +2126,11 @@ uppercase equivalent is more than one character; e.g., C</ss/> can match
 the double S ligature. This is contrary to the ECMAScript spec. See the
 source code of JE::Object::RegExp for more details.
 
+=item *
+
+Currently any assignment that causes an error will result in the 'Cannot assign to a non-lvalue' error message, even if it was for a different 
+cause. For instance, a custom C<fetch> routine might die.
+
 =back
 
 =head2 Limitations
@@ -2199,7 +2220,7 @@ the list of dependencies.
 
 =head1 AUTHOR, COPYRIGHT & LICENSE
 
-Copyright (C) 2007 Father Chrysostomos <sprout [at] cpan
+Copyright (C) 2007-8 Father Chrysostomos <sprout [at] cpan
 [dot] org>
 
 This program is free software; you may redistribute it and/or modify
@@ -2213,8 +2234,10 @@ me use
 his tests,
 
 to Andy Armstrong S<< [ andyE<nbsp>E<nbsp>hexten net ] >>, Yair Lenga
-S<< [ yair lengaE<nbsp>E<nbsp>gmail com ] >> and Alex Robinson
-S<< [ alexE<nbsp>E<nbsp>solidgoldpig com ] >> for their suggestions,
+S<< [ yair lengaE<nbsp>E<nbsp>gmail com ] >>, Alex Robinson
+S<< [ alexE<nbsp>E<nbsp>solidgoldpig com ] >> and Christian Forster
+S<< [ boronkE<nbsp>E<nbsp>boronk de ]
+for their suggestions,
 
 and to the CPAN Testers for their helpful reports.
 

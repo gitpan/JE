@@ -74,6 +74,50 @@ ok(new Array(new Number(6)).length === 1, 'new Array(number obj)')
 ok(new Array("478887438888874347743").length === 1, 'new Array("big num")')
 is(new Array('foo'), 'foo', 'new Array(str)')
 
+// ...
+
+// ===================================================
+// 15.4.4.10: sort
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Array.prototype,'sort',1)
+
+// 1 test from RT #39462
+function UserSubmit(user,submits) 
+{
+	this.user=user;
+	this.submits=submits;
+}
+
+function UserSubmitSort (a, b)
+{
+	return a.submits - b.submits;
+}
+
+
+var um=new Array(
+	new UserSubmit("a",3),
+	new UserSubmit("bc",1),
+	new UserSubmit("add",35),
+	new UserSubmit("eaea",23)
+);
+
+um.sort(UserSubmitSort);
+
+output = ''
+for(i=0;i<um.length;i++)
+{
+	output+=(um[i].submits+" "+um[i].user+"\n");
+}
+
+is(output, '1 bc\n3 a\n23 eaea\n35 add\n', 'sort with a custom routine')
+
+
+// ~~~ need more sort tests
+
+
+
 
 // ---------------------------------------------------
 // 4 tests: Make sure toString and toLocaleString die properly */
