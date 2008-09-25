@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.026';
+our $VERSION = '0.027';
 
 
 use strict;
@@ -243,7 +243,7 @@ sub new {
 			$re = '';
 		}
 		elsif(can $re 'to_string') {
-			$re = $re->to_string->[0];
+			$re = $re->to_string->value16;
 		}
 	}
 	else {
@@ -702,7 +702,7 @@ sub new_constructor {
 				my $je_str;
 				if (defined $str) {
 					$str =
-					($je_str = $str->to_string)->[0];
+					($je_str=$str->to_string)->value16;
 				}
 				else {
 					$str = 'undefined';

@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.026';
+our $VERSION = '0.027';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -180,7 +180,7 @@ sub add_line_number {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.026';
+our $VERSION = '0.027';
 
 use subs qw'_create_vars _eval_term';
 use List::Util 'first';
@@ -616,7 +616,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.026';
+our $VERSION = '0.027';
 
 # B::Deparse showed me how to get these values.
 use constant nan => sin 9**9**9;
@@ -755,8 +755,8 @@ BEGIN{*T = *JE::Code::T;}
 		if($x->typeof eq 'string' or
 		   $y->typeof eq 'string') {
 			return bless [
-				$x->to_string->[0] .
-				$y->to_string->[0],
+				$x->to_string->value16 .
+				$y->to_string->value16,
 				$_global
 			], 'JE::String';
 		}
@@ -832,7 +832,7 @@ BEGIN{*T = *JE::Code::T;}
 		new JE::Boolean $_global,
 			$x->typeof eq 'string' &&
 			$y->typeof eq 'string'
-			? $x->to_string->[0] lt $y->to_string->[0]
+			? $x->to_string->value16 lt $y->to_string->value16
 			: $x->to_number->[0] <  $y->to_number->[0];
 	};
 	*{'in>'} = sub {
@@ -840,7 +840,7 @@ BEGIN{*T = *JE::Code::T;}
 		new JE::Boolean $_global,
 			$x->typeof eq 'string' &&
 			$y->typeof eq 'string'
-			? $x->to_string->[0] gt $y->to_string->[0]
+			? $x->to_string->value16 gt $y->to_string->value16
 			: $x->to_number->[0] >  $y->to_number->[0];
 	};
 	*{'in<='} = sub {
@@ -848,7 +848,7 @@ BEGIN{*T = *JE::Code::T;}
 		new JE::Boolean $_global,
 			$x->typeof eq 'string' &&
 			$y->typeof eq 'string'
-			? $x->to_string->[0] le $y->to_string->[0]
+			? $x->to_string->value16 le $y->to_string->value16
 			: $x->to_number->[0] <= $y->to_number->[0];
 	};
 	*{'in>='} = sub {
@@ -856,7 +856,7 @@ BEGIN{*T = *JE::Code::T;}
 		new JE::Boolean $_global,
 			$x->typeof eq 'string' &&
 			$y->typeof eq 'string'
-			? $x->to_string->[0] ge $y->to_string->[0]
+			? $x->to_string->value16 ge $y->to_string->value16
 			: $x->to_number->[0] >= $y->to_number->[0];
 	};
 	*{'ininstanceof'} = sub {
@@ -934,7 +934,7 @@ BEGIN{*T = *JE::Code::T;}
 
 		$xt eq 'string' && $yt eq 'string' and 
 			return new JE::Boolean $_global,
-			$x->[0] eq $y->[0];
+			$x->value16 eq $y->value16;
 		
 		new JE::Boolean $_global, 0;
 	};
@@ -1297,7 +1297,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.026';
+our $VERSION = '0.027';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1309,7 +1309,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.026';
+our $VERSION = '0.027';
 
 sub list {
 	my $self = shift;

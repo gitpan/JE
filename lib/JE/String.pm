@@ -1,6 +1,6 @@
 package JE::String;
 
-our $VERSION = '0.026';
+our $VERSION = '0.027';
 
 
 use strict;
@@ -52,7 +52,6 @@ sub new {
 	}
 	else {
 		$self = bless [surrogify($val), $global], $class;
-		ref $self->[0] eq "ARRAY" and print "look: " . ref $val;;
 	}
 	$self;
 }

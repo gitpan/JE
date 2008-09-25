@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.026';
+our $VERSION = '0.027';
 
 
 use strict;
@@ -64,7 +64,7 @@ sub new {
 	$$$self{value} = defined $val
 		? defined blessed $val
 		  && $val->can('to_string')
-			? $val->to_string->[0]
+			? $val->to_string->value16
 			: surrogify $val
 		: '';
 	$self;
@@ -219,7 +219,7 @@ sub _new_constructor {
 			function => sub {
 				my ($self,$pos) = @_;
 				
-				my $str = $self->to_string->[0];
+				my $str = $self->to_string->value16;
 				if (defined $pos) {
 					$pos = int $pos->to_number->[0];
 					$pos = 0 unless $pos == $pos;
@@ -245,7 +245,7 @@ sub _new_constructor {
 			function => sub {
 				my ($self,$pos) = @_;
 				
-				my $str = $self->to_string->[0];
+				my $str = $self->to_string->value16;
 				if (defined $pos) {
 					$pos = int $pos->to_number->[0];
 					$pos = 0 unless $pos == $pos;
@@ -271,7 +271,7 @@ sub _new_constructor {
 			function => sub {
 				my $str = '';
 				for (@_) {
-					$str .= $_->to_string->[0]
+					$str .= $_->to_string->value16
 				}
 				JE::String->new($global, $str);
 			},
@@ -289,9 +289,9 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this','args'],
 			function => sub {
-				my $str = shift->to_string->[0];
+				my $str = shift->to_string->value16;
 				my $find = defined $_[0]
-						? $_[0]->to_string->[0]
+						? $_[0]->to_string->value16
 						: 'undefined';
 				my $start = defined $_[1]
 							? $_[1]->to_number
@@ -327,7 +327,7 @@ sub _new_constructor {
 				JE::Number->new($global, rindex
 					$string,
 					defined $_[0]
-						? $_[0]->to_string->[0]
+						? $_[0]->to_string->value16
 						: 'undefined',
 					$pos
 				);
@@ -401,7 +401,7 @@ sub _new_constructor {
 				# this optimisation. (But, then, no one
 				# else follows the spec!)
 				
-				$str = $str->[0];
+				$str = $str->value16;
 
 				my @ary;
 				while($str =~ /$re/g) {
@@ -436,10 +436,10 @@ sub _new_constructor {
 					$foo = $$$foo{value};
 				}
 				else {
-					$g = !1;
-					$foo = defined $foo
-					   ? quotemeta $foo->to_string->[0]
-					   : 'undefined';
+				    $g = !1;
+				    $foo = defined $foo
+				       ? quotemeta $foo->to_string->value16
+				       : 'undefined';
 				}
 
 				if (defined $bar && $bar->can('class') &&
@@ -456,7 +456,7 @@ sub _new_constructor {
 					      JE::Number->new($global,
 					        $-[0]),
 					      $_[1]
-					    )->to_string->[0]	
+					    )->to_string->value16
 					};
 
 					my $je_str = JE::String->new(
@@ -486,7 +486,7 @@ sub _new_constructor {
 					# care of it.
 					$bar = defined $bar
 					   ? do {
-					      $bar->to_string->[0]
+					      $bar->to_string->value16
 					          =~ /(.*)/s; # untaint
 					      quotemeta $1
 					   }
@@ -532,7 +532,7 @@ sub {
 	$re = defined $re ?(eval{$re->class}||'')eq 'RegExp' ? $re->value :
 		JE::Object::RegExp->new($global, $re)->value : qr//;
 
-	return JE::Number->new($global, $str->to_string->[0] =~ $re ?
+	return JE::Number->new($global, $str->to_string->value16 =~ $re ?
 		$-[0] :-1 );
 }
 		}),
@@ -550,7 +550,7 @@ sub {
 			function => sub {
 my($str, $start, $end) = @_;
 
-$str = $str->to_string->[0];
+$str = $str->to_string->value16;
 my $length = length $str;
 
 if (defined $start) {
@@ -632,7 +632,8 @@ JS's 'aardvark'.split('', 3) means (split //, 'aardvark', 4)[0..2]
 			function => sub {
 				my($str, $sep, $limit) = @_;
 
-				$str = (my $je_str = $str->to_string)->[0];
+				$str = (my $je_str = $str->to_string)
+					->value16;
 
 				if(!defined $limit ||
 				   $limit->id eq 'undef') {
@@ -656,7 +657,7 @@ JS's 'aardvark'.split('', 3) means (split //, 'aardvark', 4)[0..2]
 				    );
 				  }
 				  else {
-				    $sep = $sep->to_string->[0];
+				    $sep = $sep->to_string->value16;
 				  }
 				}
 				else {
@@ -720,7 +721,7 @@ JS's 'aardvark'.split('', 3) means (split //, 'aardvark', 4)[0..2]
 			function => sub {
 my($str, $start, $end) = @_;
 
-$str = $str->to_string->[0];
+$str = $str->to_string->value16;
 my $length = length $str;
 
 
@@ -760,7 +761,7 @@ return  JE::String->new($global, my $x= substr $str, $start, $end-$start);
 				my $str = shift;
 
 				JE::String->new($global,
-					lc $str->to_string->[0]);
+					lc $str->to_string->value16);
 			},
 		}),
 		dontenum => 1,
@@ -794,7 +795,7 @@ return  JE::String->new($global, my $x= substr $str, $start, $end-$start);
 				my $str = shift;
 
 				JE::String->new($global,
-					uc $str->to_string->[0]);
+					uc $str->to_string->value16);
 			},
 		}),
 		dontenum => 1,

@@ -1,5 +1,18 @@
 Revision history for JE
 
+0.027   24 September, 2008
+        Two bug fixes:
+        • Array.prototype.splice now actually works. It used to mangle
+          the array in strange ways.  It also used to die when  called
+          on an object with no length property.
+        • Constructors created by bind_class now pass all their argu-
+          ments to the underlying Perl methods.  Thanks to Christian
+          Forster for finding this bug. 
+        Internals:
+        • Various parts of JE were breaking  JE::String’s  encapsula-
+          tion. Now they have been changed to use the value16 method,
+          so that JE::String’s internals can be changed.
+
 0.026   21 September, 2008
         One bug fix: Array.protoype.sort used to die with a custom
         sort routine.  Thanks to Christian Forster  for  reporting

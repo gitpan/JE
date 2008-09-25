@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.026';
+our $VERSION = '0.027';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -599,7 +599,7 @@ sub _sort {
 
 	my $comp_sub = defined $comp && $comp->can('call') 
 		? sub { 0+$comp->call($a,$b) }
-		: sub { $a->to_string->[0] cmp $b->to_string->[0] };
+		: sub { $a->to_string->value16 cmp $b->to_string->value16};
 
 	my @sorted = ((sort $comp_sub @sortable),@undef);
 
@@ -617,9 +617,13 @@ sub _sort {
 
 sub _splice {
 	my ($self, $start, $del_count) = (shift, shift, shift);
+	my $global = $self->global;
 
-	my $length = $self->prop('length')->to_number->value % 2**32;
-	$length == $length or $length = 0;
+	my $length = $self->prop('length');
+	if(defined $length) {
+		$length = $length->to_number->value % 2**32;
+		$length == $length or $length = 0;
+	} else { $length = 0 };
 	
 	if (defined $start) {
 		$start = int $start->to_number->value;
@@ -649,19 +653,25 @@ sub _splice {
 	my $val;
 	if (@_ < $del_count) {
 		my $diff = $del_count - @_;
-		for ($end..$length-1) {
+		for ($end+1..$length-1) {
 			defined ($val = $self->prop($_))
 			?	$self->prop ($_ - $diff => $val)
 			:	$self->delete($_ - $diff);
 		}
+		$self->prop(length =>
+			JE::Number->new($global, $length - $diff)
+		);
 	}
 	elsif (@_ > $del_count) {
 		my $diff = @_ - $del_count;
-		for (reverse $end..$length-1) {
+		for (reverse $end+1..$length-1) {
 			defined ($val = $self->prop($_))
 			?	$self->prop ($_ + $diff => $val)
 			:	$self->delete($_ + $diff);
 		}
+		$self->prop(length =>
+			JE::Number->new($global, $length + $diff)
+		);
 	}
 
 	for (0..$#_) {

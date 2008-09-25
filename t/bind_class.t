@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 195;
+use Test::More tests => 197;
 use strict;
 use Scalar::Util 1.14 'refaddr';
 use utf8;
@@ -12,7 +12,7 @@ use JE;
 my $j = new JE;
 
 #--------------------------------------------------------------------#
-# Tests 1-8: Class bindings: constructor and class names
+# Tests 1-10: Class bindings: constructor and class names
 
 $j->bind_class(package => 'class1');
 eval { $j->{class1}->construct};
@@ -46,10 +46,21 @@ $j->bind_class(
 );
 isa_ok $j->{fourth_class}, 'JE::Object::Function',
 	'constructor named after the class';
+{
+	my $scratch;
+	no warnings 'once';
+	*class4::old = sub { $scratch = join ',', @_ };
+	$j->{fourth_class}->construct(1,2,3,7,8);
+	is $scratch, 'class4,1,2,3,7,8',
+		'a Perl constructor gets passed the args from JS';
+	$j->{fourth_class}->("hello","goodbype");
+	is $scratch, 'class4,hello,goodbype',
+		'Perl constructors gets passed args when called as funcs';
+}
 
 
 #--------------------------------------------------------------------#
-# Tests 9-23: Class bindings: construction and method calls
+# Tests 11-25: Class bindings: construction and method calls
 
 $j->new_function(is => \&is);
 
@@ -147,7 +158,7 @@ defined $j->eval(<<'----') or die;
 
 
 #--------------------------------------------------------------------#
-# Tests 24-42: Class bindings: primitivisation
+# Tests 26-44: Class bindings: primitivisation
 
 $j->{is} = \&is unless $j->{is};
 $j->{ok} = \&ok unless $j->{ok};
@@ -260,7 +271,7 @@ defined $j->eval(<<'})() ') or die;
 
 
 #--------------------------------------------------------------------#
-# Tests 43-5: Class bindings: inheritance
+# Tests 45-7: Class bindings: inheritance
 
 $j->bind_class(
 	package => 'HumptyDumpty',
@@ -290,7 +301,7 @@ is_deeply $j->upgrade(bless [], 'RunningOutOfWeirdIdeas')->prototype
 	->prototype, undef, 'isa => undef';
 
 #--------------------------------------------------------------------#
-# Test 46: Class bindings: proxy caching
+# Test 48: Class bindings: proxy caching
 
 {
 	my $thing = bless [], 'RunningOutOfWeirdIdeas';
@@ -300,7 +311,7 @@ is_deeply $j->upgrade(bless [], 'RunningOutOfWeirdIdeas')->prototype
 
 
 #--------------------------------------------------------------------#
-# Tests 47-86: Class bindings: properties
+# Tests 49-88: Class bindings: properties
 
 $j->{is} ||= \&is;
 $j->{ok} ||= \&ok;
@@ -601,7 +612,7 @@ isa_ok $j->upgrade(knew PropsHashHashSub)->{p1},      'JE::String',
 
 
 #--------------------------------------------------------------------#
-# Test 87: Class bindings: wrappers
+# Test 89: Class bindings: wrappers
 
 $j->bind_class(
 	name => 'Wrappee',
@@ -612,7 +623,7 @@ isa_ok $j->upgrade(bless[],'Wrappee'),'Wrapper', 'the wrapper';
 
 
 #--------------------------------------------------------------------#
-# Tests 88-121: Class bindings: arrays and hashes
+# Tests 90-123: Class bindings: arrays and hashes
 
 @{$j->{Object}{prototype}}{0,'doodad'} = qw "something weird";
 
@@ -744,7 +755,7 @@ $j->bind_class(qw 5
 delete $j->{Object}{$_} for qw _0 doodad_;
 
 #--------------------------------------------------------------------#
-# Tests 122-65 (17+17+9+1=44): Class bindings: method return types
+# Tests 124-67 (17+17+9+1=44): Class bindings: method return types
 
 sub ___::AUTOLOAD{scalar reverse $___::AUTOLOAD}
 sub ___::oof{}
@@ -930,7 +941,7 @@ is $j->upgrade(bless[],'____')->to_primitive, 'null',
 
 
 #--------------------------------------------------------------------#
-# Test 166: Class bindings: inherited property [gs]etters
+# Test 168: Class bindings: inherited property [gs]etters
 
 $j->bind_class(package => 'base_class',
                props => { property => sub { ${+shift} } });
@@ -943,7 +954,7 @@ $j->bind_class(package => 'subclarce', isa => 'base_class');
 }
 
 #--------------------------------------------------------------------#
-# Tests 167-72: Class bindings: respect of Perl's overloading
+# Tests 169-74: Class bindings: respect of Perl's overloading
 
 {package ov; use overload '""' => sub { 43 }}
 $j->bind_class(name => 'ov');
@@ -963,7 +974,7 @@ is ($j->upgrade(bless [], 'un')->to_primitive, '[object un]',
 
 
 #--------------------------------------------------------------------#
-# Tests 173-94: Scalar context for methods/coderefs passed to bind_class
+# Tests 175-96: Scalar context for methods/coderefs passed to bind_class
 
 sub scalartest::ten { 3, 10 }
 sub scalartest::three { 7, 3 }
@@ -1049,7 +1060,7 @@ is $j->{scalartest}->prop('prop6'), 10,
   'scalar context for static untyped method-name prop specified in hash';
 
 #--------------------------------------------------------------------#
-# Test 195: Make sure "\x{d800}" doesn’t make it die.
+# Test 197: Make sure "\x{d800}" doesn’t make it die.
 
 eval { $j->bind_class(name => 'foo', methods => ["\x{d800}:"]) };
 ok !$@, 'bind_class doesn\'t croak on surrogates';

@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.026';
+our $VERSION = '0.027';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -1321,8 +1321,8 @@ sub bind_class {
 		my $c = $opts{constructor};
 
 		$coderef = ref eq 'CODE'
-			? sub { $self->upgrade(scalar &$c()) }
-			: sub { $self->upgrade(scalar $pack->$c) };
+			? sub { $self->upgrade(scalar &$c(@_)) }
+			: sub { $self->upgrade(scalar $pack->$c(@_)) };
 	}
 	else {
 		$coderef = sub {
@@ -1336,9 +1336,9 @@ sub bind_class {
 			name => $class,
 			scope => $self,
 			function => $coderef,
-			function_args => [],
+			function_args => ['args'],
 			constructor => $coderef,
-			constructor_args => [],
+			constructor_args => ['args'],
 		}),
 	})->prop('prototype');
 
