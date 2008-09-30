@@ -46,7 +46,7 @@ sub _decodeURI {
 		$global, add_line_number
 			'Malformed UTF-8 in URI');
 
-	JE::String->new($global, $str);
+	JE::String->_new($global, $str);
 }
 
 sub _decodeURIComponent {
@@ -90,7 +90,7 @@ sub _decodeURIComponent {
 		$global, add_line_number
 			'Malformed UTF-8 in URI');
 
-	JE::String->new($global, $str);
+	JE::String->_new($global, $str);
 }
 
 sub _encodeURI {
@@ -110,7 +110,7 @@ sub _encodeURI {
 		s< ([^;/?:@&=+\$,A-Za-z0-9\-_.!~*'()#]) >
 		 < sprintf '%%%02X', ord $1           >egx;
 	
-	JE::String->new($global, $str);
+	JE::String->_new($global, $str);
 }
 
 sub _encodeURIComponent {
@@ -129,7 +129,7 @@ sub _encodeURIComponent {
 	$str =~ s< ([^A-Za-z0-9\-_.!~*'()])  >
 	         < sprintf '%%%02X', ord $1 >egx;
 	
-	JE::String->new($global, $str);
+	JE::String->_new($global, $str);
 }
 
 sub _escape {
@@ -142,7 +142,7 @@ sub _escape {
 	               ? '%02'
 	               : 'u%04'
 	           ) . 'x', ord $1          ]egx;
-	JE::String->new($global, $str);
+	JE::String->_new($global, $str);
 }
 
 sub _unescape {
@@ -150,7 +150,7 @@ sub _unescape {
 	my $str = shift->to_string->value16;
 	$str =~s<%(?:u([a-f0-9]{4})|([a-f0-9]{2}))>
 	        < chr hex $+ >egix;
-	JE::String->new($global, $str);
+	JE::String->_new($global, $str);
 }
 
 1

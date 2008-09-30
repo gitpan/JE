@@ -1,6 +1,6 @@
 package JE::Object::Error::RangeError;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 
 use strict;
@@ -54,13 +54,13 @@ sub new_constructor {
 			);
 			$proto->prop({
 				name  => 'name',
-				value => JE::String->new($global,
+				value => JE::String->_new($global,
 					'RangeError'),
 				dontenum => 1,
 			});
 			$proto->prop({
 				name  => 'message',
-				value => JE::String->new($global,
+				value => JE::String->_new($global,
 					'Range error'),
 				dontenum => 1,
 			});

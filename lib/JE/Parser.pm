@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 use strict;  # :-(
 use warnings;# :-(
@@ -103,7 +103,9 @@ use constant JECS => 'JE::Code::Statement';
 
 require JE::String;
 import JE::String 'desurrogify';
+import JE::String 'surrogify';
 sub desurrogify($);
+sub surrogify($);
 
 
 # die is called with a simple scalar when the string contains what  is
@@ -191,7 +193,7 @@ sub str() { # public
 		$4 ? "\cK" :
 		$5
 	/sgex;
-	JE::String->new($global, $yarn);
+	JE::String->_new($global, $yarn);
 }
 
 sub  num() { # public
@@ -1456,12 +1458,15 @@ sub _parse($$$;$$) { # Returns just the parse tree, not a JE::Code object.
                      # in scalar context.
 	my ($rule, $src, $my_global, $file, $line) = @_;
 
-	$src = "$src"; # We *hafta* stringify it, because it could be an
-	               # object with overloading  (e.g., JE::String)  and
-	               # we need to rely on its pos(), which simply cannot
-	               # be done with an  object.  Furthermore,  perl5.8.5
-	               # is a bit buggy and sometimes mangles the contents
-	               # of $1 when one does $obj =~ /(...)/.
+	# Note: We *hafta* stringify the $src, because it could be an
+	# object  with  overloading  (e.g.,  JE::String)  and  we
+	# need to rely on its  pos(),  which simply cannot be
+	# done with an object.  Furthermore,  perl5.8.5 is
+	# a bit buggy and sometimes mangles the contents
+	# of $1 when one does $obj =~ /(...)/.
+	$src = defined blessed $src && $src->isa("JE::String")
+	       ? $src->value16
+	       : surrogify("$src");
 
 	# remove unicode format chrs
 	$src =~ s/\p{Cf}//g;

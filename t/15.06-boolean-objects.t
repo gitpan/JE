@@ -1,48 +1,46 @@
 #!perl -T
 do './t/jstest.pl' or die __DATA__
 
-diag("To do: finish writing this script")
-
 // ===================================================
 // 15.6.1: Boolean as a function
-  // 7 tests
+// 7 tests
 // ===================================================
 
-/*
-ok(Boolean() === '', 'Boolean()')
-ok(Boolean(void 0) === 'undefined', 'Boolean(undefined)')
-ok(Boolean(876) === '876', 'Boolean(number)')
-ok(Boolean(true) === 'true', 'Boolean(boolean)')
-ok(Boolean('ffo') === 'ffo', 'Boolean(str)')
-ok(Boolean(null) === 'null', 'Boolean(null)')
-ok(Boolean({}) === '[object Object]', 'Boolean(object)')
+ok(Boolean() === false, 'Boolean()')
+ok(Boolean(void 0) === false, 'Boolean(undefined)')
+ok(Boolean(876) === true, 'Boolean(number)')
+ok(Boolean(true) === true, 'Boolean(boolean)')
+ok(Boolean('ffo') === true, 'Boolean(str)')
+ok(Boolean(null) === false, 'Boolean(null)')
+ok(Boolean({}) === true, 'Boolean(object)')
 
 
 // ===================================================
 // 15.6.2: new Boolean
-  // 9 tests
+// 10 tests
 // ===================================================
-/
-ok(new Boolean().constructor === Boolean, 'prototype of new Boolean')
-is(Object.prototype.toBoolean.apply(new Boolean()), '[object Boolean]',
-	'class of new Boolean')
-ok(new Boolean().valueOf() === '', 'value of new Boolean')
-ok(new Boolean('foo').valueOf() === 'foo', 'value of new Boolean(foo)')
 
-ok(new Boolean(void 0).valueOf() === 'undefined', 'new Boolean(undefined)')
-ok(new Boolean(876).valueOf() === '876', 'new Boolean(number)')
-ok(new Boolean(true).valueOf() === 'true', 'new Boolean(boolean)')
-ok(new Boolean(null).valueOf() === 'null', 'new Boolean(null)')
-ok(new Boolean({}).valueOf() === '[object Object]', 'new Boolean(object)')
+ok(new Boolean().constructor === Boolean, 'prototype of new Boolean')
+is(Object.prototype.toString.apply(new Boolean()), '[object Boolean]',
+	'class of new Boolean')
+ok(new Boolean().valueOf() === false, 'value of new Boolean')
+ok(new Boolean(true).valueOf() === true, 'value of new Boolean(true)')
+ok(new Boolean(false).valueOf() === false, 'value of new Boolean(false)')
+
+ok(new Boolean(void 0).valueOf() === false, 'new Boolean(undefined)')
+ok(new Boolean(876).valueOf() === true, 'new Boolean(number)')
+ok(new Boolean("tru").valueOf() === true, 'new Boolean(string)')
+ok(new Boolean(null).valueOf() === false, 'new Boolean(null)')
+ok(new Boolean({}).valueOf() === true, 'new Boolean(object)')
 
 
 // ===================================================
 // 15.6.3 Boolean
 // ===================================================
 
-  // 10 tests (boilerplate stuff for constructors)
+// 10 tests (boilerplate stuff for constructors)
 is(typeof Boolean, 'function', 'typeof Boolean');
-is(Object.prototype.toBoolean.apply(Boolean), '[object Function]',
+is(Object.prototype.toString.apply(Boolean), '[object Function]',
 	'class of Boolean')
 ok(Boolean.constructor === Function, 'Boolean\'s prototype')
 ok(Boolean.length === 1, 'Boolean.length')
@@ -61,12 +59,12 @@ cmp_ok((Boolean.prototype = 7, Boolean.prototype), '!=', 7,
 // 15.6.4: Boolean prototype
 // ===================================================
 
-  // 3 tests
-is(Object.prototype.toBoolean.apply(Boolean.prototype),
+// 3 tests
+is(Object.prototype.toString.apply(Boolean.prototype),
 	'[object Boolean]',
 	'class of Boolean.prototype')
-is(Boolean.prototype, '',
-	'Boolean.prototype as string')
+is(Boolean.prototype, false,
+	'Boolean.prototype as boolean')
 ok(peval('shift->prototype',Boolean.prototype) === Object.prototype,
 	'Boolean.prototype\'s prototype')
 
@@ -75,13 +73,13 @@ ok(peval('shift->prototype',Boolean.prototype) === Object.prototype,
 // 15.6.4.1 Boolean.prototype.constructor
 // ===================================================
 
-   // 2 tests
+// 2 tests
 ok(Boolean.prototype.hasOwnProperty('constructor'),
 	'Boolean.prototype has its own constructor property')
 ok(Boolean.prototype.constructor === Boolean,
 	'value of Boolean.prototype.constructor')
 
-*/
+
 // ===================================================
 // 15.6.4.2: toString
 // ===================================================

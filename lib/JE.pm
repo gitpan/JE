@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.026 (alpha release)
+Version 0.028 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -332,7 +332,7 @@ sub new {
 		name => 'Array',
 		autoload =>
 			'require JE::Object::Array;
-			 JE::Object::Array->new_constructor($global)',
+			 JE::Object::Array::_new_constructor($global)',
 		dontenum => 1,
 	});
 	$self->prop({
@@ -704,6 +704,9 @@ sub new {
 	});
 
 
+	# Constructor args
+	my %args = @_;
+	$$$self{max_ops} = delete $args{max_ops};
 
 	$self;
 }
@@ -808,6 +811,33 @@ with which the function is called. E.g.:
   );
   # ... then later ...
   $j->eval(q[ 'a string'.reverse() ]); # returns 'gnirts a'
+
+
+=item $j->max_ops
+
+=item $j->max_ops( $new_value )
+
+Use this to set the maximum number of operations that C<eval> (or
+JE::Code's C<execute>) will run before terminating. (You can use this for
+runaway scripts.) The exact method of counting operations 
+is consistent from one run to another, but is not guaranteed to be consistent between versions of JE. In the current implementation, an
+operation means an expression or sub-expression, so a simple C<return>
+statement with no arguments is not counted.
+
+With no arguments, this method returns the current value.
+
+As shorthand, you can pass C<< max_ops => $foo >> to the constructor.
+
+If the number of operations is exceeded, then C<eval> will return undef and
+set C<$@> to a 'max_ops (xxx) exceeded.
+
+=cut
+
+sub max_ops {
+	my $self = shift;
+	if(@_) { $$$self{max_ops} = shift; return }
+	else { return $$$self{max_ops} }
+}
 
 
 =item $j->upgrade( @values )
@@ -2012,6 +2042,9 @@ Regular expression syntax that is not valid ECMAScript in general follows
 Perl's behaviour. (See L<JE::Object::RegExp> for the exceptions.)
 
 =back
+
+JE also supports the C<escape> and C<unescape> global functions (not part
+of ECMAScript proper, but in the appendix).
 
 =head1 BUGS
 

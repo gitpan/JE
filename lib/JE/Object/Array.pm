@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -17,6 +17,7 @@ our @ISA = 'JE::Object';
 require JE::Code;
 require JE::Object     ;
 require JE::Object::Error::TypeError              ;
+require JE::Object::Function                            ;
 require JE::String                                            ;
 require JE::Number                                                       ;
 
@@ -209,176 +210,187 @@ sub class { 'Array' }
 
 
 
-sub new_constructor {
-	shift->SUPER::new_constructor(shift,
-		sub {
-			__PACKAGE__->new(@_);
-		},
-		sub {
-			my $proto = shift;
-			bless $proto, __PACKAGE__;
-			$$$proto{array} = [];
+sub _new_constructor {
+	my $global = shift;
+	my $construct_cref = sub {
+		__PACKAGE__->new(@_);
+	};
+	my $f = JE::Object::Function->new({
+		name            => 'Array',
+		scope            => $global,
+		function         => $construct_cref,
+		function_args    => ['scope','args'],
+		length           => 1,
+		constructor      => $construct_cref,
+		constructor_args => ['scope','args'],
+	});
 
-			my $global = $$proto->{global};
+	my $proto = $f->prop({
+		name    => 'prototype',
+		dontenum => 1,
+		readonly => 1,
+	});
+	bless $proto, __PACKAGE__;
+	$$$proto{array} = [];
 
-			$proto->prop({
-				name  => 'toString',
-				value => JE::Object::Function->new({
-					scope  => $global,
-					name   => 'toString',
-					length => 0,
-					no_proto => 1,
-					function_args => ['this'],
-					function => \&_toString,
-				}),
-				dontenum => 1,
-			});
+	$proto->prop({
+		name  => 'toString',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name   => 'toString',
+			length => 0,
+			no_proto => 1,
+			function_args => ['this'],
+			function => \&_toString,
+		}),
+		dontenum => 1,
+	});
 
-			$proto->prop({
-				name  => 'toLocaleString',
-				value => JE::Object::Function->new({
-					scope  => $global,
-					name   => 'toLocaleString',
-					length => 0,
-					no_proto => 1,
-					function_args => ['this'],
-					function => \&_toLocaleString,
-				}),
-				dontenum => 1,
-			});
+	$proto->prop({
+		name  => 'toLocaleString',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name   => 'toLocaleString',
+			length => 0,
+			no_proto => 1,
+			function_args => ['this'],
+			function => \&_toLocaleString,
+		}),
+		dontenum => 1,
+	});
 
-			$proto->prop({
-				name  => 'concat',
-				value => JE::Object::Function->new({
-					scope  => $global,
-					name   => 'concat',
-					length => 1,
-					no_proto => 1,
-					function_args => ['this','args'],
-					function => \&_concat,
-				}),
-				dontenum => 1,
-			});
+	$proto->prop({
+		name  => 'concat',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name   => 'concat',
+			length => 1,
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => \&_concat,
+		}),
+		dontenum => 1,
+	});
 
-			$proto->prop({
-				name  => 'join',
-				value => JE::Object::Function->new({
-					scope  => $global,
-					name   => 'join',
-					argnames => ['separator'],
-					no_proto => 1,
-					function_args => ['this','args'],
-					function => \&_join,
-				}),
-				dontenum => 1,
-			});
+	$proto->prop({
+		name  => 'join',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name   => 'join',
+			argnames => ['separator'],
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => \&_join,
+		}),
+		dontenum => 1,
+	});
 
-			$proto->prop({
-				name  => 'pop',
-				value => JE::Object::Function->new({
-					scope  => $global,
-					name   => 'pop',
-					length => 0,
-					no_proto => 1,
-					function_args => ['this'],
-					function => \&_pop,
-				}),
-				dontenum => 1,
-			});
+	$proto->prop({
+		name  => 'pop',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name   => 'pop',
+			length => 0,
+			no_proto => 1,
+			function_args => ['this'],
+			function => \&_pop,
+		}),
+		dontenum => 1,
+	});
 
-			$proto->prop({
-				name  => 'push',
-				value => JE::Object::Function->new({
-					scope  => $global,
-					name   => 'push',
-					length => 1,
-					no_proto => 1,
-					function_args => ['this','args'],
-					function => \&_push,
-				}),
-				dontenum => 1,
-			});
+	$proto->prop({
+		name  => 'push',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name   => 'push',
+			length => 1,
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => \&_push,
+		}),
+		dontenum => 1,
+	});
 
-			$proto->prop({
-				name  => 'reverse',
-				value => JE::Object::Function->new({
-					scope  => $global,
-					name   => 'reverse',
-					length => 1,
-					no_proto => 1,
-					function_args => ['this'],
-					function => \&_reverse,
-				}),
-				dontenum => 1,
-			});
+	$proto->prop({
+		name  => 'reverse',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name   => 'reverse',
+			length => 1,
+			no_proto => 1,
+			function_args => ['this'],
+			function => \&_reverse,
+		}),
+		dontenum => 1,
+	});
 
-			$proto->prop({
-				name  => 'shift',
-				value => JE::Object::Function->new({
-					scope  => $global,
-					name   => 'shift',
-					length => 0,
-					no_proto => 1,
-					function_args => ['this'],
-					function => \&_shift,
-				}),
-				dontenum => 1,
-			});
+	$proto->prop({
+		name  => 'shift',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name   => 'shift',
+			length => 0,
+			no_proto => 1,
+			function_args => ['this'],
+			function => \&_shift,
+		}),
+		dontenum => 1,
+	});
 
-			$proto->prop({
-				name  => 'slice',
-				value => JE::Object::Function->new({
-					scope  => $global,
-					name   => 'shift',
-					argnames => [qw/start end/],
-					no_proto => 1,
-					function_args => ['this'],
-					function => \&_shift,
-				}),
-				dontenum => 1,
-			});
+	$proto->prop({
+		name  => 'slice',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name   => 'shift',
+			argnames => [qw/start end/],
+			no_proto => 1,
+			function_args => ['this'],
+			function => \&_shift,
+		}),
+		dontenum => 1,
+	});
 
-			$proto->prop({
-				name  => 'sort',
-				value => JE::Object::Function->new({
-					scope  => $global,
-					name   => 'sort',
-					argnames => [qw/comparefn/],
-					no_proto => 1,
-					function_args => ['this','args'],
-					function => \&_sort,
-				}),
-				dontenum => 1,
-			});
+	$proto->prop({
+		name  => 'sort',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name   => 'sort',
+			argnames => [qw/comparefn/],
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => \&_sort,
+		}),
+		dontenum => 1,
+	});
 
-			$proto->prop({
-				name  => 'splice',
-				value => JE::Object::Function->new({
-					scope  => $global,
-					name   => 'splice',
-					argnames => [qw/start
-					               deleteCount/],
-					no_proto => 1,
-					function_args => ['this','args'],
-					function => \&_splice,
-				}),
-				dontenum => 1,
-			});
+	$proto->prop({
+		name  => 'splice',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name   => 'splice',
+			argnames => [qw/start
+			               deleteCount/],
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => \&_splice,
+		}),
+		dontenum => 1,
+	});
 
-			$proto->prop({
-				name  => 'unshift',
-				value => JE::Object::Function->new({
-					scope  => $global,
-					name   => 'unshift',
-					length => 1,
-					no_proto => 1,
-					function_args => ['this','args'],
-					function => \&_unshift,
-				}),
-				dontenum => 1,
-			});
-		},
-	);
+	$proto->prop({
+		name  => 'unshift',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name   => 'unshift',
+			length => 1,
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => \&_unshift,
+		}),
+		dontenum => 1,
+	});
+
+	$f
 }
 
 # ~~~ I should be able to optimise those methods that are designed to work
@@ -393,7 +405,7 @@ sub _toString {
 	or die JE::Object::Error::TypeError->new($$guts{global},
 		add_line_number 'Object is not an Array');
 
-	JE::String->new(
+	JE::String->_new(
 		$$guts{global},
 		join ',', map
 			defined $_ && defined $_->value
@@ -409,7 +421,7 @@ sub _toLocaleString {
 	or die JE::Object::Error::TypeError->new($$guts{global},
 		'Object is not an Array');
 
-	JE::String->new(
+	JE::String->_new(
 		$$guts{global},
 		join ',', map
 			defined $_ && defined $_->value
@@ -420,7 +432,7 @@ sub _toLocaleString {
 
 sub _concat {
 	my $thing;
-	my $new = __PACKAGE__->new(my $global = $thing->global);
+	my $new = __PACKAGE__->new(my $global = $_[0]->global);
 	my @new;
 	while(@_) {
 		$thing = shift;
@@ -428,7 +440,7 @@ sub _concat {
 			push @new, @{ $$$thing{array} };
 		}
 		else {
-			push @new, $thing->to_string;
+			push @new, $thing;
 		}
 	}
 
@@ -441,12 +453,15 @@ sub _join {
 	my( $self,$sep) = @_;
 	!defined $sep || $sep->id eq 'undef' and $sep = ',';
 
-	my $length = $self->prop('length')->to_number->value % 2**32;
-	$length == $length or $length = 0;
+	my $length = $self->prop('length');
+	if(defined $length) {
+		$length = $length->to_number->value % 2**32;
+		$length == $length or $length = 0;
+	} else { $length = 0 }
 	
 
 	my $val;
-	JE::String->new(
+	JE::String->_new(
 		$self->global,
 		join $sep,
 			map {
@@ -460,8 +475,11 @@ sub _join {
 sub _pop {
 	my( $self) = @_;
 
-	my $length = $self->prop('length')->to_number->value % 2**32;
-	$length == $length or $length = 0;
+	my $length = $self->prop('length');
+	if(defined $length) {
+		$length = (int $length->to_number->value) % 2**32;
+		$length == $length or $length = 0;
+	} else { $length = 0 }
 	
 	$length or
 		$self->prop('length', 0),
@@ -621,7 +639,7 @@ sub _splice {
 
 	my $length = $self->prop('length');
 	if(defined $length) {
-		$length = $length->to_number->value % 2**32;
+		$length = ($length->to_number->value) % 2**32;
 		$length == $length or $length = 0;
 	} else { $length = 0 };
 	
@@ -672,6 +690,9 @@ sub _splice {
 		$self->prop(length =>
 			JE::Number->new($global, $length + $diff)
 		);
+	}
+	else {
+		$self->prop(length => JE::Number->new($global,$length));
 	}
 
 	for (0..$#_) {

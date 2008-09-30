@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 
 use strict;
@@ -121,7 +121,7 @@ sub _new_constructor {
 		function         => sub {
 			my $arg = shift;
 			defined $arg ? $arg->to_string :
-				JE::String->new($global, '');
+				JE::String->_new($global, '');
 		},
 		function_args    => ['args'],
 		argnames         => ['value'],
@@ -153,7 +153,7 @@ sub _new_constructor {
 					$str .= chr($num == $num && $num);
 						# change nan to 0
 				}
-				JE::String->new($global, $str);
+				JE::String->_new($global, $str);
 			},
 		}),
 		dontenum => 1,
@@ -181,7 +181,7 @@ sub _new_constructor {
 					"String object"
 				) unless $self->class eq 'String';
 
-				JE::String->new($global, $$$self{value});
+				JE::String->_new($global, $$$self{value});
 			},
 		}),
 		dontenum => 1,
@@ -202,7 +202,7 @@ sub _new_constructor {
 					"String object"
 				) unless $self->class eq 'String';
 
-				JE::String->new($global, $$$self{value});
+				JE::String->_new($global, $$$self{value});
 			},
 		}),
 		dontenum => 1,
@@ -225,7 +225,7 @@ sub _new_constructor {
 					$pos = 0 unless $pos == $pos;
 				}
 
-				JE::String->new($global,
+				JE::String->_new($global,
 					$pos < 0 || $pos >= length $str
 						? ''
 						: substr $str, $pos, 1);
@@ -273,7 +273,7 @@ sub _new_constructor {
 				for (@_) {
 					$str .= $_->to_string->value16
 				}
-				JE::String->new($global, $str);
+				JE::String->_new($global, $str);
 			},
 		}),
 		dontenum => 1,
@@ -405,7 +405,7 @@ sub _new_constructor {
 
 				my @ary;
 				while($str =~ /$re/g) {
-					push @ary, JE::String->new($global,
+					push @ary, JE::String->_new($global,
 						substr $str, $-[0],
 						$+[0] - $-[0]);
 				}
@@ -446,10 +446,10 @@ sub _new_constructor {
 				    $bar->class eq 'Function') {
 					my $replace = sub {
 					    $_[0]->call(
-					      JE::String->new($global,
+					      JE::String->_new($global,
 					        substr $str, $-[0],
 					          $+[0] - $-[0]),
-					      map(JE::String->new(
+					      map(JE::String->_new(
 					        $global,
 					        $JE'Object'RegExp'Match[$_]
 					      ), 1..$#+),
@@ -459,7 +459,7 @@ sub _new_constructor {
 					    )->to_string->value16
 					};
 
-					my $je_str = JE::String->new(
+					my $je_str = JE::String->_new(
 						$global, $str);
 
 					$g
@@ -511,7 +511,7 @@ sub _new_constructor {
 					for $str;
 				}
 					
-				JE::String->new($global, $str);
+				JE::String->_new($global, $str);
 			},
 		}),
 		dontenum => 1,
@@ -557,7 +557,7 @@ if (defined $start) {
 	$start = int $start->to_number->value;
 	$start = $start == $start && $start; # change nan to 0
 
-	$start >= $length and return JE::String->new($global, '');
+	$start >= $length and return JE::String->_new($global, '');
 #	$start < 0 and $start = 0;
 }
 else { $start =  0; }
@@ -570,7 +570,7 @@ if (defined $end && $end->id ne 'undef') {
 }
 else { $end = $length }
 
-return  JE::String->new($global, substr $str, $start, $end);
+return  JE::String->_new($global, substr $str, $start, $end);
 
 			},
 		}),
@@ -743,7 +743,8 @@ else {
 $start > $end and ($start,$end) = ($end,$start);
 
 no warnings 'substr'; # in case start > length
-return  JE::String->new($global, my $x= substr $str, $start, $end-$start);
+my $x= substr $str, $start, $end-$start;
+return  JE::String->_new($global, defined $x ? $x : '');
 
 			},
 		}),
@@ -760,7 +761,7 @@ return  JE::String->new($global, my $x= substr $str, $start, $end-$start);
 			function => sub {
 				my $str = shift;
 
-				JE::String->new($global,
+				JE::String->_new($global,
 					lc $str->to_string->value16);
 			},
 		}),
@@ -777,7 +778,7 @@ return  JE::String->new($global, my $x= substr $str, $start, $end-$start);
 			function => sub { # ~~~ locale settings?
 				my $str = shift;
 
-				JE::String->new($global,
+				JE::String->_new($global,
 					lc $str->to_string->value);
 			},
 		}),
@@ -794,7 +795,7 @@ return  JE::String->new($global, my $x= substr $str, $start, $end-$start);
 			function => sub {
 				my $str = shift;
 
-				JE::String->new($global,
+				JE::String->_new($global,
 					uc $str->to_string->value16);
 			},
 		}),
@@ -811,7 +812,7 @@ return  JE::String->new($global, my $x= substr $str, $start, $end-$start);
 			function => sub { # ~~~ locale settings?
 				my $str = shift;
 
-				JE::String->new($global,
+				JE::String->_new($global,
 					uc $str->to_string->value);
 			},
 		}),
@@ -844,7 +845,7 @@ else {
 	$len = int $len->to_number->value;
 }
 
-return  JE::String->new($global, defined $len ?
+return  JE::String->_new($global, defined $len ?
 	(substr $str, $start, $len) :
 	(substr $str, $start)
 );

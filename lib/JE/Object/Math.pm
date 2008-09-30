@@ -1,6 +1,6 @@
 package JE::Object::Math;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 
 use strict;
@@ -16,7 +16,6 @@ our @ISA = 'JE::Object';
 require JE::Number;
 require JE::Object;
 require JE::Object::Function;
-require JE::String;
 
 
 

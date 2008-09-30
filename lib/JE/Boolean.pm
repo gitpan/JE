@@ -1,6 +1,6 @@
 package JE::Boolean;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 
 use strict;
@@ -63,7 +63,7 @@ sub to_boolean   { $_[0] }
 
 
 # $_[0][1] is the global object
-sub to_string { JE::String->new($_[0][1], qw< false true >[shift->[0]]) }
+sub to_string { JE::String->_new($_[0][1], qw< false true >[shift->[0]]) }
 sub to_number { JE::Number->new($_[0][1], shift->[0]) }
 sub to_object { JE::Object::Boolean->new($_[0][1], shift) }
 

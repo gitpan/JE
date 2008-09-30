@@ -1,13 +1,13 @@
 package JE::Object::Date;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 
 use strict;
 use warnings; no warnings 'utf8';
 
 use JE::Code 'add_line_number';
-use Memoize;
+#use Memoize;
 use POSIX 'floor';
 use Scalar::Util 1.1 qw'blessed weaken looks_like_number';
 use Time::Local 'timegm_nocheck';
@@ -402,7 +402,7 @@ sub _new_constructor {
 			my $time = time;
 			my $offset = tz_local_offset($time);
 			my $sign = qw/- +/[$offset >= 0];
-			return JE::String->new($global,
+			return JE::String->_new($global,
 				localtime($time) . " $sign" .
 				sprintf '%02d%02d',
 					_div abs($offset)/60, 60
@@ -492,7 +492,7 @@ sub _new_constructor {
 			  my $time = _gm2local $v;
 			  my $offset = ($time - $v) / 60_000;
 			  my $sign = qw/- +/[$offset >= 0];
-			  return JE::String->new($global,
+			  return JE::String->_new($global,
 			    sprintf
 			      '%s %s %2d %02d:%02d:%02d %04d %s%02d%02d',
 			      $days[_week_day $time],       # Mon
@@ -523,7 +523,7 @@ sub _new_constructor {
 			      "Arg to toDateString ($_[0]) is not a date")
 			    unless $_[0]->isa('JE::Object::Date');
 			  my $time = _gm2local $${+shift}{value};
-			  return JE::String->new($global,
+			  return JE::String->_new($global,
 			    sprintf
 			      '%s %s %d %04d',
 			      $days[_week_day $time],       # Mon
@@ -549,7 +549,7 @@ sub _new_constructor {
 			      "Arg to toTimeString ($_[0]) is not a date")
 			    unless $_[0]->isa('JE::Object::Date');
 			  my $time = _gm2local $${+shift}{value};
-			  return JE::String->new($global,
+			  return JE::String->_new($global,
 			    sprintf
 			      '%02d:%02d:%02d',
 			      _hours_from_time $time, 
@@ -1088,7 +1088,7 @@ sub _new_constructor {
 			      . shift->class)
 			    unless $_[0]->isa('JE::Object::Date');
 			  my $v = $${+shift}{value};
-			  JE::String->new( $global,
+			  JE::String->_new( $global,
 			    sprintf "%s, %02d %s %04d %02d:%02d:%02d GMT",
 			      $days[_week_day $v], _date_from_time $v,
 			      $mon[_month_from_time $v],

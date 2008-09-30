@@ -1,6 +1,6 @@
 package JE::String;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 
 use strict;
@@ -11,27 +11,7 @@ use overload fallback => 1,
 	 cmp =>  sub { "$_[0]" cmp $_[1] };
 
 use Carp;
-use Memoize;
 use Scalar::Util qw 'blessed tainted';
-
-use constant T => ${AINT};
-sub _normalize { no warnings; T && tainted $_[0] ? "T$_[0]" : "_$_[0]" }
-memoize 'desurrogify', NORMALIZER => '_normalize';  
-memoize 'surrogify', NORMALIZER => '_normalize'; # I can’t use
-                                            # LIST_CACHE => MERGE,
-                                       # because, if a memoised func-
-                                  # tion is called in list context the
-                              # first time it is called with  a  partic-
-                           # ular  set  of  arguments,  it  will  cause
-                         # an  array  ref  to  be  cached  instead  of
-                        # the actual return value,  as of Memoize.pm
-                        # version 1.01.
-
-# ~~~ Perhaps memoize is a bad idea, because it would create a memory leak
-#    of sorts.  Maybe we should cache the two strings in the  JE::String
-#  object itself, so they will be collected as garbage when appropriate.
-# And perhaps we need a 'value16' method (or 'utf16val', but that looks
-# ugly and is harder to type),  for accessing the  surrogified  string.
 
 use Exporter 5.57 'import';
 our @EXPORT_OK = qw'surrogify desurrogify';
@@ -41,6 +21,12 @@ require JE::Boolean;
 require JE::Number;
 
 
+# Internals:
+# bless [ $utf16_string, $unicode_string, $global_object], 'JE::String';
+# Either of the first two slots may be empty. It will be filled in
+# on demand.
+
+
 sub new {
 	my($class, $global, $val) = @_;
 	defined blessed $global
@@ -48,14 +34,21 @@ sub new {
 
 	my $self;
 	if(defined blessed $val and $val->can('to_string')) {
-		$self = bless [$val->to_string->[0], $global], $class;
+		$self = bless [$val->to_string->[0],undef,$global], $class;
 	}
 	else {
-		$self = bless [surrogify($val), $global], $class;
+		$self = bless [undef,$val, $global], $class;
 	}
 	$self;
 }
 
+sub _new { # ~~~ Should we document this and make it public? The problem
+            #     with it is that it has no error-checking whatsoever, and
+            #     can consequently make JS do weird things. (Maybe it’s OK,
+            #     since I doubt any code would choke on a charCodeAt result
+            #     > 0xffff.)
+	bless [defined $_[2] ? $_[2] : '',undef,$_[1]], $_[0];
+}
 
 sub prop {
 	 # ~~~ Make prop simply return the value if the prototype has that
@@ -63,54 +56,61 @@ sub prop {
 	my $self = shift;
 
 	if ($_[0] eq 'length') {
-		return JE::Number->new($$self[1],length $$self[0]);
+		return JE::Number->new($$self[2], length (
+				defined $$self[0] ? $$self[0] :
+					($$self[0]=surrogify($$self[1]))
+		));
 	}
 
-	JE::Object::String->new($$self[1], $self)->prop(@_);
+	JE::Object::String->new($$self[2], $self)->prop(@_);
 }
 
 sub keys {
 	my $self = shift;
-	$$self[1]->prop('String')->prop('prototype')->keys;
+	$$self[2]->prop('String')->prop('prototype')->keys;
 }
 
 sub delete {
 	my $self = shift;
 	if ($_[0] eq 'length') { return !1 }
-	JE::Object::String->new($$self[1], $self)->delete(@_);
+	JE::Object::String->new($$self[2], $self)->delete(@_);
 }
 
 sub method {
 	my $self = shift;
-	JE::Object::String->new($$self[1], $self)->method(@_);
+	JE::Object::String->new($$self[2], $self)->method(@_);
 }
 
 
 sub value {
-	desurrogify($_[0][0]);
+	defined $_[0][1] ? $_[0][1] : ($_[0][1] = desurrogify($_[0][0]));
 }
 
 sub value16 {
-	$_[0][0]
+	defined $_[0][0] ? $_[0][0] : ($_[0][0] = surrogify($_[0][1]));
 }
 
 
 sub typeof    { 'string' }
-sub id        { 'str:' . $_[0][0] }
+sub id        { 'str:' . $_[0]->value16 }
 sub class     { 'String' }
 sub primitive { 1 }
 
 sub to_primitive { $_[0] }
 sub to_string    { $_[0] }
-                                       # $_[0][1] is the global obj
-sub to_boolean { JE::Boolean       ->new($_[0][1], length shift->[0]) }
-sub to_object  { JE::Object::String->new($_[0][1], shift) }
+                                       # $_[0][2] is the global obj
+sub to_boolean { JE::Boolean->new(       $_[0][2],
+	length defined $_[0][0]
+		? $_[0][0] : $_[0][1]
+) }
+sub to_object  { JE::Object::String->new($_[0][2], shift) }
 
 our $s = qr.[\p{Zs}\s\ck]*.;
 
 sub to_number  {
 	my $value = (my $self = shift)->[0];
-	JE::Number->new($self->[1],
+	defined $value or $value = $$self[1];
+	JE::Number->new($self->[2],
 		$value =~ /^$s
 		  (
 		    [+-]?
@@ -129,13 +129,13 @@ sub to_number  {
 	);
 }
 
-sub global { $_[0][1] }
+sub global { $_[0][2] }
 
 sub taint {
 	my $self = shift;
-	tainted $self->[0] and return $self;
+	tainted $self->[0] || tainted $self->[1] and return $self;
 	my $alter_ego = [@$self];
-	$alter_ego->[0] .= shift();
+	$alter_ego->[defined $alter_ego->[0] ? 0 : 1] .= shift();
 	return bless $alter_ego, ref $self;
 }
 

@@ -1,6 +1,6 @@
 package JE::Object::Number;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 
 use strict;
@@ -233,7 +233,7 @@ sub _new_constructor {
 
 				# ~~~ locale stuff
 
-				return JE::String->new($global,
+				return JE::String->_new($global,
 					$self->value);
 			},
 		}),
@@ -292,14 +292,14 @@ $places < 0 and throw JE::Object::Error::RangeError->new($global,
 );
 
 my $num = $self->value;
-$num == $num or return JE::String->new($global, 'NaN');
+$num == $num or return JE::String->_new($global, 'NaN');
 
 abs $num >= 1000000000000000000000
-	and return JE::String->new($global, $num);
+	and return JE::String->_new($global, $num);
 # ~~~ if/when JE::Number::to_string is rewritten, make this use the same
 #    algorithm
 
-return JE::String->new($global, sprintf "%.${places}f", $num);
+return JE::String->_new($global, sprintf "%.${places}f", $num);
 
 			},
 		}),
@@ -324,8 +324,8 @@ die JE::Object::Error::TypeError->new(
 ) unless $self->class eq 'Number';
 
 my $num = $self->value;
-$num == $num or return JE::String->new($global, 'NaN');
-abs $num == inf && return JE::String->new($global,
+$num == $num or return JE::String->_new($global, 'NaN');
+abs $num == inf && return JE::String->_new($global,
 	($num < 0 && '-') . 'Infinity');
 
 my $places = shift;
@@ -342,7 +342,7 @@ $places < 0 and throw JE::Object::Error::RangeError->new($global,
 my $result = sprintf "%.${places}e", $num;
 $result =~ s/(?<=e[+-])0+(?!\z)//;   # convert 0e+00 to 0e+0
 
-return JE::String->new($global, $result);
+return JE::String->_new($global, $result);
 
 			},
 		}),
@@ -368,13 +368,13 @@ die JE::Object::Error::TypeError->new(
 ) unless $self->class eq 'Number';
 
 my $num = $self->value;
-$num == $num or return JE::String->new($global, 'NaN');
-abs $num == inf && return JE::String->new($global,
+$num == $num or return JE::String->_new($global, 'NaN');
+abs $num == inf && return JE::String->_new($global,
 	($num < 0 && '-') . 'Infinity');
 
 my $prec = shift;
 if(!defined $prec || $prec->id eq 'undef') {
-	return JE::String->new($global, $num);
+	return JE::String->_new($global, $num);
 # ~~~ if/when JE::Number::to_string is rewritten, make this use the same
 #    algorithm
 }
@@ -403,7 +403,7 @@ else {
 	else { $num = sprintf "%." . ($prec - 1 - $e) . 'f' }
 }
 
-return JE::String->new($global, $num);
+return JE::String->_new($global, $num);
 
 			},
 		}),

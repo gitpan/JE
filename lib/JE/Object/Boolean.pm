@@ -1,6 +1,6 @@
 package JE::Object::Boolean;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 
 use strict;
@@ -86,7 +86,7 @@ sub _new_constructor {
 		argnames         => [qw/value/],
 		function         => sub {
 			defined $_[0] ? $_[0]->to_boolean :
-				__PACKAGE__->new($global, 0);
+				JE::Boolean->new($global, 0);
 		},
 		function_args    => ['args'],
 		constructor      => sub {
@@ -121,7 +121,7 @@ sub _new_constructor {
 					"Boolean object"
 				) unless $self->class eq 'Boolean';
 
-				return JE::String->new($global,
+				return JE::String->_new($global,
 					qw/false true/[$$$self{value}]);
 			},
 		}),

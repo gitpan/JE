@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 
 use strict;
@@ -526,6 +526,8 @@ sub _init_proto {
 				my $self = shift;
 				my $guts = $$self;
 				my $str = 'function ';
+				# ~~~ Can we use ->_new here, or is the
+				#     source code in Unicode?
 				JE::String->new($scope,
 				  'function ' .
 				  ( exists $$guts{func_name} ?
@@ -650,7 +652,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -727,7 +729,7 @@ sub delete {
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 our @ISA = 'JE::Object';
 

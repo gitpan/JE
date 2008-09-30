@@ -1,4 +1,4 @@
-JE, version 0.027
+JE, version 0.028
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -27,17 +27,17 @@ the API could be improved or reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-Two bug fixes:
-• Array.prototype.splice  now actually works.  It used to mangle  the
-  array in strange ways. It also used to die when called on an object
-  with no length property.
-• Constructors created by  bind_class  now pass all their arguments to
-  the underlying Perl methods. Thanks to Christian Forster for finding
-  this bug.
-Internals:
-• Various parts of JE were breaking JE::String’s encapsulation. Now
-  they have been  changed  to  use  the  value16  method,  so  that
-  JE::String’s internals can be changed.
+New feature:
+• max_ops: This lets you limit the number of operations that can occur
+  before a script is terminated.
+Optimisations:
+• Stringification (in JavaScript) now runs up to 5% faster. Thanks to
+  Christian Forster  for  doing  the  benchmarking  and  finding  the
+  bottleneck.
+• Memory usage may go down as much as 10%, depending on what you are
+  doing (the more strings you use, the greater the effect). (The mem-
+  ory leaks are still there, though.)
+Various bug fixes--see the Changes file.
 
 
 TO DO

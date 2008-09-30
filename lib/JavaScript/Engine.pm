@@ -1,6 +1,6 @@
 package JavaScript::Engine;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 use JE;
 

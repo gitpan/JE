@@ -1,6 +1,6 @@
 package JE::Number;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -142,7 +142,7 @@ sub to_string { # ~~~ I  need  to  find  out  whether Perl's  number
                 #     stringification is consistent with E 9.8.1 for
                 #     finite numbers.
 	my $value = (my $self = shift)->[0];
-	JE::String->new($$self[1],
+	JE::String->_new($$self[1],
 		$value ==   inf  ?  'Infinity' :
 		$value == -(inf) ? '-Infinity' :
 		$value == $value ? $value :

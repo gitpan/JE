@@ -7,7 +7,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 28;
+use Test::More tests => 35;
 use strict;
 use Scalar::Util 'refaddr';
 use utf8;
@@ -122,4 +122,20 @@ ok($_ === 'Just another ECMAScript hacker,\n')
 	} && !defined $code, 'invalid regexp modifiers don\'t slay parse';
 }
 
+#--------------------------------------------------------------------#
+# Tests 29-35: max_ops
 
+{
+	my $j = new JE max_ops => 100;
+	is $j->max_ops, 100, 'max_ops as arg to constructor';
+	$j->max_ops(110);
+	is $j->max_ops, 110, 'max_ops with arg';
+
+	is $j->eval("1+1"), 2, "110 max_ops doesn't catch 1+1";
+	is $j->eval("for(var i =0; ;++i);"), undef,
+		'eval dies when max_ops is exceeded';
+	ok !ref $@, '$@ is not a reference after max_ops makes eval die';
+	like $@, qr/^max_ops \(110\) exceeded at/, 'max_ops error message';
+	ok $j->{i} < 110 && $j->{i} > 0,
+	  "max_ops stopped in mid-processing (at $j->{i} to be precise)";
+}

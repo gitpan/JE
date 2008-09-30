@@ -1,16 +1,16 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         JE
-version:      0.027
+version:      0.028
 version_from: lib/JE.pm
 installdirs:  site
 requires:
+    Carp:                          1.01
     constant::lexical:             0
     Date::Parse:                   0
     Encode:                        2.08
     Exporter:                      5.57
     List::Util:                    0
-    Memoize:                       0
     POSIX:                         0
     re:                            0
     Scalar::Util:                  1.14

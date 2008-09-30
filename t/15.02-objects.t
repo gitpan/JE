@@ -1,11 +1,6 @@
 #!perl -T
 do './t/jstest.pl' or die __DATA__
 
-function is_nan(n){ // checks to see whether the number is *really* NaN
-                    // & not something which converts to NaN when numified
-	return n!=n
-}
-
 function keys(o) {
 	var a = []
 	for(a[a.length] in o);
@@ -166,39 +161,24 @@ ok(Object.prototype.toString.call({}) === '[object Object]',
 // ===================================================
 
 // 10 tests (boilerplate stuff for methods)
-with(Object.prototype) {
-is(typeof toLocaleString, 'function', 'typeof toLocaleString');
-is(Object.prototype.toString.apply(toLocaleString), 
-	'[object Function]',
-	'class of toLocaleString')
-ok(toLocaleString.constructor === Function, 'toLocaleString\'s prototype')
-$catched = false;
-try{ new toLocaleString } catch(e) { $catched = e }
-ok($catched, 'new toLocaleString fails')
-ok(!('prototype' in toLocaleString), 'toLocaleString has no prototype property')
-ok(toLocaleString.length === 0, 'toLocaleString.length')
-ok(! toLocaleString.propertyIsEnumerable('length'),
-	'toLocaleString.length is not enumerable')
-ok(!delete toLocaleString.length, 'toLocaleString.length cannot be deleted')
-is((toLocaleString.length++, toLocaleString.length), 0,
-	 'toLocaleString.length is read-only')
-ok(!Object.prototype.propertyIsEnumerable('toLocaleString'),
-	'toLocaleString is not enumerable')
-}
+method_boilerplate_tests(Object.prototype,'toLocaleString',0)
 
-// 6 tests
+// 7 tests
 ok(Object.prototype.toLocaleString.call({}) === '[object Object]',
 	'Object.prototype.toLocaleString with an Object')
-is(Object.prototype.toLocaleString.call(function(){}), '[object Function]',
+like(Object.prototype.toLocaleString.call(function(){}),
+	/^function [\w\d]+\(/.toString(),
 	'Object.prototype.toLocaleString with a Function')
-is(Object.prototype.toLocaleString.call([]), '[object Array]',
+is(Object.prototype.toLocaleString.call([]), '',
 	'Object.prototype.toLocaleString with an Array')
-is(Object.prototype.toLocaleString.call(.3), '[object Number]',
+is(Object.prototype.toLocaleString.call(.3), '0.3',
 	'Object.prototype.toLocaleString with a Number')
-is(Object.prototype.toLocaleString.call(true), '[object Boolean]',
+is(Object.prototype.toLocaleString.call(true), 'true',
 	'Object.prototype.toLocaleString with a Boolean')
-is(Object.prototype.toLocaleString.call(''), '[object String]',
+is(Object.prototype.toLocaleString.call('sfo'), 'sfo',
 	'Object.prototype.toLocaleString with a String')
+is({toString:function(){return"Ush"}}.toLocaleString(),'Ush',
+	'toLocaleString on an object with its own toString method')
 
 // ===================================================
 // 15.2.4.4 Object.prototype.valueOf

@@ -1,5 +1,33 @@
 Revision history for JE
 
+0.028   29 September, 2008
+        New feature:
+        • max_ops: This lets you limit the number of operations that
+          can occur before a script is terminated.
+        Optimisations:
+        • Stringification  (in JavaScript)  now runs up to 5% faster.
+          Thanks to Christian Forster for doing the benchmarking and
+          finding the bottleneck.
+        • Memory usage may go down as much as 10%, depending on what
+          you are doing  (the more strings you use,  the greater the
+          effect). (The memory leaks are still there, though.)
+        Bug fixes:
+        • Fixed Array.prototype.splice when used on non-array objects
+          such that the  length  property is always an integer  after-
+          wards.  (This used to work only on systems  with  a  32-bit
+          integer and only when the length was a fraction.)
+        • Array.length is now 1, not 0.
+        • Array.prototype.join and .pop no longer die when their
+         ‘this’ values have no length property.
+        • Object.prototype.toLocaleString  now  calls  the  toString
+          method on the object instead of  calling  Object.prototype
+         .toString. Y’know, the spec is really unclear on this point.
+        • Boolean() now simply returns false, instead of a Boo-
+          lean object.
+        • Array.prototype.concat now actually works instead of dying.
+        • Array.prototype.pop now rounds down the length property when
+          it is a fraction.
+
 0.027   24 September, 2008
         Two bug fixes:
         • Array.prototype.splice now actually works. It used to mangle

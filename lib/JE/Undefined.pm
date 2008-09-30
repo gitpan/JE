@@ -1,6 +1,6 @@
 package JE::Undefined;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 use strict;
 use warnings;
@@ -48,7 +48,7 @@ sub id     { 'undef' }
 sub primitive { 1 }
 sub to_primitive { $_[0] }
 sub to_boolean   { JE::Boolean->new(${+shift}, 0) }
-sub to_string { JE::String->new(${+shift}, 'undefined') };
+sub to_string { JE::String->_new(${+shift}, 'undefined') };
 sub to_number { JE::Number->new(${+shift}, 'NaN') }
 sub global { ${$_[0]} }
 

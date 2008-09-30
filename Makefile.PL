@@ -8,12 +8,13 @@ BEGIN {
 use ExtUtils::MakeMaker;
 
 my %prq = (
+         Carp                        => 1.01, # @CARP_NOT
          constant::lexical => 0,
         'Date::Parse' => 0,
          Encode     => 2.08, # ‘decode_utf8 "\xef\xbb", FB_CROAK’
          Exporter   => 5.57,
         'List::Util' => 0,
-         Memoize      => 0,
+#         Memoize      => 0,
          re           => 0, # version???
          POSIX => 0,
 #        'Scalar::Util' => 1.1, # looks_like_number

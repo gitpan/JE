@@ -1,6 +1,6 @@
 package JE::Object::Error;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 
 use strict;
@@ -62,7 +62,7 @@ sub new {
 	$self->prop({
 		dontenum => 1,
 		name => 'message',
-		value => JE::String->new($global, $val),
+		value => JE::String->_new($global, $val),
 	});
 	$self;
 }
@@ -89,7 +89,7 @@ sub new_constructor {
 					function_args => ['this'],
 					function => sub {
 						my $self = shift;
-						JE::String->new(
+						JE::String->_new(
 							$$$self{global},
 							$self->class .
 							': ' .
@@ -102,12 +102,12 @@ sub new_constructor {
 			});
 			$proto->prop({
 				name  => 'name',
-				value => JE::String->new($global, 'Error'),
+				value => JE::String->_new($global, 'Error'),
 				dontenum => 1,
 			});
 			$proto->prop({
 				name  => 'message',
-				value => JE::String->new($global,
+				value => JE::String->_new($global,
 					'Unknown Error'),
 				dontenum => 1,
 			});

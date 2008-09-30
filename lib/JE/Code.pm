@@ -1,14 +1,16 @@
 package JE::Code;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 use strict;
 use warnings; no warnings 'utf8';
 
 #use Data::Dumper;
+use Carp 1.01 'shortmess';
 use Exporter 5.57 'import';
 use Scalar::Util 'tainted';
 
+our @CARP_NOT = 'JE';
 our @EXPORT_OK = 'add_line_number';
 
 use constant T => ${AINT}; # perl doesn’t optimise if(${AINT}) away
@@ -63,6 +65,13 @@ sub execute {
 	my $code = shift;
 	my $global = $$code{global};
 
+	# We check $ops’ definedness to avoid resetting the op count when
+	# called recursively.
+	if(!defined our $ops and my $max_ops = $global->max_ops) {
+		unshift @_, $code, $max_ops;
+		goto &execute_till;
+	}
+
 	my $this = defined $_[0] ? $_[0] : $global;
 	shift;
 
@@ -87,7 +96,7 @@ sub execute {
 		package JE::Code::Statement;
 		local our $_created_vars = 0 ;
 		local our $_label;
-		# This $_return variable has two uses. It hold the return
+		# This $_return variable has two uses. It holds the return
 		# value when the JS 'return' statement calls 'last RETURN'.
 		# It also is used by statements that return values. It is
 		# necessary to use this var, rather than simply returning
@@ -148,6 +157,17 @@ sub execute {
 	$rv;
 }
 
+sub execute_till { # ~~~ Should this be made public?
+	(my $code, local our $counting) = (shift,shift);
+	local our $ops = 0;
+	JE_Code_OP: {
+		return $code->execute(@_);
+	}
+	# If we get here, then we reached the max number of ops.
+	$@ = shortmess "max_ops ($counting) exceeded";
+	return undef;
+}
+
 # Variables pertaining to the current execution context
 our $code; # JE::Code object, not source code
 our $this;
@@ -155,6 +175,8 @@ our $scope;
 our $parser;
 our $pos; # position within the source code; used to calculate a line no.
 our $taint;
+our $ops;
+our $counting;
 
 sub add_line_number {
 	my $msg = shift;
@@ -180,7 +202,7 @@ sub add_line_number {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 use subs qw'_create_vars _eval_term';
 use List::Util 'first';
@@ -346,7 +368,7 @@ sub eval {  # evaluate statement
 				
 				(ref $left_side ? $left_side->eval :
 					$scope->find_var($left_side))
-				  ->set(new JE::String $_global, $_);
+				  ->set(_new JE::String $_global, $_);
 
 				defined ($returned = ref $$stm[5]
 					? $$stm[5]->eval : undef)
@@ -616,7 +638,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 # B::Deparse showed me how to get these values.
 use constant nan => sin 9**9**9;
@@ -682,8 +704,8 @@ BEGIN{*T = *JE::Code::T;}
 		my $term = shift;
 		ref  $term eq 'JE::LValue' and
 			ref base $term eq '' and
-			return new JE::String $_global, 'undefined';
-		new JE::String $_global, typeof $term;
+			return _new JE::String $_global, 'undefined';
+		_new JE::String $_global, typeof $term;
 	};
 	*{'pre++'} = sub {
 		# ~~~ These is supposed to use the same rules
@@ -754,11 +776,9 @@ BEGIN{*T = *JE::Code::T;}
 		$y = $y->to_primitive;
 		if($x->typeof eq 'string' or
 		   $y->typeof eq 'string') {
-			return bless [
+			return _new JE::String $_global,
 				$x->to_string->value16 .
-				$y->to_string->value16,
-				$_global
-			], 'JE::String';
+				$y->to_string->value16;
 		}
 		return new JE::Number $_global,
 		                      $x->to_number->value +
@@ -1052,6 +1072,9 @@ Types of expressions:
 # [2..$#] - the various terms/tokens that make up the expr
 
 sub eval {  # evalate (sub)expression
+	no warnings 'exiting';
+	++ $ops>$counting and last JE_Code_OP  if $counting;
+	
 	my $expr = shift;
 
 	my $type = $$expr[1];
@@ -1297,7 +1320,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1309,7 +1332,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 sub list {
 	my $self = shift;

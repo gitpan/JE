@@ -4,7 +4,7 @@ package JE::Object;
 sub evall { my $global = shift; my $r = eval 'local *_;' . shift;
             $@ and die; $r }
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 use strict;
 use warnings;
@@ -742,7 +742,7 @@ sub _init_proto {
 			name     => 'toLocaleString',
 			length   => 0,
 			function_args => ['this'],
-			function => $toString_sub,
+			function => sub { shift->method('toString') },
 			no_proto => 1,
 		}),
 		dontenum  => 1,

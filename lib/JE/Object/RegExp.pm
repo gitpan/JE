@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.027';
+our $VERSION = '0.028';
 
 
 use strict;
@@ -307,6 +307,7 @@ sub new {
 	# Save it before we go and mangle it
 	$self->prop({
 		name => source =>
+		# ~~~ Can we use ->_new here?
 		value  => JE::String->new($global, $re),
 		dontenum => 1,
 		readonly  => 1,
@@ -747,7 +748,7 @@ sub new_constructor {
 					JE::Number->new($global,$indx));
 				$ary->prop(input => defined $je_str
 					? $je_str :
-					JE::String->new(
+					JE::String->_new(
 						$global, $str
 					));
 				
@@ -785,7 +786,7 @@ sub new_constructor {
 			function_args => ['this'],
 			function => sub {
 				my ($self,) = @_;
-				JE::String->new(
+				JE::String->_new(
 					$global,
 					"/" . $self->prop('source')->value
 					. "/$$$self{regexp_flags}"

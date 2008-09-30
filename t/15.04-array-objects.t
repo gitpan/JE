@@ -81,7 +81,189 @@ ok(new Array(new Number(6)).length === 1, 'new Array(number obj)')
 ok(new Array("478887438888874347743").length === 1, 'new Array("big num")')
 is(new Array('foo'), 'foo', 'new Array(str)')
 
-// ...
+
+// ===================================================
+// 15.4.3 Array
+// ===================================================
+
+// 10 tests (boilerplate stuff for constructors)
+is(typeof Array, 'function', 'typeof Array');
+is(Object.prototype.toString.apply(Array), '[object Function]',
+	'class of Array')
+ok(Array.constructor === Function, 'Array\'s prototype')
+ok(Array.length === 1, 'Array.length')
+ok(!Array.propertyIsEnumerable('length'),
+	'Array.length is not enumerable')
+ok(!delete Array.length, 'Array.length cannot be deleted')
+is((Array.length++, Array.length), 1, 'Array.length is read-only')
+ok(!Array.propertyIsEnumerable('prototype'),
+	'Array.prototype is not enumerable')
+ok(!delete Array.prototype, 'Array.prototype cannot be deleted')
+cmp_ok((Array.prototype = 7, Array.prototype), '!=', 7,
+	'Array.prototype is read-only')
+
+
+// ===================================================
+// 15.4.4: Array prototype
+// ===================================================
+
+// 3 tests
+is(Object.prototype.toString.apply(Array.prototype),
+	'[object Array]',
+	'class of Array.prototype')
+ok(Array.prototype.length === 0,
+	'Array.prototype.length')
+ok(peval('shift->prototype',Array.prototype) === Object.prototype,
+	'Array.prototype\'s prototype')
+
+
+// ===================================================
+// 15.4.4.1 Array.prototype.constructor
+// ===================================================
+
+// 2 tests
+ok(Array.prototype.hasOwnProperty('constructor'),
+	'Array.prototype has its own constructor property')
+ok(Array.prototype.constructor === Array,
+	'value of Array.prototype.constructor')
+
+
+// ===================================================
+// 15.4.4.2: toString
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Array.prototype,'toString',0)
+
+// 2 tests specific to toString
+is([1,null,true,false,void 0,{},"kjd"].toString(),
+	'1,,true,false,,[object Object],kjd',
+	'toString')
+
+error = false
+try{Array.prototype.toString.apply({})}
+catch(e){error = e}
+ok(error instanceof TypeError, 'toString death')
+
+
+// ===================================================
+// 15.4.4.3: toLocaleString
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Array.prototype,'toLocaleString',0)
+
+// 2 tests specific to toLocaleString
+is([1,null,true,false,void 0,{},"kjd"].toLocaleString(),
+	'1,,true,false,,[object Object],kjd',
+	'toLocaleString')
+
+error = false
+try{Array.prototype.toLocaleString.apply({})}
+catch(e){error = e}
+ok(error instanceof TypeError, 'toLocaleString death')
+
+
+// ===================================================
+// 15.4.4.4: concat
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Array.prototype,'concat',1)
+
+// 5 tests specific to concat
+a = [1,2,3].concat(true,[,7,8,],"fff",{})
+is (a.length, 9, 'array length after concat')
+ok(a[0] === 1
+ &&a[1] === 2
+ &&a[2] === 3
+ &&a[3] === true
+ &&!(4 in a)
+ &&a[5] === 7
+ &&a[6] === 8
+ &&a[7] === 'fff'
+ &&a[8] == '[object Object]',
+	'elements of array returned by concat') || diag(a)
+
+o = {length: 78, 0:82}
+a =Array.prototype.concat.call(o,[1,2,3])
+is(a.length, 4,
+	'length of array returned by concat with a non-array this value')
+ok(a[0] == o && a == '[object Object],1,2,3',
+	'elements of array returned by concat with a non-array this value')
+is(typeof Array.prototype.concat.call(true)[0], 'object',
+    '1st elem of array returned by concat when called w/a bool is an obj')
+
+
+// ===================================================
+// 15.4.4.5: join
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Array.prototype,'join',1)
+
+// 16 tests specific to join
+0,function(){
+	var f = Array.prototype.join
+	is (f.call({0:0}), '', 'join with no length')
+	is (f.call({length:undefined,0:0}),'', 'join w/undefined length')
+	is (f.call({length: true, 0:'usl/s'}), 'usl/s', 'join w/bool len')
+	is (f.call({length: null, 0:'etet'}), '',' join with null length')
+	is (f.call({length: {}, 0:'Upsot'}), '','join w/obj 4 length')
+	is (f.call({length: '3', 1: 'Npd;;d'}),',Npd;;d,','join w/str len')
+	is(f.call({length: 2.3, 1: 'g;'}), ',g;', 'join w/fractional len')
+	is(f.call({length:-4294967290,1:'co'}), ',co,,,,','join w/neg len')
+}()
+is( [1,2,3].join(), '1,2,3', 'join w/ no args')
+is([1,2,3].join(true),'1true2true3','join w/bool arg')
+is([1,2,3].join(23),'1232233','join w/numeric arg')
+is([1,2,3].join('stringy'),'1stringy2stringy3','join w/stringy arg')
+is([1,2,3].join(null),'1null2null3','join w/null arg');
+is([1,2,3].join({}),'1[object Object]2[object Object]3','join w/obj arg');
+is([1,2,3].join(undefined),'1,2,3','join w/undef arg');
+is([1,null,true,false,void 0,{},"kjd"].join(),
+	'1,,true,false,,[object Object],kjd',
+	'join w/different types of array elems')
+
+
+// ===================================================
+// 15.4.4.6: pop
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Array.prototype,'pop',0)
+
+// 18 tests specific to pop
+0,function(){
+	var f = Array.prototype.pop
+	var o = {0:0};;
+	is (f.call(o), 'undefined', 'retval pop with no length')
+	is (o[0], 0,'pop w/no length does nothing')
+	ok (o.length === 0, '  except set the length to 0')
+	o = {length:undefined,0:0}
+	is (f.call(o),'undefined', 'retval of pop w/undefined length')
+	is (o.length, 0, 'retval w/undefined sets length to 0')
+	o = {length: true, 0:'usl/s'}
+	is (f.call(o), 'usl/s', 'pop w/bool len')
+	is (o.length, 0, 'pop w/bool length sets the length')
+	ok (!(0 in o), 'pop deletes a property of a non-array objct')
+	is (f.call({length: null, 0:'etet'}),'undefined',' pop w/null len')
+	is (f.call({length: {}, 0:'Upsot'}),void 0,'pop w/obj 4 length')
+	is (f.call({length: '3', 1: 'Npd;;d'}),'undefined','pop w/str len')
+	o = {length: 2.3, 1: 'g;'}
+	is(f.call(o), 'g;', 'pop w/fractional len')
+	is(o.length, 1, 'length after pop w/fraction length')
+	o= {length:-4294967290,1:'co'}, f.call(o)
+	is(o.length, 5, 'pop w/neg len')
+}()
+a = []
+is(a.pop(), undefined, 'pop with zero-length real array')
+is(a.length, 0,'array length after pop on zero-length array');
+a = [5,6,7,8,]
+ok(a.pop() === 8, 'retval of "normal" array pop')
+is(a,'5,6,7', 'what pop did to the array')
+
+//...
 
 // ===================================================
 // 15.4.4.10: sort
@@ -141,12 +323,15 @@ is(joyne(a), '1,2,3', 'splice w/1 arg hath none effect');
 is(joyne(a.splice(1,1)), '2', 'retval of splice w/2 argz')
 is(joyne(a), '1,3', 'effect of splice w/2 args');
 
-// 9 tests for weird length values
+// 10 tests for weird length values
 a = {0:7,1:8,2:9,length:2.3}
 is(joyne([].splice.call(a,1,7,6)), '8',
 	'retval of splice on obj w/fractional len')
 is( a[0] + '' + a[1] + a[2] + a.length, '7692',
 	'affect of splice on obj with fractional length');
+a = {length:"1"}
+;[].splice.call(a)
+is(typeof a.length, 'number', 'length is converted to a number by splice')
 a = {length: -4294967290}
 ;[].splice.call(a,0,1)
 is(a.length, 5, 'splice on obj w/negative length')
