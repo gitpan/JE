@@ -166,6 +166,9 @@ this. If not, you shouldn't need to, but you might like to anyway. :-)
 
 Be warned that some of the methods described here can be hard
 to use, and can easily result in code that's hard to debug, if misused.
+This applies to those that except their arguments already to be objects
+compatible with the JE::Types interface. If you are not sure that a value you have is such, run it through the global object's C<upgrade> method (or
+just use the L</PUBLIC API>, above).
 
 These are the methods that the JavaScript engine itself uses (as opposed
 to those provided for convenient access from the Perl side). Each class 
@@ -186,10 +189,8 @@ value. The return value will be a Perl undef if the
 property does not exist. See also L<JE::Object>, for the
 S<< C<prop({ ... })> >> usage.
 
-The new value will be converted to a JS value
-automatically if it is not one already. (See
-L</UPGRADING VALUES>.) B<This is going to change.> For the sake of 
-efficiency, C<prop> is going to stop upgrading automatically.
+The new value is expected already to be an object compatible with the
+JE::Types interface.
 
 =item keys
 
@@ -218,15 +219,13 @@ for instance, produces an array ref.
 =item call(@args)
 
 Runs the code associated with the object if it is a function.
-The arguments
-are automatically upgraded B<but that is going to change>.
+The arguments are passed, as-is, and are not upgraded.
 
 =item apply($obj, @args)
 
 Runs the code associated with the object if it is a function. C<$obj> will
 be passed to the function as its invocant (its 'this' value).
-The arguments
-are automatically upgraded B<but, again, that is going to change>.
+The arguments are passed, as-is, and are not upgraded.
 
 =item construct(@args)
 

@@ -1,6 +1,6 @@
 package JE::String;
 
-our $VERSION = '0.028';
+our $VERSION = '0.029';
 
 
 use strict;
@@ -8,7 +8,8 @@ use warnings; no warnings 'utf8';
 
 use overload fallback => 1,
 	'""' => 'value',
-	 cmp =>  sub { "$_[0]" cmp $_[1] };
+#	 cmp =>  sub { "$_[0]" cmp $_[1] }
+;
 
 use Carp;
 use Scalar::Util qw 'blessed tainted';

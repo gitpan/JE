@@ -1,6 +1,6 @@
 package JE::Object::Error::URIError;
 
-our $VERSION = '0.028';
+our $VERSION = '0.029';
 
 
 use strict;

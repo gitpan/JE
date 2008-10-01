@@ -4,7 +4,7 @@ package JE::Object;
 sub evall { my $global = shift; my $r = eval 'local *_;' . shift;
             $@ and die; $r }
 
-our $VERSION = '0.028';
+our $VERSION = '0.029';
 
 use strict;
 use warnings;
@@ -13,7 +13,7 @@ use overload fallback => 1,
 	'%{}'=>  \&_get_tie,
 	'""' => 'to_string',
         '0+' => 'to_number',
-	 cmp =>  sub { "$_[0]" cmp $_[1] },
+#	 cmp =>  sub { "$_[0]" cmp $_[1] },
 	bool =>  sub { 1 };
 
 use Scalar::Util qw'refaddr blessed';
@@ -324,8 +324,7 @@ sub prop {
 			$$props{$name} = undef if !exists $$props{$name};
 		}
 		if(exists $$opts{value}) {
-			return $$props{$name} = 
-			    $$guts{global}->upgrade($$opts{value});
+			return $$props{$name} = $$opts{value};
 		}
 		elsif(!exists $$opts{fetch} && exists $$opts{autoload}) {
 			my $auto = $$opts{autoload};
@@ -346,8 +345,7 @@ sub prop {
 		my $name = $opts;
 		my $props = $$guts{props};
 		if (@_) { # we is doing a assignment
-			my($new_val) =
-				$$guts{global}->upgrade(shift);
+			my($new_val) = shift;
 
 			return $new_val if $self->is_readonly($name);
 
@@ -475,7 +473,7 @@ sub delete {
 sub method {
 	my($self,$method) = (shift,shift);
 
-	$self->prop($method)->apply($self, @_);
+	$self->prop($method)->apply($self, $self->global->upgrade(@_));
 }
 
 =item $obj->typeof
@@ -849,17 +847,18 @@ sub TIEHASH  { $_[1] }
 sub FETCH    { $_[0]->prop($_[1]) }
 sub STORE    {
 	my($self, $key, $val) = @_;
+	my $global = $self->global;
 	if(ref $val eq 'HASH' && !blessed $val
   	   && !%$val && svref_2object($val)->REFCNT == 2) {
 		$val = tie %$val, __PACKAGE__, __PACKAGE__->new(
-			$$$self{global});
+			$global);
 	} elsif (ref $val eq 'ARRAY' && !blessed $val && !@$val && 
 	         svref_2object($val)->REFCNT == 2) {
 		require JE::Object::Array;
 		$val = tie @$val, 'JE::Object::Array',
-			JE::Object::Array->new($$$self{global});
+			JE::Object::Array->new($global);
 	}
-	$self->prop($key => $val)
+	$self->prop($key => $global->upgrade($val))
 }
 #sub CLEAR   {  }
 	# ~~~ have yet to implement this

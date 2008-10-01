@@ -1,6 +1,6 @@
 package JE::Null;
 
-our $VERSION = '0.028';
+our $VERSION = '0.029';
 
 
 use strict;
@@ -9,7 +9,7 @@ use warnings;
 use overload fallback => 1,
 	'0+' =>  sub { 0 },
 	'""' => 'id',
-	 cmp =>  sub { "$_[0]" cmp $_[1] },
+#	 cmp =>  sub { "$_[0]" cmp $_[1] },
 	bool =>  sub { undef };
 
 require JE::String;

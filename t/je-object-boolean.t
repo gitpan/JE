@@ -34,7 +34,7 @@ isa_ok $n, 'JE::Object::Boolean', 'default boolean';
 # Tests 7-27: prop
 
 {
-	is $t->prop(thing => 'value'), 'value',
+	is $t->prop(thing => $j->upgrade('value')), 'value',
 		'prop returns the assigned value';
 	is $t->prop('thing'), 'value', 'the assignment worked';
 
@@ -42,7 +42,7 @@ isa_ok $n, 'JE::Object::Boolean', 'default boolean';
 
 	is $t->prop({
 		name => 'notes',
-		value => 'abcdefg',
+		value => $j->upgrade('abcdefg'),
 	}), 'abcdefg', 'prop({}) returns the assigned value';
 	is $t->prop({ name => 'notes' }), 'abcdefg',
 		'prop({}) returns the property\'s value';
@@ -63,7 +63,7 @@ isa_ok $n, 'JE::Object::Boolean', 'default boolean';
 	}), 'abcdefg', 'prop({readonly}) returns the value';
 	$t->prop(notes => 'ne pa bou ga di ke zo ne');
 	is $t->{notes}, 'abcdefg', 'prop({readonly}) works';
-	$t->prop({name => 'notes', value => 'do re mi fa sol'});
+	$t->prop({name => 'notes', value=>$j->upgrade('do re mi fa sol')});
 	is $t->{notes}, 'do re mi fa sol',
 		'prop({value}) changes read-only properties';
 
@@ -71,7 +71,7 @@ isa_ok $n, 'JE::Object::Boolean', 'default boolean';
 
 	$t->prop({
 		name => 'notes',
-		value => 'ne pa bou ga di', 
+		value => $j->upgrade('ne pa bou ga di'), 
 		autoload => 'die',
 	});
 	is $t->prop('notes'), 'ne pa bou ga di',
@@ -108,7 +108,7 @@ isa_ok $n, 'JE::Object::Boolean', 'default boolean';
 		store => sub {
 			$_[2] = '!' . $_[1];
 		},
-		value => 'olleH',
+		value => $j->upgrade('olleH'),
 	});
 
 	is $t->{abc}, 'Hello', 'prop({}) with value and fetch together';
@@ -195,7 +195,7 @@ like $@, qr/^Can't locate object method/, 'construct dies';
 #--------------------------------------------------------------------#
 # Tests 41-4: exists
 
-$t->prop(thing => undef);
+$t->prop(thing => $j->undefined);
 
 is_deeply $t->exists('anything'), !1, 'exists(nonexistent property)';
 is_deeply $t->exists('thing'), 1, 'exists(property)';

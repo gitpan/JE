@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.028';
+our $VERSION = '0.029';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -316,7 +316,7 @@ sub _new_constructor {
 		value => JE::Object::Function->new({
 			scope  => $global,
 			name   => 'reverse',
-			length => 1,
+			length => 0,
 			no_proto => 1,
 			function_args => ['this'],
 			function => \&_reverse,
@@ -481,38 +481,43 @@ sub _pop {
 		$length == $length or $length = 0;
 	} else { $length = 0 }
 	
+	my $global = $self->global;
 	$length or
-		$self->prop('length', 0),
-		return $self->global->undefined;
+		$self->prop('length', JE::Number->new($global,0)),
+		return $global->undefined;
 
 	
 	$length--;
 	my $val = $self->prop($length);
 	$self->delete($length);
-	$self->prop(length => $length);
+	$self->prop(length => JE::Number->new($global,$length));
 	$val;
 }
 
 sub _push {
 	my( $self) = shift;
 
-	my $length = $self->prop('length')->to_number->value % 2**32;
-	$length == $length or $length = 0;
+	my $length = $self->prop('length');
+	if(defined $length) {
+		$length = (int $length->to_number->value) % 2**32;
+		$length == $length or $length = 0;
+	} else { $length = 0 }
 	
 	while(@_) {
 		$self->prop($length++, shift);
 	}
 
-	$self->prop(length => $length);
-	
-	$length;
+	$self->prop(length => JE::Number->new($self->global,$length));
 }
 
 sub _reverse {
 	my $self = shift;
 	
-	my $length = $self->prop('length')->to_number->value % 2**32;
-	$length == $length or $length = 0;
+	my $length = $self->prop('length');
+	if(defined $length) {
+		$length = (int $length->to_number->value) % 2**32;
+		$length == $length or $length = 0;
+	} else { $length = 0 }
 	
 	my($elem1,$elem2,$indx2);
 
@@ -535,8 +540,11 @@ sub _reverse {
 sub _shift {
 	my( $self) = @_;
 
-	my $length = $self->prop('length')->to_number->value % 2**32;
-	$length == $length or $length = 0;
+	my $length = $self->prop('length');
+	if(defined $length) {
+		$length = (int $length->to_number->value) % 2**32;
+		$length == $length or $length = 0;
+	} else { $length = 0 }
 	
 	$length or
 		$self->prop('length', 0),
@@ -560,8 +568,11 @@ sub _shift {
 sub _slice {
 	my( $self,$start,$end) = @_;
 
-	my $length = $self->prop('length')->to_number->value % 2**32;
-	$length == $length or $length = 0;
+	my $length = $self->prop('length');
+	if(defined $length) {
+		$length = (int $length->to_number->value) % 2**32;
+		$length == $length or $length = 0;
+	} else { $length = 0 }
 	
 	my $new = __PACKAGE__->new(my $global = $self->global);
 	my @new;
@@ -603,8 +614,11 @@ sub _slice {
 sub _sort {
 	my($self, $comp) = @_;
 	
-	my $length = $self->prop('length')->to_number->value % 2**32;
-	$length == $length or $length = 0;
+	my $length = $self->prop('length');
+	if(defined $length) {
+		$length = (int $length->to_number->value) % 2**32;
+		$length == $length or $length = 0;
+	} else { $length = 0 }
 	
 	my(@sortable, @undef, $nonexistent, $val);
 	for(0..$length-1) {
@@ -708,8 +722,11 @@ sub _splice {
 sub _unshift {
 	my ($self) = (shift,);
 
-	my $length = $self->prop('length')->to_number->value % 2**32;
-	$length == $length or $length = 0;
+	my $length = $self->prop('length');
+	if(defined $length) {
+		$length = (int $length->to_number->value) % 2**32;
+		$length == $length or $length = 0;
+	} else { $length = 0 }
 
 	my $val;
 	for (reverse 0..$length-1) {

@@ -14,17 +14,17 @@ my $j = new JE;
 
 $j->prop({
 	name => 'only_read',
-	value  => 'anything will do',
+	value  => $j->upgrade('anything will do'),
 	readonly => 1,
 });
 $j->prop({
 	name => 'delete_me_if_you_can',
-	value  => 'anything will do',
+	value  => $j->upgrade('anything will do'),
 	dontdel => 1,
 });
 $j->prop({
 	name => 'unlisted',
-	value  => 'anything will do',
+	value  => $j->upgrade('anything will do'),
 	dontenum => 1,
 });
 

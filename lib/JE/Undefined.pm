@@ -1,13 +1,13 @@
 package JE::Undefined;
 
-our $VERSION = '0.028';
+our $VERSION = '0.029';
 
 use strict;
 use warnings;
 
 use overload fallback => 1,
 	'""' => 'typeof',
-	 cmp =>  sub { "$_[0]" cmp $_[1] },
+#	 cmp =>  sub { "$_[0]" cmp $_[1] },
 	bool =>  sub { undef };
 
 # ~~~ How should this numify?

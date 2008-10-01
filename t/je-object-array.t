@@ -42,7 +42,7 @@ is "$a3", 'a,list',       'string overloading (3)';
 # Tests 10-13: prop
 
 {
-	is $a1->prop(thing => 'value'), 'value',
+	is $a1->prop(thing => $j->upgrade('value')), 'value',
 		'prop returns the assigned value';
 	is $a1->prop('thing'), 'value', 'the assignment worked';
 	is $a1->prop(0), 'an', 'get property';
@@ -143,7 +143,7 @@ like $@, qr/^Can't locate object method/, 'construct dies';
 #--------------------------------------------------------------------#
 # Tests 51-5: exists
 
-$a1->prop(thing => undef);
+$a1->prop(thing => $j->undefined);
 
 is_deeply $a1->exists('anything'), !1, 'exists(nonexistent property)';
 is_deeply $a1->exists(2), !1, 'exists(nonexistent elem)';

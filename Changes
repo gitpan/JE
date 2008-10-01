@@ -1,5 +1,44 @@
 Revision history for JE
 
+0.029   1 October, 2008
+        Optimisations:
+        • The previous release’s memory optimisation  tickled  a  soft
+          spot in String.prototype.replace, which caused that function
+          to run pathologically more  slowly  than  before.  This  has
+          been fixed.
+        • Some more optimisations have been  made  (the  incompatible
+          change in particular), such that, at least for some scripts,
+          it runs 20% faster than 0.027.
+        Incompatible change:
+        • As threatened, the prop method of all data types and the
+          call and apply methods of functions no  longer  ‘upgrade’
+          their arguments.  Either run the arguments through  JE’s
+          upgrade  method or use the  ‘Public API’  documented  in
+          JE::Types.
+        New feature:
+        • JE::Object::String’s value16 method
+        Bug fixes:
+        • Array.prototype.push, .reverse, .sort, .shift, .slice and
+         .unshift  no longer die when called on an object without a
+          length property.
+        • Array.prototype.push also no longer returns a string when
+          the return value > 0.
+        • Array.prototype.push and .pop no longer set the length prop-
+          erty to a string (as opposed to a number)  when called on a
+          non-array object.
+        • JE::Object::String’s value method used to return the value
+          of the  ‘value’  property  (if it existed)  instead of the
+          string object’s internal value.
+        • Array.prototype.reverse.length is now 0, not 1.
+        • Perl string comparisons on  JE’s data types no  longer  get
+          the logic backwards when the object is the right-hand  argu-
+          ment. (0.028 also made this bug apparent in JavaScript with
+          Array.prototype.sort() and the < and > operators,  *if* the
+          string on the right hand side was retrieved from  a  for-in
+          iterator and the object iterated  over  was  created  using
+          {...}  syntax  and  the  property  name  was  a  number  or
+          quoted string.)
+
 0.028   29 September, 2008
         New feature:
         • max_ops: This lets you limit the number of operations that

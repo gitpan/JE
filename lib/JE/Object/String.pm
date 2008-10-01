@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.028';
+our $VERSION = '0.029';
 
 
 use strict;
@@ -92,8 +92,17 @@ Returns a Perl scalar.
 
 =cut
 
-sub value { desurrogify shift->{value} }
+sub value { desurrogify ${+shift}->{value} }
 
+=item value16
+
+Returns a Perl scalar containing a UTF-16 string (i.e., with surrogate
+pairs if the string has chars outside the BMP). This is here more for
+internal usage than anything else.
+
+=cut
+
+sub value16 { ${+shift}->{value} }
 
 
 
@@ -427,6 +436,8 @@ sub _new_constructor {
 			function => sub {
 				my($str, $foo, $bar) = @_;
 					# as in s/foo/bar/
+
+				$str = $str->to_string->value16;
 
 				my $g; # global?
 				if(defined $foo && $foo->can('class') &&

@@ -8,6 +8,13 @@ function joyne (ary) { // Unlike the built-in, this does not convert
 	return ret
 }
 
+function keys (o) {
+	var a = []
+	for(a[a.length] in o);
+	a.sort()
+	return a
+}
+
 // ===================================================
 // 15.4.1 Array()
 // ===================================================
@@ -135,15 +142,14 @@ ok(Array.prototype.constructor === Array,
 // 10 tests
 method_boilerplate_tests(Array.prototype,'toString',0)
 
-// 2 tests specific to toString
+// 3 tests specific to toString
 is([1,null,true,false,void 0,{},"kjd"].toString(),
 	'1,,true,false,,[object Object],kjd',
 	'toString')
 
-error = false
-try{Array.prototype.toString.apply({})}
-catch(e){error = e}
-ok(error instanceof TypeError, 'toString death')
+try { Array.prototype.toString.apply(3) }
+catch(it) { ok(it.message.substring(0,22) == 'Object is not an Array')
+            ok(it instanceof TypeError) }
 
 
 // ===================================================
@@ -153,15 +159,14 @@ ok(error instanceof TypeError, 'toString death')
 // 10 tests
 method_boilerplate_tests(Array.prototype,'toLocaleString',0)
 
-// 2 tests specific to toLocaleString
+// 3 tests specific to toLocaleString
 is([1,null,true,false,void 0,{},"kjd"].toLocaleString(),
 	'1,,true,false,,[object Object],kjd',
 	'toLocaleString')
 
-error = false
-try{Array.prototype.toLocaleString.apply({})}
-catch(e){error = e}
-ok(error instanceof TypeError, 'toLocaleString death')
+try { Array.prototype.toLocaleString.apply(3) }
+catch(it) { ok(it.message.substring(0,22) == 'Object is not an Array')
+            ok(it instanceof TypeError) }
 
 
 // ===================================================
@@ -237,12 +242,12 @@ method_boilerplate_tests(Array.prototype,'pop',0)
 0,function(){
 	var f = Array.prototype.pop
 	var o = {0:0};;
-	is (f.call(o), 'undefined', 'retval pop with no length')
+	is (f.call(o), 'undefined', 'retval of pop with no length')
 	is (o[0], 0,'pop w/no length does nothing')
 	ok (o.length === 0, '  except set the length to 0')
 	o = {length:undefined,0:0}
 	is (f.call(o),'undefined', 'retval of pop w/undefined length')
-	is (o.length, 0, 'retval w/undefined sets length to 0')
+	is (o.length, 0, 'pop w/undefined sets length to 0')
 	o = {length: true, 0:'usl/s'}
 	is (f.call(o), 'usl/s', 'pop w/bool len')
 	is (o.length, 0, 'pop w/bool length sets the length')
@@ -254,7 +259,7 @@ method_boilerplate_tests(Array.prototype,'pop',0)
 	is(f.call(o), 'g;', 'pop w/fractional len')
 	is(o.length, 1, 'length after pop w/fraction length')
 	o= {length:-4294967290,1:'co'}, f.call(o)
-	is(o.length, 5, 'pop w/neg len')
+	ok(o.length === 5, 'pop w/neg len')
 }()
 a = []
 is(a.pop(), undefined, 'pop with zero-length real array')
@@ -263,10 +268,95 @@ a = [5,6,7,8,]
 ok(a.pop() === 8, 'retval of "normal" array pop')
 is(a,'5,6,7', 'what pop did to the array')
 
+
+// ===================================================
+// 15.4.4.7: push
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Array.prototype,'push',1)
+
+// 18 tests specific to push
+0,function(){
+	var f = Array.prototype.push
+	var o = {0:0};;
+	is (f.call(o,8,9), 2, 'retval of push on obj with no length')
+	is (o[0]+''+o[1], 89,'elems created by push w/no length')
+	ok (o.length === 2,'length after push w/no length')||diag(o.length)
+	o = {length:undefined,0:0}
+	is (f.call(o,7),1, 'retval of push w/undefined length')
+	is (o.length, 1, 'length after push on obj w/undefined length')
+	o = {length: true, 0:'usl/s', 1:73}
+	is (f.call(o,"ooo"), '2', 'push w/bool len')
+	is (o.length, 2, 'length after push w/bool length')
+	is (o[1], 'ooo', 'push overwrites existing props')
+	is (f.call({length: null, 0:'etet'}),0,'push w/null len')
+	is (f.call({length: {}, 0:'Upsot'}),0,'push w/obj 4 length')
+	ok (f.call({length: '3', 1: 'Npd;;d'})===3,'push w/str len')||diag(typeof f.call({length: '3', 1: 'Npd;;d'}))
+	o = {length: 2.3, 1: 'g;'}
+	is(f.call(o,78), '3', 'push w/fractional len')
+	is(o.length, 3, 'length after push w/fraction length')
+	o= {length:-4294967290,1:'co'}, f.call(o)
+	is(o.length, 6, 'push w/neg len')
+}()
+a = [1,2,3]
+is(a.push(), 3, 'push on real array with no args')
+is(a.length, 3,'array length after push real array w/no args');
+ok(a.push(5.7,8,7) === 6, 'retval of "normal" array push')
+is(a,'1,2,3,5.7,8,7', 'what push did to the array')
+
+
+// ===================================================
+// 15.4.4.8: reverse
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Array.prototype,'reverse',0)
+
+// 13 tests specific to reverse
+0,function(){
+	var f = Array.prototype.reverse
+	var o = {0:0};;
+	f.call(o)
+	is (keys(o), '0',
+	 'reverse on obj w/no length appears not to do anything')
+	o = {length:undefined,0:0}
+	f.call(o)
+	is (keys(o)+o[0]+o.length, '0,length0undefined',
+		'reverse on obj w/undefined length appears to do nothing')
+	o = {length: true, 0:'usl/s', 1:73}
+	f.call(o)
+	is(o.length+o[0]+o[1],'trueusl/s73',
+		'reverse w/bool length likewise does nothing')
+	is (keys(f.call({length: null, 0:'etet'})),'0,length',
+		'reverse w/null len')
+	is(keys(f.call({length:{},0:'Upsot'})),'0,length',
+		'reverse w/obj 4 length')
+	f.call(o = {length:'3',2:'Npd;;d'})
+	is /*are, actually*/ (keys(o), '0,length',
+	 'reverse on obj w/gaps in its numeric props adds & deletes props')
+	f.call(o = {length: 10, 0: true, 2: false, 3: 78, 8: {}})
+	is(o[1]+o[6]+o[7]+o[9], '[object Object]78falsetrue',
+	 '  and the properties it adds have the right values')
+	o = {length: 2.3, 1: 'g;'}
+	is(f.call(o)[0], 'g;','reverse w/fractional len')
+	o= {length:-4294967290,1:'co'}, f.call(o)
+	is(o[4], 'co', 'reverse w/neg len')
+}()
+a = [1,2,3]
+ok(a.reverse()=== a, 'reverse returns the object itself')
+is(a, '3,2,1', 'reverse reverses the elements of a real array')
+;(a = [1,,undefined,,]).reverse()
+is(''+(0 in a)+(1 in a)+(2 in a)+(3 in a),
+ 'falsetruefalsetrue',
+ "reverse's treatment of defined vs nonexistent properties in real arrays")
+is(a.length, 4,'array length after reverse real array w/no args');
+
+
 //...
 
 // ===================================================
-// 15.4.4.10: sort
+// 15.4.4.11: sort
 // ===================================================
 
 // 10 tests
@@ -303,7 +393,44 @@ for(i=0;i<um.length;i++)
 is(output, '1 bc\n3 a\n23 eaea\n35 add\n', 'sort with a custom routine')
 
 
-// ~~~ need more sort tests
+// 12 tests more
+a=['a','b',undefined,,'d','e']
+ok(a.sort()===a, 'sort returns its this value')
+is(a[0]+a[1]+a[2]+a[3]+a[4]+(5 in a), 'abdeundefinedfalse',
+	'sorting a real array')
+is([2,10].sort(), '10,2', 'default sort is stringwise')
+
+0,function(){
+	var f = Array.prototype.sort
+	var o = {0:'b',1:'a',2:undefined,4:'d',5:'e',length:6}
+	f.call(o)
+	is(a[0]+a[1]+a[2]+a[3]+a[4]+(5 in a), 'abdeundefinedfalse',
+		'sorting a non-array object')
+
+	var o = {0:0};;
+	f.call(o)
+	is (keys(o), '0',
+	 'sort on obj w/no length appears not to do anything')
+	o = {length:undefined,0:0}
+	f.call(o)
+	is (keys(o)+o[0]+o.length, '0,length0undefined',
+		'sort on obj w/undefined length appears to do nothing')
+	o = {length: true, 0:'usl/s', 1:73}
+	f.call(o)
+	is(o.length+o[0]+o[1],'trueusl/s73',
+		'sort w/bool length likewise does nothing')
+	is (keys(f.call({length: null, 0:'etet'})),'0,length',
+		'sort w/null len')
+	is(keys(f.call({length:{},0:'Upsot'})),'0,length',
+		'sort w/obj 4 length')
+	f.call(o = {length:'3',2:'Npd;;d','3':'a'})
+	is /*are, actually*/ (keys(o), '0,3,length',
+		'sort with str length')
+	o = {length: 2.3, 1: 'g;'}
+	is(f.call(o)[0], 'g;','sort w/fractional len')
+	o= {length:-4294967290,1:'co',5:6,6:7}, f.call(o)
+	is(keys(o), '0,1,6,length', 'sort w/neg len')
+}()
 
 // ...
 
@@ -441,17 +568,4 @@ is(a[0]+''+a[1]+a[2]+' '+a.length, '899 2',
 
 // ...
 
-
-// ---------------------------------------------------
-// 4 tests: Make sure toString and toLocaleString die properly */
-
-try { Array.prototype.toString.apply(3) }
-catch(it) { ok(it.message.substring(0,22) == 'Object is not an Array')
-            ok(it instanceof TypeError) }
-try { Array.prototype.toLocaleString.apply(3) }
-catch(it) { ok(it.message.substring(0,22) == 'Object is not an Array')
-            ok(it instanceof TypeError) }
-
-
-diag ("To do: Finish writing this script.")
 

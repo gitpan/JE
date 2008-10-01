@@ -1,6 +1,6 @@
 package JE::Boolean;
 
-our $VERSION = '0.028';
+our $VERSION = '0.029';
 
 
 use strict;
@@ -8,7 +8,7 @@ use warnings;
 
 use overload fallback => 1,
 	'""' =>  sub { qw< false true >[shift->[0]] },
-	 cmp =>  sub { "$_[0]" cmp $_[1] },
+#	 cmp =>  sub { "$_[0]" cmp $_[1] },
 	bool =>  sub { shift->[0] },
 	'0+' =>  sub { shift->[0] };
 

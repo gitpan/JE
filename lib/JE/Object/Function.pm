@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.028';
+our $VERSION = '0.029';
 
 
 use strict;
@@ -10,7 +10,10 @@ use Scalar::Util 'blessed';
 
 use overload
 	fallback => 1,
-	'&{}' => sub { my $self = shift; sub { $self->call(@_) } };
+	'&{}' => sub {
+		my $self = shift;
+		sub { $self->call($self->global->upgrade(@_)) }
+	 };
 
 our @ISA = 'JE::Object';
 
@@ -277,7 +280,6 @@ sub new {
 		dontdel  => 1, 
 		readonly => 1,
 	});
-warn $self->keys if $::__;
 
 	} #warnings back on
 
@@ -354,6 +356,8 @@ sub construct { # ~~~ we need to upgrade the args passed to construct, but
 			?	[@_] # ~~~ downgrade if wanted
 			: 	undef;
 		}
+		# ~~~ What can we do to avoid the upgrade overhead for
+		#     JS internal functions?
 		return $$guts{global}->upgrade($code->(@args));
 	}
 	else {
@@ -393,21 +397,17 @@ Calls the function with $obj as the invocant and @args as the args.
 sub apply { # ~~~ we need to upgrade the args passed to apply, but still
             #     retain the unupgraded values to pass to the function *if*
             #     the function wants them downgraded
-		# Right now _init_scope takes care of upgrading them. That
-		# might need to be moved to this sub.
 	my ($self, $obj) = (shift, shift);
 	my $guts = $$self;
 	my $global = $$guts{global};
 
 	if(!blessed $obj or ref $obj eq 'JE::Object::Function::Call' 
-	    or $obj->id =~ /^(?:null|undef)\z/) {
+	    or ref($obj) =~ /^JE::(?:Null|Undefined)\z/) {
 		$obj = $global;
 	}
 	else {
 		$obj = $obj->to_object;
 	}
-
-	@_ = $global->upgrade(@_);
 
 	if(ref $$guts{function} eq 'CODE') {
 		my @args;
@@ -435,9 +435,6 @@ sub apply { # ~~~ we need to upgrade the args passed to apply, but still
 			# $foo->bar(sub{warn;return "anything"}->())
 			#
 			(scalar $$guts{function}->(@args))[0]
-			# ~~~ Add support for list context once I've
-			#     figured out the exact behaviour--if it makes
-			#     sense.
 		);
 	}
 	elsif ($$guts{function}) {
@@ -652,7 +649,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.028';
+our $VERSION = '0.029';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -702,7 +699,7 @@ sub prop {
 	}
 
 	if (@_ ) {
-		return $$self{$name} = $$self{'-global'}->upgrade(shift);
+		return $$self{$name} = shift;
 	}
 
 	if (exists $$self{$name}) {
@@ -729,7 +726,7 @@ sub delete {
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.028';
+our $VERSION = '0.029';
 
 our @ISA = 'JE::Object';
 

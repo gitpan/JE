@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.028';
+our $VERSION = '0.029';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -202,7 +202,7 @@ sub add_line_number {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.028';
+our $VERSION = '0.029';
 
 use subs qw'_create_vars _eval_term';
 use List::Util 'first';
@@ -638,7 +638,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.028';
+our $VERSION = '0.029';
 
 # B::Deparse showed me how to get these values.
 use constant nan => sin 9**9**9;
@@ -1109,7 +1109,10 @@ sub eval {  # evalate (sub)expression
 
 		# Check first to see whether we have the terms
 		# of a ? : at the end:
-		my @qc_terms = @copy >= 3 && $copy[-2] !~ /=\z/
+		my @qc_terms = @copy >= 3 && (
+				ref $copy[-2] # avoid stringification
+				|| $copy[-2] !~ /=\z/
+		)
 			? (pop @copy, pop @copy) : ();
 			# @qc_terms is now in reverse order
 
@@ -1320,7 +1323,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.028';
+our $VERSION = '0.029';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1332,7 +1335,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.028';
+our $VERSION = '0.029';
 
 sub list {
 	my $self = shift;

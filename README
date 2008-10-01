@@ -27,16 +27,19 @@ the API could be improved or reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-New feature:
-• max_ops: This lets you limit the number of operations that can occur
-  before a script is terminated.
 Optimisations:
-• Stringification (in JavaScript) now runs up to 5% faster. Thanks to
-  Christian Forster  for  doing  the  benchmarking  and  finding  the
-  bottleneck.
-• Memory usage may go down as much as 10%, depending on what you are
-  doing (the more strings you use, the greater the effect). (The mem-
-  ory leaks are still there, though.)
+• The previous release’s memory optimisation tickled a soft spot in
+  String.prototype.replace, which caused that function to run patho-
+  logically more slowly than before. This has been fixed.
+• Some more optimisations have been made,  such that,  at least for
+  some scripts, it runs 20% faster than 0.027.
+Incompatible change:
+• As threatened, the prop method of all data types and the call and
+  apply methods of functions no longer  ‘upgrade’  their  arguments.
+  Either run the arguments through JE’s  upgrade  method or use the
+ ‘Public API’ documented in JE::Types.
+New feature:
+• JE::Object::String’s value16 method
 Various bug fixes--see the Changes file.
 
 
