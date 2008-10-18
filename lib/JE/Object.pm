@@ -4,7 +4,7 @@ package JE::Object;
 sub evall { my $global = shift; my $r = eval 'local *_;' . shift;
             $@ and die; $r }
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 use strict;
 use warnings;
@@ -23,6 +23,7 @@ use B 'svref_2object';
 
 
 require JE::Code;
+require JE::Object::Error::TypeError;
 require JE::Object::Function;
 require JE::Boolean;
 require JE::String;
@@ -147,11 +148,11 @@ sub new {
 	local $@;
 	if (!defined $value || !defined eval{$value->value} && $@ eq '') {
 		$p = exists $opts{prototype} ? $opts{prototype}
-		      : $global->prop("Object")->prop("prototype");
+		      : $global->prototype_for("Object");
 	}
 	elsif(ref $value eq 'HASH') {
 		%hash = %$value;
-		$p = $global->prop("Object")->prop("prototype");
+		$p = $global->prototype_for("Object");
 	}
 	else {
 		return $global->upgrade($value);
@@ -445,7 +446,9 @@ true is returned. If the property exists and could not be deleted, false
 is returned.
 
 If the second argument is given and is true, the property will be deleted
-even if it is marked is undeletable, if the object supports it.
+even if it is marked is undeletable. A subclass may override this, however.
+For instance, Array and String objects always have a 'length' property
+which cannot be deleted.
 
 =cut
 
@@ -540,8 +543,8 @@ sub to_primitive {
 		return $prim;
 	}
 
-	# This will be upgraded to a TypeError automagically.
-	die add_line_number "An object of type " .
+	die new JE::Object::Error::TypeError $self->global,
+	  add_line_number "An object of type " .
 		(eval {$self->class} || ref $self) .
 		" cannot be converted to a primitive";
 }

@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 
 use strict;
@@ -222,7 +222,8 @@ sub _capture_erasure_stuff {
 sub new {
 	my ($class, $global, $re, $flags) = @_;
 	my $self = $class->SUPER::new($global, {
-		prototype => $global->prop('RegExp')->prop('prototype')
+		prototype => $global->prototype_for('RegExp')
+		          || $global->prop('RegExp')->prop('prototype')
 	});
 
 	my $qr;
@@ -682,6 +683,7 @@ sub new_constructor {
 		dontenum => 1,
 		readonly => 1,
 	});
+	$global->prototype_for('RegExp', $proto);
 	
 	$proto->prop({
 		name  => 'exec',
@@ -768,6 +770,11 @@ sub new_constructor {
 			function_args => ['this','args'],
 			function => sub {
 				my ($self,$str) = @_;
+				die JE::Object::Error::TypeError->new(
+					$global, add_line_number
+					"Argument to test is not a " .
+					"RegExp object"
+				) unless $self->class eq 'RegExp';
 				my $ret = &$exec($self,$str);
 				JE::Boolean->new(
 					$global, $ret->id ne 'null'
@@ -786,6 +793,11 @@ sub new_constructor {
 			function_args => ['this'],
 			function => sub {
 				my ($self,) = @_;
+				die JE::Object::Error::TypeError->new(
+					$global, add_line_number
+					"Argument to toString is not a " .
+					"RegExp object"
+				) unless $self->class eq 'RegExp';
 				JE::String->_new(
 					$global,
 					"/" . $self->prop('source')->value

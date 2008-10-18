@@ -26,12 +26,15 @@ lib/JE/Object.pm
 lib/JE/Parser.pm
 lib/JE/Scope.pm
 lib/JE/String.pm
+lib/JE/toperl.pl
 lib/JE/Types.pod
 lib/JE/Undefined.pm
 lib/JE.pm
 Makefile.PL
 MANIFEST
 README
+stuff/codedumper
+stuff/README
 t/07.09-semicolon-insertion.t
 t/08.06.01-attributes.t
 t/08.06.02-internal-properties.t

@@ -46,7 +46,7 @@ do {
 	}
 	x = false
 } while(0)
-ok(x, '"break\\<identifier>" ignores the identifier');
+ok(x, '"break\\n<identifier>" ignores the identifier');
 
 
 // test 6
@@ -58,7 +58,7 @@ do {
 	}
 	x = false
 } while(0)
-ok(x, '"continue\\<identifier>" ignores the identifier');
+ok(x, '"continue\\n<identifier>" ignores the identifier');
 
 
 // test 7

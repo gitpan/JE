@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 use strict;  # :-(
 use warnings;# :-(
@@ -14,7 +14,7 @@ require JE::Number; # ~~~ Don't want to do this
 import JE::Code 'add_line_number';
 sub add_line_number;
 
-our ($_parser, $global, @_decls, @_stms);
+our ($_parser, $global, @_decls, @_stms, $_vars);
 
 #----------METHODS---------#
 
@@ -193,7 +193,7 @@ sub str() { # public
 		$4 ? "\cK" :
 		$5
 	/sgex;
-	JE::String->_new($global, $yarn);
+	"s$yarn";
 }
 
 sub  num() { # public
@@ -208,7 +208,7 @@ sub  num() { # public
 	  )
 	) /xcg
 	or return;
-	return JE::Number->new($global, defined $1 ? hex $1 : $2);
+	return defined $1 ? hex $1 : $2;
 }
 
 our $ident = qr(
@@ -266,18 +266,23 @@ sub term() {
 		push @ret, &params;
 		&skip;
 		/\G \{ /gcx or expected "'{'";
-		push @ret, &statements;
+		{
+			local $_vars = [];
+			push @ret, &statements, $_vars;
+		}
 		/\G \} /gocx or expected "'}'";
 
 		return bless [[$pos, pos], @ret], JECE;
 	}
-	elsif($tmp = &ident or defined($tmp = &str) or
+	# We don’t call the ident subroutine here,
+	# because we need to sift out null/true/false/this.
+	elsif(($tmp)=/\G($ident)/cgox) {
+		$tmp=~/^(?:(?:tru|fals)e|null)\z/ &&return $global->$tmp;
+		$tmp eq 'this' and return $tmp;
+		return "i" . unescape_ident $tmp;
+	}
+	elsif(defined($tmp = &str) or
 	      defined($tmp = &num)) {
-		if (!ref $tmp and $tmp =~ /^(?:(?:tru|fals)e|null)\z/) {
-			$tmp = $tmp eq 'null' ?
-				$global->null :
-				JE::Boolean->new( $global, $tmp eq 'true');
-		}
 		return $tmp;
 	}
 	elsif(m-\G
@@ -294,6 +299,7 @@ sub term() {
 		#  which,  in p5.8.8  (though not  5.9.5)  causes  pos()
 		#  to be reset.
 		{ local *_; require JE::Object::RegExp; }
+# ~~~ This needs to unescape the flags.
 		return JE::Object::RegExp->new( $global, $1, $2);
 	}
 	elsif(/\G\[$s/cog) {
@@ -313,12 +319,7 @@ sub term() {
 	elsif(/\G\{$s/cog) {
 		my @ret;
 
-		# ~~~ This could be much more efficient if 'str' and 'num'
-		#     did not have to create objects when called from here,
-		#     since the objects are just stringified  in  the  end
-		#     anyway (in &JE::Code::Expression::eval).
-
-		if($tmp = &ident or defined($tmp = &str) or
+		if($tmp = &ident or defined($tmp = &str)&&$tmp=~s/^s// or
 				defined($tmp = &num)) {
 			# first elem, not preceded by comma
 			push @ret, $tmp;
@@ -329,7 +330,8 @@ sub term() {
 			&skip;
 
 			while (/\G,$s/cog) {
-				$tmp = ident or defined($tmp = &str) or
+				$tmp = ident
+				or defined($tmp = &str)&&$tmp=~s/^s// or
 					defined($tmp = &num)
 				or expected
 				 'identifier, or string or number literal';
@@ -688,6 +690,7 @@ sub vardecl() { # vardecl is only called when we *know* we need it, so it
 	@ret == push @ret, &ident and expected 'identifier';
 	/\G$s=$s/cog and
 		(@ret != push @ret, &assign or expected 'expression');
+	push @$_vars, $ret[0];
 	\@ret;
 }
 
@@ -696,6 +699,7 @@ sub vardecl_noin() {
 	@ret == push @ret, &ident and expected 'identifier';
 	/\G$s=$s/cog and
 		(@ret != push @ret, &assign_noin or expected 'expression');
+	push @$_vars, $ret[0];
 	\@ret;
 }
 
@@ -780,10 +784,15 @@ sub function() {
 	push @$ret, &params;
 	&skip;
 	/\G \{ /gcx or expected "'{'";
-	push @$ret, &statements;
+	{
+		local $_vars = [];
+		push @$ret, &statements, $_vars;
+	}
 	/\G \}$s /gocx or expected "'}'";
 
 	push @{$$ret[0]},pos;
+
+	push @$_vars, $ret;
 
 	bless $ret, JECS;
 }
@@ -1159,8 +1168,12 @@ sub statement_default() {
 			push @$ret, &params;
 			&skip;
 			/\G \{ /gcx or expected "'{'";
-			push @$ret, &statements;
+			{
+				local $_vars = [];
+				push @$ret, &statements, $_vars;
+			}
 			/\G \}$s /gocx or expected "'}'";
+			push @$_vars, $ret;
 		}
 		elsif($3 eq 'if') {
 			push @$ret, 'if';
@@ -1472,6 +1485,7 @@ sub _parse($$$;$$) { # Returns just the parse tree, not a JE::Code object.
 	$src =~ s/\p{Cf}//g;
 
 	my $tree;
+	local $_vars = [];
 	for($src) {
 		pos = 0;
 		eval {
@@ -1509,7 +1523,7 @@ sub _parse($$$;$$) { # Returns just the parse tree, not a JE::Code object.
 	}
 #use Data::Dumper;
 #print Dumper $tree;
-	$src, $tree;
+	wantarray ? ($src, $tree, $_vars) : $tree;
 }
 
 

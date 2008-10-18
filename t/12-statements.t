@@ -455,7 +455,7 @@ catch(e){ x = x.match(/^[ac]$/) }
 ok(x, 'for-in-throw')
 
 
-/* 108-23: for-in-var */
+/* 108-23: for-var-in */
 
 var o = {a:'b',c:'d'};
 var m = ''
@@ -470,7 +470,7 @@ try{for(var x in oentuhnhtueohnteunoht);}catch(me){error=true}
 is(error,true,'for-var-in calls GetValue on the rhs expr')
 
 Boolean.prototype.thing='foo', m=''
-for(x in true)m+=x+true[x]
+for(var x in true)m+=x+true[x]
 is(m, 'thingfoo','for-var-in converts its rhs to an object')
 delete Boolean.prototype.thing
 

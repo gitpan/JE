@@ -12,6 +12,7 @@ use strict;
 use Scalar::Util 'refaddr';
 use utf8;
 
+diag("To do: finish writing this test script");
 
 #--------------------------------------------------------------------#
 # Test 1: See if the module loads
@@ -125,7 +126,8 @@ ok($_ === 'Just another ECMAScript hacker,\n')
 #--------------------------------------------------------------------#
 # Tests 29-35: max_ops
 
-{
+SKIP: { skip 'unimplemented in the experimental version', 7
+		if $ENV{YES_I_WANT_JE_TO_OPTIMISE};# stop it from hanging
 	my $j = new JE max_ops => 100;
 	is $j->max_ops, 100, 'max_ops as arg to constructor';
 	$j->max_ops(110);

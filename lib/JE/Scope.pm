@@ -1,6 +1,6 @@
 package JE::Scope;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -16,16 +16,12 @@ sub find_var {
 	my $lvalue;
 
 	for(reverse @$self) {
-		defined $_->prop($var) or next;
-		$lvalue = new JE::LValue $_, $var;
-		goto FINISH;
+		my $p = $_;
+		defined($p=$p->prototype) or next  while !$p->exists($var);
+		return new JE::LValue $_, $var;
 	}
 	# if we get this far, then we create an lvalue without a base obj
-	$lvalue = new JE::LValue \$self->[0], $var;
-
-	FINISH:
-	@_ > 2 and $lvalue->set($_[2]);
-	return $lvalue;
+	new JE::LValue \$self->[0], $var;
 }
 
 sub new_var {

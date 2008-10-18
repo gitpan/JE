@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 
 use strict;
@@ -240,11 +240,16 @@ sub new {
 	    or croak "The 'scope' passed to JE::Object::Function->new (" .
 		(defined $scope ? $scope : 'undef') . ") is not an object";
 
+# ~~~ I should be able to remove the need for this to be a JE::Scope. Per-
+#     haps it could be an array ref instead. That way, the caller won’t
+#     have to bless something that we copy & bless further down anyway.
+#     Right now, other parts of the code base rely on it, so it would
+#     require a marathon debugging session.
 	ref $scope ne 'JE::Scope' and $scope = bless [$scope], 'JE::Scope';
 	my $global = $$scope[0];
 
 	my $self = $class->SUPER::new($global, {
-		prototype => $global->prop('Function')->prop('prototype')
+		prototype => $global->prototype_for('Function')
 	});
 	my $guts = $$self;
 
@@ -405,9 +410,6 @@ sub apply { # ~~~ we need to upgrade the args passed to apply, but still
 	    or ref($obj) =~ /^JE::(?:Null|Undefined)\z/) {
 		$obj = $global;
 	}
-	else {
-		$obj = $obj->to_object;
-	}
 
 	if(ref $$guts{function} eq 'CODE') {
 		my @args;
@@ -439,9 +441,12 @@ sub apply { # ~~~ we need to upgrade the args passed to apply, but still
 	}
 	elsif ($$guts{function}) {
 		my $at = $@;
-		my $ret = $$guts{function}->execute($obj, _init_scope(
-			$self, $$guts{scope}, $$guts{func_argnames}, @_
-		), 2 );
+		my $ret = $$guts{function}->execute(
+			$obj->to_object, _init_scope(
+				$self, $$guts{scope},
+				$$guts{func_argnames}, @_
+			), 2
+		);
 		defined $ret or die;
 		$@ = $at;
 		return $ret;
@@ -521,11 +526,14 @@ sub _init_proto {
 			function_args => ['this'],
 			function => sub {
 				my $self = shift;
+				$self->isa(__PACKAGE__) or die new
+					JE::Object::Error::TypeError
+					$scope, add_line_number "Function."
+					."prototype.toString can only be "
+					."called on functions";
 				my $guts = $$self;
 				my $str = 'function ';
-				# ~~~ Can we use ->_new here, or is the
-				#     source code in Unicode?
-				JE::String->new($scope,
+				JE::String->_new($scope,
 				  'function ' .
 				  ( exists $$guts{func_name} ?
 				    $$guts{func_name} :
@@ -577,8 +585,8 @@ sub _init_proto {
 
 				no warnings 'uninitialized';
 				if(defined $args and
-				   ref $args !~ /^JE::(Null|Undefined|
-					Object::Function::Arguments)\z/
+				   ref($args) !~ /^JE::(Null|Undefined|
+					Object::Function::Arguments)\z/x
 				   and eval{$args->class} ne 'Array') {
 					die JE::Object::Error::TypeError
 					->new($scope, add_line_number
@@ -624,7 +632,7 @@ sub _init_proto {
 You can use a JE::Object::Function as a coderef. The sub returned simply
 invokes the C<call> method, so the following are equivalent:
 
-  $function->call(@args)
+  $function->call( $function->global->upgrade(@args) )
   $function->(@args)
 
 The stringification, numification, boolification, and hash dereference ops
@@ -649,7 +657,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -721,12 +729,15 @@ sub delete {
 	return 1;
 }
 
+sub exists { exists $_[0]{$_[1]} }
+sub prototype{}
+
 
 
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 our @ISA = 'JE::Object';
 

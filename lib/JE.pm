@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.029 (alpha release)
+Version 0.030 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -118,6 +118,15 @@ also uses and leaks lots of memory, but that will be fixed.
 required. Recent versions of it require L<Variable::Magic>, an XS module
 (which requires a compiler of course), but version 0.02 of the former is
 just pure Perl with no XS dependencies.
+
+There is currently an experimental version of the run-time engine, which is
+supposed to be faster, although it currently makes compilation slower. (If
+you serialise the compiled code and use that, you should notice a
+speed-up.) It will eventually replace the current one when it is complete.
+(It does not yet respect tainting or max_ops, or report line numbers
+correctly.) You can activate it by setting to 1 the ridiculously named
+YES_I_WANT_JE_TO_OPTIMISE environment variable, which is just a
+temporary hack that will later be removed.
 
 =head1 USAGE
 
@@ -322,6 +331,17 @@ sub new {
 	);
 	$func_proto->prop({name=>'length', value=>0, dontenum=>1});
 
+	# Before we add anything else, we need to make sure that our global
+	# true/false/undefined/null values are available.
+	@{$$self}{qw{ t f u n }} = (
+		JE::Boolean->new($self, 1),
+		JE::Boolean->new($self, 0),
+		JE::Undefined->new($self),
+		JE::Null->new($self),
+	);
+
+	$self->prototype_for('Object', $obj_proto);
+	$self->prototype_for('Function', $func_proto);
 	JE::Object::_init_proto($obj_proto);
 	JE::Object::Function::_init_proto($func_proto);
 
@@ -904,15 +924,8 @@ Returns the JavaScript undefined value.
 
 =cut
 
-sub undefined { # ~~~ This needs to be made for emmicient.
-	JE::Undefined->new(shift);
-}
-
-sub undef { # This was what I originally named it, but it gets confused
-            # with Perl's undef too easily (undef and undefined are two
-            # different things). Don't use this, because I'm going to
-            # delete it.
-	goto &undefined;
+sub undefined {
+	$${+shift}{u}
 }
 
 
@@ -924,9 +937,25 @@ Returns the JavaScript null value.
 
 =cut
 
-sub null { # ~~~ This needs to be made more efficient.
-	JE::Null->new(shift);
+sub null {
+	$${+shift}{n}
 }
+
+
+
+=item $j->true
+
+Returns the JavaScript true value.
+
+=item $j->false
+
+Returns the JavaScript false value.
+
+=cut
+
+sub true  { $${+shift}{t} }
+sub false { $${+shift}{f} }
+
 
 
 
@@ -1970,6 +1999,31 @@ sub new_parser {
 
 
 
+=item $j->prototype_for( $class_name )
+
+=item $j->prototype_for( $class_name, $new_val )
+
+Mostly for internal use, this method is used to store/retrieve the
+prototype objects used by JS's built-in data types. The class name should
+be 'String', 'Number', etc., but you can actually store anything you like
+in here. :-)
+
+=cut
+
+sub prototype_for {
+	my $self = shift;
+	my $class = shift;
+	if(@_) {
+		return $$$self{pf}{$class} = shift
+	}
+	else {
+		return $$$self{pf}{$class} ||
+		  ($self->prop($class) || return undef)->prop('prototype');
+	}
+}
+
+
+
 =back
 
 =cut
@@ -2164,6 +2218,48 @@ source code of JE::Object::RegExp for more details.
 Currently any assignment that causes an error will result in the 'Cannot assign to a non-lvalue' error message, even if it was for a different 
 cause. For instance, a custom C<fetch> routine might die.
 
+=item *
+
+The parser doesn’t currently support Unicode escape sequences in a regular
+expression literal’s flags. It currently passes them through verbatim to
+the RegExp constructor, which then croaks.
+
+=item *
+
+Under perl 5.8.8, the following produces a double free; something I need to
+look into:
+
+  "".new JE  ->eval(q| Function('foo','return[a]')() | )
+
+=item *
+
+The C<var> statement currently evaluates the rhs before the lhs, which is
+wrong. This affects the following, which should return 5, but returns
+undefined:
+
+  with(o={x:1})var x = (delete x,5); return o.x
+
+=item *
+
+Currently if a try-(catch)-finally statement’s C<try> and C<catch> blocks
+don't return anything, the return value is taken from the C<finally> block.
+This is incorrect. There should be no return value. In other words, this
+should return 3:
+
+  eval(' 3; try{}finally{5} ')
+
+=item *
+
+Compound assignment operators (+=, etc.) currently get the value of the rhs
+first, which is wrong. The following should produce "1b", but gives "2b":
+
+  a = 1;  a += (a=2,"b")
+
+=item *
+
+Serialisation of RegExp objects with Data::Dump::Streamer is currently
+broken (and has been since 0.022).
+
 =back
 
 =head2 Limitations
@@ -2174,6 +2270,20 @@ cause. For instance, a custom C<fetch> routine might die.
 
 JE is not necessarily IEEE 754-compliant. It depends on the OS. For this
 reason the Number.MIN_VALUE and Number.MAX_VALUE properties do not exist.
+
+=item *
+
+A Perl subroutine called from JavaScript can sneak past a C<finally> block and avoid triggering it:
+
+  $j = new JE;
+  $j->new_function(outta_here => sub {  });
+  outta: {
+      $j->eval('
+          try { x = 1; outta_here() }
+          finally { x = 2 }
+      ');
+  }
+  print $j->{x}, "\n";
 
 =back
 
@@ -2305,7 +2415,8 @@ L<http://www.ecma-international.org/publications/files/ecma-st/ECMA-262.pdf>
 
 =back
 
-L<JavaScript.pm|JavaScript> and L<JavaScript::SpiderMonkey>--both 
+L<JavaScript.pm|JavaScript>, L<JavaScript::SpiderMonkey> and
+L<JavaScript::Lite>--all 
 interfaces to
 Mozilla's open-source SpiderMonkey JavaScript engine.
 

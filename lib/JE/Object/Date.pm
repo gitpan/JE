@@ -1,6 +1,6 @@
 package JE::Object::Date;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 
 use strict;
@@ -58,7 +58,8 @@ my %mon_numbers = qw/ Jan 0 Feb 1 Mar 2 Apr 3 May 4 Jun 5 Jul 6 Aug 7 Sep 8
 sub new {
 	my($class, $global) = (shift, shift);
 	my $self = $class->SUPER::new($global, {
-		prototype => $global->prop('Date')->prop('prototype')
+		prototype => $global->prototype_for('Date')
+		          || $global->prop('Date')->prop('prototype')
 	});
 
 	if (@_ >= 2) {
@@ -471,6 +472,7 @@ sub _new_constructor {
 		dontenum => 1,
 		readonly => 1,
 	}), __PACKAGE__;
+	$global->prototype_for('Date'=>$proto);
 
 	$$$proto{value} = sin 9**9**9;
 
@@ -482,7 +484,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number
 			      "Arg to toString ($_[0]) is not a date")
 			    unless $_[0]->isa('JE::Object::Date');
@@ -518,7 +520,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number
 			      "Arg to toDateString ($_[0]) is not a date")
 			    unless $_[0]->isa('JE::Object::Date');
@@ -544,7 +546,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number
 			      "Arg to toTimeString ($_[0]) is not a date")
 			    unless $_[0]->isa('JE::Object::Date');
@@ -587,7 +589,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number
 			      "Arg to valueOf ($_[0]) is not a date")
 			    unless $_[0]->isa('JE::Object::Date');
@@ -630,7 +632,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number
 			      "Arg to getYear ($_[0]) is not a date")
 			    unless $_[0]->isa('JE::Object::Date');
@@ -652,7 +654,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number
 			      "Arg to getFullYear ($_[0]) is not a date")
 			    unless $_[0]->isa('JE::Object::Date');
@@ -674,7 +676,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number "getUTCFullYear cannot be " .
 			     "called on an object of type " . $_[0]->class)
 			    unless $_[0]->isa('JE::Object::Date');
@@ -697,7 +699,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number
 			      "Arg to getMonth ($_[0]) is not a date")
 			    unless $_[0]->isa('JE::Object::Date');
@@ -719,7 +721,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number "getUTCMonth cannot be called".
 			      " on an object of type " . $_[0]->class)
 			    unless $_[0]->isa('JE::Object::Date');
@@ -741,7 +743,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number
 			    "getDate cannot be called on an object of type"
 			    . shift->class)
@@ -764,7 +766,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number "getUTCDate cannot be called ".
 			    "on an object of type"
 			    . shift->class)
@@ -787,7 +789,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number
 			    "getDay cannot be called on an object of type"
 			    . shift->class)
@@ -810,7 +812,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number "getUTCDay cannot be called ".
 			    "on an object of type"
 			    . shift->class)
@@ -833,7 +835,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number
 			   "getHours cannot be called on an object of type"
 			    . shift->class)
@@ -856,7 +858,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number "getUTCHours cannot be called".
 			    " on an object of type"
 			    . shift->class)
@@ -879,7 +881,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number "getMinutes cannot be called" .
 			      " on an object of type"
 			      . shift->class)
@@ -902,7 +904,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number "getUTCMinutes cannot be " .
 			      "called on an object of type"
 			      . shift->class)
@@ -925,7 +927,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number "getSeconds cannot be called" .
 			      " on an object of type"
 			      . shift->class)
@@ -954,7 +956,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number "getMilliseconds cannot be" .
 			      " called on an object of type"
 			      . shift->class)
@@ -983,7 +985,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number "getTimezoneOffset cannot be" .
 			      " called on an object of type"
 			      . shift->class)
@@ -1007,7 +1009,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this','args'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number "setTime cannot be" .
 			      " called on an object of type"
 			      . shift->class)
@@ -1032,7 +1034,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this','args'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number "setMilliseconds cannot be" .
 			      " called on an object of type"
 			      . shift->class)
@@ -1082,7 +1084,7 @@ sub _new_constructor {
 			no_proto => 1,
 			function_args => ['this'],
 			function => sub {
-			  die JE::Object::TypeError->new($global,
+			  die JE::Object::Error::TypeError->new($global,
 			    add_line_number "toGMTString cannot be" .
 			      " called on an object of type"
 			      . shift->class)

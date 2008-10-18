@@ -1,6 +1,6 @@
 package JE::Object::Error::RangeError;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 
 use strict;
@@ -48,9 +48,11 @@ sub new_constructor {
 		sub {
 			my $proto = shift;
 			my $global = $$proto->{global};
+			$global->prototype_for(RangeError=>$proto);
 			bless $proto, __PACKAGE__;
 			$proto->prototype(
-				$global->prop('Error')->prop('prototype')
+			   $global->prototype_for('Error')
+			|| $global->prop('Error')->prop('prototype')
 			);
 			$proto->prop({
 				name  => 'name',

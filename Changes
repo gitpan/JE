@@ -1,5 +1,56 @@
 Revision history for JE
 
+0.030   ? October, 2008
+        Some minor optimisations.
+        Incompatible changes:
+        • When a JavaScript method that is written in Perl  is called
+          on a primitive type, the primitive value itself, and not an
+          object derived from it, is passed to the method.
+        • JE::LValue’s set method now returns its argument instead of
+          the lvalue object itself.
+        • JE::Scope’s  find_var  method no longer takes a second argu-
+          ment. Use $scope->find_var($name)->set($val) instead.
+        New features:
+        • The global object now has ‘true’ and  ‘false’  methods that
+          return the corresponding JE::Boolean objects.
+        • It also has a  prototype_for  method that is used to  store
+          prototypes for  JS  built-in classes  (resulting  in  a  1%
+          speed-up :-).
+        • JE::Code’s set_global method
+        • An experimental version of the run-time engine,  which will
+          eventually replace the current one.
+        Bug fixes:
+        • 0.029 broke bind_class-style error objects thrown from Perl.
+          They were not being passed through ‘upgrade’.
+        • The parser used  to  treat  identifiers  representing  null,
+          this,  true  or  false  this with Unicode  escape sequences
+          (\uXXXX) as keywords instead of identifiers.
+        • 0.025  was supposed  to  make  generic  Perl  errors  propa-
+          gated through JavaScript into  Error  objects,  rather than
+          TypeErrors.  It only actually worked for errors  outside  a
+          try{} block.  Within a try{},  they were still turned  into
+          TypeErrors.  This has now been fixed.  Also, various operat-
+          ors/functions were producing Errors  instead of  TypeErrors
+          starting with that version. These have been fixed:
+          • Calling ‘new’ on a non-object (new 'foo')
+          • Trying to convert to a primitive  an  object  that  can’t
+            be converted
+          • Calling Function.prototype.toString on a non-func-
+            tion object
+          • Calling a function’s JS apply  method with an invalid sec-
+            ond argument
+          • Calling a  Date  object’s built-in method  on  an  object
+            that’s not a date
+          • Calling RegExp.prototype.toString on something other
+            than a regexp
+        • JE::Object::String’s  is_readonly  property used to  return
+          true if the property name was the length of whatever  value
+          happened to be in  $_,  instead of returning true  for  the
+         ‘length’ property.
+        • The prefix ++ and -- operators used to return lvalues. This
+          would cause ‘delete ++a’ to delete the variable, whereas it
+          shouldn’t.
+
 0.029   1 October, 2008
         Optimisations:
         • The previous release’s memory optimisation  tickled  a  soft

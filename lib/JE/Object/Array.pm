@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -96,7 +96,8 @@ sub new {
 		@array = $global->upgrade(@_);
 	}
 	my $self = SUPER::new $class $global, {
-		prototype => $global->prop('Array')->prop('prototype')
+		prototype => $global->prototype_for('Array') ||
+		             $global->prop('Array')->prop('prototype')
 	};
 
 	my $guts = $$self;
@@ -232,6 +233,7 @@ sub _new_constructor {
 	});
 	bless $proto, __PACKAGE__;
 	$$$proto{array} = [];
+	$global->prototype_for('Array',$proto);
 
 	$proto->prop({
 		name  => 'toString',
@@ -400,11 +402,12 @@ sub _new_constructor {
 
 sub _toString {
 	my $self = shift;
-	my $guts = $$self;
+
 	eval{$self->class} eq 'Array'
-	or die JE::Object::Error::TypeError->new($$guts{global},
+	or die JE::Object::Error::TypeError->new($self->global,
 		add_line_number 'Object is not an Array');
 
+	my $guts = $$self;
 	JE::String->_new(
 		$$guts{global},
 		join ',', map
@@ -416,11 +419,12 @@ sub _toString {
 
 sub _toLocaleString {
 	my $self = shift;
-	my $guts = $$self;
+
 	eval{$self->class} eq 'Array'
-	or die JE::Object::Error::TypeError->new($$guts{global},
+	or die JE::Object::Error::TypeError->new($self->global,
 		'Object is not an Array');
 
+	my $guts = $$self;
 	JE::String->_new(
 		$$guts{global},
 		join ',', map
@@ -431,6 +435,7 @@ sub _toLocaleString {
 }
 
 sub _concat {
+	unshift @_, shift->to_object;
 	my $thing;
 	my $new = __PACKAGE__->new(my $global = $_[0]->global);
 	my @new;

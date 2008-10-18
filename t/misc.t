@@ -7,7 +7,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 1;
+use Test::More tests => 3;
 use strict;
 use utf8;
 
@@ -25,3 +25,22 @@ our $j = JE->new;
 	is $x, undef, '"Attempt to free unreferenced scalar" avoided';
 }
 
+#--------------------------------------------------------------------#
+# Tests 2-3: 0.029 broke this and 0.030 fixed it: bind_class-style error
+#                                              objects thrown from Perl
+
+{
+	package HTML::DOM::Exception;
+	sub new { bless[] }
+}
+$j->new_function(die => sub { die new HTML::DOM::Exception });
+$j->bind_class(name => "HTML::DOM::Exception");
+is $j->eval('
+	try{ die() }
+	catch(e) { String(e) }
+'), '[object HTML::DOM::Exception]',
+	'bind_class-style error objects with try'
+	or diag $@;
+$j->eval(' die() ');
+is $@, '[object HTML::DOM::Exception]',
+	'bind_class-style error objects without try';

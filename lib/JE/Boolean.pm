@@ -1,6 +1,6 @@
 package JE::Boolean;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 
 use strict;
@@ -30,26 +30,25 @@ sub prop {
 
 	my ($self, $name) = @_;
 	
-	JE::Object::Boolean->new($$self[1], $self)->prop($name);
+	$$self[1]->prototype_for('Boolean')->prop($name);
 }
 
 sub keys {
 	my $self = shift;
-	JE::Object::Boolean->new($$self[1], $self)->keys;
+	$$self[1]->prototype_for('Boolean')->keys;
 }
 
-sub delete {
-	my $self = shift;
-	JE::Object::Boolean->new($$self[1], $self)->delete(@_);
-}
+sub delete {1}
 
 sub method {
 	my $self = shift;
-	JE::Object::Boolean->new($$self[1], $self)->method(@_);
+	$$self[1]->prototype_for('Boolean')->prop(shift)->apply(
+		$self,$$self[1]->upgrade(@_)
+	);
 }
 
 
-sub value { shift->[0] }
+sub value { warn caller if !ref $_[0];shift->[0] }
 
 sub exists { !1 }
 

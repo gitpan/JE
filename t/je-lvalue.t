@@ -27,7 +27,8 @@ BEGIN { use_ok 'JE::LValue' }
 
 	# Make sure that JE::LValue's own methods are not delegated
 	isa_ok $lv->get, '___', 'result of get (in non-delegation test)';
-	is refaddr $lv, refaddr $lv->set('doo'), 'set is not delegated';
+	isa_ok $lv->set('doo'), '___', 'set is not delegated';
+		# (returns retval of prop)
 	is refaddr $thing, refaddr $lv->call,   'call is not delegated';
 	is refaddr $thing, refaddr $lv->base,   'base is not delegated';
 	is $lv->property, 'anything can go here',

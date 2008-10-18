@@ -1,6 +1,6 @@
 package JE::Object::Error;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 
 use strict;
@@ -56,7 +56,8 @@ C<< $class->JE::Object::new_constructor >> instead of using C<SUPER>.
 sub new {
 	my($class, $global, $val) = @_;
 	my $self = $class->SUPER::new($global, { 
-		prototype => $global->prop(class $class)->prop('prototype')
+		prototype => $global->prototype_for(class $class) ||
+			$global->prop(class $class)->prop('prototype')
 	});
 
 	$self->prop({
@@ -79,6 +80,7 @@ sub new_constructor {
 		sub {
 			my $proto = shift;
 			my $global = $$proto->{global};
+			$global->prototype_for('Error',$proto);
 			bless $proto, __PACKAGE__;
 			$proto->prop({
 				name  => 'toString',

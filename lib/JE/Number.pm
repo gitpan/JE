@@ -1,6 +1,6 @@
 package JE::Number;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -95,22 +95,21 @@ sub prop {
 
 	my ($self, $name) = @_;
 	
-	JE::Object::Number->new($$self[1], $self)->prop($name);
+	$$self[1]->prototype_for('Number')->prop($name);
 }
 
 sub keys {
 	my $self = shift;
-	JE::Object::Number->new($$self[1], $self)->keys;
+	$$self[1]->prototype_for('Number')->keys;
 }
 
-sub delete {
-	my $self = shift;
-	JE::Object::Number->new($$self[1], $self)->delete(@_);
-}
+sub delete {1}
 
 sub method {
 	my $self = shift;
-	JE::Object::Number->new($$self[1], $self)->method(@_);
+	$$self[1]->prototype_for('Number')->prop(shift)->apply(
+		$self,$$self[1]->upgrade(@_)
+	);
 }
 
 sub value {

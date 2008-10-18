@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -36,7 +36,7 @@ sub add_line_number; # so I can call it without parentheses in sub execute
 sub parse {
 	my($global, $src, $file, $line) = @_;
 
-	($src, my $tree) = JE::Parser::_parse(
+	($src, my ($tree, $vars)) = JE::Parser::_parse(
 		program => $src, $global, $file, $line
 	);
 
@@ -44,26 +44,96 @@ sub parse {
 
 #print Dumper $tree;
 
-	return bless { global     => $global,
+	my $r= bless { global     => $global,
 	               ( $JE::Parser::_parser
 	                 ? (parser => $JE::Parser::_parser)
 	                 : () ),
 	               source     => \$src,
 	               file       => $file,
 	               line       => $line,
+	               vars       => $vars,
 	               tree       => $tree };
 	# $self->{source} is a reference, so that we can share the same
 	# source between code objects without the extra memory overhead
 	# that copying it  would  have.  (Some  JS  script  files  are
 	# rather large.)
+
+	$r->optimise if $ENV{'YES_I_WANT_JE_TO_OPTIMISE'};
+
+	$r;
 }
 
 
 
 
-sub execute {
+sub execute_till { # ~~~ Should this be made public?
+	(my $code, local our $counting) = (shift,shift);
+	local our $ops = 0;
+	JE_Code_OP: {
+		return $code->execute(@_);
+	}
+	# If we get here, then we reached the max number of ops.
+	$@ = shortmess "max_ops ($counting) exceeded";
+	return undef;
+}
+
+sub set_global {
 	my $code = shift;
-	my $global = $$code{global};
+	my $old = $code->{global};
+	$code->{global} = $_[0];
+	{for(@{$code->{cache}||last}) {
+		ref eq 'JE::Code' and $_->set_global($_[0]);
+	}}
+	{for(@{$code->{vars}||last}){
+		ref && ref $$_[4] eq 'JE::Code'
+		    && $$_[4]->set_global($_[0])
+	}}
+	defined $old or return;
+	my @stack = $code->{tree};
+	local *@;
+	while(@stack) {
+	  for(shift @stack) {
+	    for(@$_[1..$#$_]) {
+	      my $r = ref || next;
+	      $r =~ /^(?:ARRAY\z|JE::Code::)/
+	        and push @stack, $_, =~ next;
+	      $r eq 'JE::Boolean'
+	        and $_ = qw(f t)[$_->value], next;
+	      $r eq 'JE::Number'
+	        and $_ = $_->value, next;
+	      $r eq 'JE::String'
+	        and $_ = "s".$_->value16, next;
+	      $r eq 'JE::Null' and $_ = 'n', next;
+	      $r eq 'JE::Object::RegExp'
+	          and $_ = [$_->{source}->value, $$$_{regexp_flags}],
+	              next;
+	    }
+	  }
+	}
+	return;
+}
+
+sub optimise {
+	require 'JE/toperl.pl';
+	goto &{'optimise'};
+}
+
+# Variables pertaining to the current execution context
+our $code; # JE::Code object, not source code
+our $this;
+our $scope;
+our $parser;
+our $pos; # position within the source code; used to calculate a line no.
+our $taint;
+our $ops;
+our $counting;
+our $global;
+our $return;
+our $cache;
+
+sub execute {
+	local $code = shift;
+	local $global = $$code{global};
 
 	# We check $ops’ definedness to avoid resetting the op count when
 	# called recursively.
@@ -72,10 +142,10 @@ sub execute {
 		goto &execute_till;
 	}
 
-	my $this = defined $_[0] ? $_[0] : $global;
+	local $this = defined $_[0] ? $_[0] : $global;
 	shift;
 
-	my $scope = shift || bless [$global], 'JE::Scope';
+	local $scope = shift || bless [$global], 'JE::Scope';
 
 	my $code_type = shift || 0;
 
@@ -85,33 +155,41 @@ sub execute {
 	eval {
 		# passing these values around is too
 		# cumbersome
-		local $JE::Code::this   = $this;
-		local $JE::Code::scope  = $scope;
 		local $JE::Code::parser = $code->{parser}; # might be
 		local our $pos;                            # undef
 		local our $code = $code;
-		local $JE::Code::Expression::_global = $global;
 		local $JE::Code::Expression::_eval   = $code_type == 1;
 
 		package JE::Code::Statement;
-		local our $_created_vars = 0 ;
 		local our $_label;
-		# This $_return variable has two uses. It holds the return
+		package JE::Code;
+		# This $return variable has two uses. It holds the return
 		# value when the JS 'return' statement calls 'last RETURN'.
 		# It also is used by statements that return values. It is
 		# necessary to use this var, rather than simply returning
 		# the value (as in v0.016 and earlier), in order to make
 		# 'while(true) { 3; break }'  return  3,  rather  than
 		#  undefined.
-		local our $_return;
-		package JE::Code;
+		local $return;
+		local $cache = $$code{cache}||=[];
 
 		RETURN: {
 		BREAK: {
 		CONT: {
+			JE'Code'Statement'_create_vars();
+			$$code{sub} ? &{$$code{sub}} :
+			$$code{psrc}? (
+			# ~~~ temporary hack:
+				($$code{psrc}) = $$code{psrc} =~/(.*)/s,
+				&{$$code{sub} =
+				eval{ eval("sub{$$code{psrc}}")||die }
+				|| die "Internal error that should never"
+				   . " happen (please report this): $@: "
+				   . $$code{psrc}
+			}):
 			$$code{tree}->eval;
 			$code_type == 2 # function
-				or defined $_return && ($rv = $_return);
+				or defined $return && ($rv = $return);
 			goto FINISH;
 		} 
 
@@ -133,7 +211,7 @@ sub execute {
 
 		} # end of RETURN
 
-		$rv = $JE::Code::Statement::_return;
+		$rv = $return;
 
 
 		FINISH:  # I have to  put  this  here  inside  the  eval,
@@ -150,33 +228,11 @@ sub execute {
 	}
 	else {
 		# Catch-all for any errors not dealt with elsewhere
-		ref $@ eq '' and $@ = new JE::Object::Error
-			$global, add_line_number $@;
+		$@ = _objectify_error($@);
 	}
 
 	$rv;
 }
-
-sub execute_till { # ~~~ Should this be made public?
-	(my $code, local our $counting) = (shift,shift);
-	local our $ops = 0;
-	JE_Code_OP: {
-		return $code->execute(@_);
-	}
-	# If we get here, then we reached the max number of ops.
-	$@ = shortmess "max_ops ($counting) exceeded";
-	return undef;
-}
-
-# Variables pertaining to the current execution context
-our $code; # JE::Code object, not source code
-our $this;
-our $scope;
-our $parser;
-our $pos; # position within the source code; used to calculate a line no.
-our $taint;
-our $ops;
-our $counting;
 
 sub add_line_number {
 	my $msg = shift;
@@ -198,19 +254,41 @@ sub add_line_number {
 	}
 }
 
+sub _objectify_error {
+	my $msg = shift;
+
+	ref $msg and return $global->upgrade($msg);
+
+	my $class = 'JE::Object::Error';
+
+	if($msg =~ /^Can't\ locate\ object\ method\ 
+	    "(?:c(?:all|onstruct)|apply)"/x) {
+		$class = 'JE::Object::Error::TypeError';
+		$msg = "Argument to new is not a constructor";
+	}
+
+	new $class $global, add_line_number $msg;
+}
+
+sub DDS_freeze {
+	my $self = shift;
+	my $copy = bless {%$self}, ref $self;
+	delete $copy->{sub};
+	$copy;
+}
+
 
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
-use subs qw'_create_vars _eval_term';
+use subs qw'_eval_term';
 use List::Util 'first';
 
-our($_created_vars, $_global,$_label,$_return);
+our( $_label);
 
 *_eval_term = *JE::Code::Expression::_eval_term;
-*_global    = *JE::Code::Expression::_global;
 import JE::Code 'add_line_number';
 sub add_line_number;
 
@@ -241,7 +319,7 @@ sub eval {  # evaluate statement
 
 		BREAK: {
 			my $returned = $$stm[-1]->eval;
-			defined $returned and $_return = $returned
+			defined $returned and $return = $returned
 		}
 
 		# Note that this has 'defined' in it, whereas the similar
@@ -259,20 +337,15 @@ sub eval {  # evaluate statement
 
 	if ($type eq 'statements') {
 
-		# Search for function and var declarations and create vars
-		# -- unless we've already done it.
-		_create_vars($stm) unless ($_created_vars++);
-			
-
 		# Execute the statements, one by one, and return the return
 		# value of the last statement that actually returned one.
 		my $returned;
 		for (@$stm[2..$#$stm]) {
 			next if $_ eq 'empty';
 			defined($returned = $_->eval) and
-				$_return = $returned,
-				ref $_return eq 'JE::LValue'
-					&& get $_return;
+				$return = $returned,
+				ref $return eq 'JE::LValue'
+					&& get $return;
 		}
 		return;
 	}
@@ -280,7 +353,7 @@ sub eval {  # evaluate statement
 		for (@$stm[2..$#$stm]) { if (@$_ == 2) {
 			my $ret = _eval_term $$_[1];
 			ref $ret eq'JE::LValue' and $ret = get $ret;
-			$scope->find_var($$_[0], $ret);
+			$scope->find_var($$_[0])->set($ret);
 		}}
 		return;
 	}
@@ -296,7 +369,7 @@ sub eval {  # evaluate statement
 				&& $$stm[4] ne 'empty'
 				and $returned = $$stm[4]->eval;
 		}
-		defined $returned and $_return = $returned;
+		defined $returned and $return = $returned;
 		return
 	}
 	if ($type =~ /^(?:do|while|for|switch)\z/) {
@@ -324,7 +397,7 @@ sub eval {  # evaluate statement
 			  CONT: {
 			    defined ($returned = ref $$stm[2]
 			      ? $$stm[2]->eval : undef)
-			    and $_return = $returned;
+			    and $return = $returned;
 			  }
 
 			  if($_label and
@@ -338,7 +411,7 @@ sub eval {  # evaluate statement
 			CONT: while ($$stm[2]->eval->to_boolean->value) {
 				defined ($returned = ref $$stm[3]
 					? $$stm[3]->eval : undef)
-				and $_return = $returned;
+				and $return = $returned;
 			}
 			continue {
 				if($_label and
@@ -368,11 +441,11 @@ sub eval {  # evaluate statement
 				
 				(ref $left_side ? $left_side->eval :
 					$scope->find_var($left_side))
-				  ->set(_new JE::String $_global, $_);
+				  ->set(_new JE::String $global, $_);
 
 				defined ($returned = ref $$stm[5]
 					? $$stm[5]->eval : undef)
-				and $_return = $returned;
+				and $return = $returned;
 			}
 
 			# In case 'continue LABEL' is called during the
@@ -405,7 +478,7 @@ sub eval {  # evaluate statement
 			) {
 				defined ($returned = ref $$stm[5]
 					? $$stm[5]->eval : undef)
-				and $_return = $returned;
+				and $return = $returned;
 			}			
 		}
 		else { # switch
@@ -482,9 +555,9 @@ sub eval {  # evaluate statement
 	if ($type eq 'return') {
 		no warnings 'exiting';
 		if (exists $$stm[2]) {
-			ref ($_return = $$stm[2]->eval) eq 'JE::LValue'
-			and $_return = get $_return;
-		} else { $_return = undef }
+			ref ($return = $$stm[2]->eval) eq 'JE::LValue'
+			and $return = get $return;
+		} else { $return = undef }
 		last RETURN;
 	}
 	if ($type eq 'with') {
@@ -492,7 +565,7 @@ sub eval {  # evaluate statement
 			@$scope, $$stm[2]->eval->to_object
 		], 'JE::Scope';
 		my $returned = $$stm[3]->eval;
-		defined $returned and $_return = $returned;
+		defined $returned and $return = $returned;
 		return;
 	}
 	if ($type eq 'throw') {
@@ -501,7 +574,7 @@ sub eval {  # evaluate statement
 			ref ($excep = $$stm[2]->eval) eq 'JE::LValue'
 			and $excep = get $excep;
 		}
-		die defined $excep? $excep : $_global->undefined;
+		die defined $excep? $excep : $global->undefined;
 	}
 	if ($type eq 'try') {
 		# We have one of the following:
@@ -514,7 +587,7 @@ sub eval {  # evaluate statement
 		my $propagate;
 
 		eval { # try
-			local $_return;
+			local $return;
 			no warnings 'exiting';
 			RETURN: {
 			BREAK: {
@@ -526,7 +599,7 @@ sub eval {  # evaluate statement
 			} $propagate = sub{ last RETURN }; goto SAVERESULT;
 
 			SAVERESULT:
-			defined $result or $result = $_return;
+			defined $result or $result = $return;
 			goto FINALLY;
 		};
 		# check ref first to avoid the overhead of overloading
@@ -534,11 +607,10 @@ sub eval {  # evaluate statement
 			undef $result; # prevent { 3; throw ... } from
 			                # returning 3
 
-			# Turn miscellaneous errors into TypeErrors
-			ref $@ or $@ = new JE::Object::Error::TypeError
-				$_global, add_line_number $@;
+			# Turn miscellaneous errors into Error objects
+			$@ = JE'Code'_objectify_error($@);
 
-			(my $new_obj = new JE::Object $_global)
+			(my $new_obj = new JE::Object $global)
 			 ->prop({
 				name => $$stm[3],
 				value => $@,
@@ -549,7 +621,7 @@ sub eval {  # evaluate statement
 			], 'JE::Scope';
 	
 			eval { # in case the catch block ends abruptly
-			  local $_return;
+			  local $return;
 			  no warnings 'exiting';
 			  RETURN: {
 			  BREAK: {
@@ -561,7 +633,7 @@ sub eval {  # evaluate statement
 			  } $propagate = sub{ last RETURN }; goto SAVE;
 
 			  SAVE:
-			  defined $result or $result = $_return;
+			  defined $result or $result = $return;
 			  $@ = '';
 			}
 		}
@@ -573,63 +645,42 @@ sub eval {  # evaluate statement
 		}
 		defined $exception and ref $exception || $exception ne ''
 			and die $exception;
-		$_return = $result if defined $result;
+		$return = $result if defined $result;
 		$propagate and &$propagate();
 	}
 }
 
 sub _create_vars {  # Process var and function declarations
-	local *_ = \shift;
-	my $type = $$_[1];
-	if ($type eq 'var' ) {
-		for (@$_[2..$#$_]) {
-			$scope->new_var($$_[0]);
+	my $vars = $code->{vars};
+	for(@$vars) {
+		if(ref) { # function
+			# format: [[...], function=> 'name',
+			#          [ (params) ], $statements_obj, \@vars ]
+			# With optimisation on, the $statements_obj will
+			# actually be a code object. 
+			$scope->[-1]->delete($$_[2], 1);
+			my $new_code_obj;
+			if(ref $$_[4] eq 'JE::Code') {
+				$new_code_obj = $$_[4]
+			}
+			else {
+			  ($new_code_obj = bless {
+			    map+($_=>$code->{$_}),
+			      qw/global source file line/
+			  }, 'JE::Code')
+			  ->{tree} = $$_[4];
+			  $new_code_obj->{vars} = $$_[5];
+			}
+			$scope->new_var($$_[2], new JE::Object::Function {
+				scope    => $scope,
+				name     => $$_[2],
+				argnames => $$_[3],
+				function => $new_code_obj
+			});
 		}
-	}
-	elsif ($type eq 'statements') {
-		for (@$_[2..$#$_]) {
-			next if $_ eq 'empty';
-			_create_vars $_;
+		else {
+			$scope->new_var($_);
 		}
-	}
-	elsif ($type eq 'if') {
-		_create_vars $$_[3];
-		_create_vars $$_[4] if exists $$_[4];;
-	}
-	elsif ($type eq 'do') {
-		_create_vars $$_[2];
-	}
-	elsif ($type eq 'while' || $type eq 'with') {
-		_create_vars $$_[3];
-	}
-	elsif ($type eq 'for') {
-		_create_vars $$_[2] if ref $$_[2] && $$_[2][1] eq 'var';
-		_create_vars $$_[-1];
-	}
-	elsif ($type eq 'switch') {
-		for my $i (1..($#$_-2)/2) {
-			_create_vars $$_[$i*2+2]
-			 # Even-numbered array indices starting with 4
-		}
-	}
-	elsif ($type eq 'try') {
-		ref eq __PACKAGE__ and _create_vars $_ for @$_[2..$#$_];
-	}
-	elsif ($type eq 'function') {
-		# format: [[...], function=> 'name',
-		#          [ (params) ], $statements_obj] 
-		$scope->[-1]->delete($$_[2], 1);
-		(my $new_code_obj = bless {%$code}, 'JE::Code')
-		 ->{tree} = $$_[4];
-		$scope->new_var($$_[2], new JE::Object::Function {
-			scope    => $scope,
-			name     => $$_[2],
-			argnames => $$_[3],
-			function => $new_code_obj
-		});
-	}
-	elsif ($type eq 'labelled') {
-		_create_vars $$_[-1];
 	}
 }
 
@@ -638,7 +689,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 # B::Deparse showed me how to get these values.
 use constant nan => sin 9**9**9;
@@ -650,8 +701,6 @@ use Scalar::Util 'tainted';
 
 import JE::Code 'add_line_number';
 sub add_line_number;
-
-our($_global);
 
 BEGIN{*T = *JE::Code::T;}
 
@@ -690,29 +739,29 @@ BEGIN{*T = *JE::Code::T;}
 	no strict 'refs';
 	*{'predelete'} = sub {
 		ref(my $term = shift) eq 'JE::LValue' or return
-			new JE::Boolean $_global, 1;
+			new JE::Boolean $global, 1;
 		my $base = $term->base;
-		new JE::Boolean $_global,
+		new JE::Boolean $global,
 			defined $base ? $base->delete($term->property) : 1;
 	};
 	*{'prevoid'} = sub {
 		my $term = shift;
 		$term = get $term while ref $term eq 'JE::LValue';
-		return $_global->undefined;
+		return $global->undefined;
 	};
 	*{'pretypeof'} = sub {
 		my $term = shift;
 		ref  $term eq 'JE::LValue' and
 			ref base $term eq '' and
-			return _new JE::String $_global, 'undefined';
-		_new JE::String $_global, typeof $term;
+			return _new JE::String $global, 'undefined';
+		_new JE::String $global, typeof $term;
 	};
 	*{'pre++'} = sub {
 		# ~~~ These is supposed to use the same rules
 		#     as the + infix op for the actual
 		#     addition part. Verify that it does this.
 		my $term = shift;
-		$term->set(new JE::Number $_global,
+		$term->set(new JE::Number $global,
 			get $term->to_number + 1);
 	};
 	*{'pre--'} = sub {
@@ -720,14 +769,14 @@ BEGIN{*T = *JE::Code::T;}
 		#     as the - infix op for the actual
 		#     subtraction part. Verify that it does this.
 		my $term = shift;
-		$term->set(new JE::Number $_global,
+		$term->set(new JE::Number $global,
 			get $term->to_number->value - 1);
 	};
 	*{'pre+'} = sub {
 		shift->to_number;
 	};
 	*{'pre-'} = sub {
-		new JE::Number $_global, -shift->to_number->value;
+		new JE::Number $global, -shift->to_number->value;
 	};
 	*{'pre~'} = sub {
 		my $num = shift->to_number->value;
@@ -741,19 +790,19 @@ BEGIN{*T = *JE::Code::T;}
 		{ use integer; # for signed bitwise negation
 		  $num = ~$num; }
 		
-		new JE::Number $_global, $num;	
+		new JE::Number $global, $num;	
 	};
 	*{'pre!'} = sub {
-		new JE::Boolean $_global, !shift->to_boolean->value
+		new JE::Boolean $global, !shift->to_boolean->value
 	};
 	*{'in*'} = sub {
-		new JE::Number $_global,
+		new JE::Number $global,
 			shift->to_number->value *
 			shift->to_number->value;
 	};
 	*{'in/'} = sub {
 		my($num,$denom) = map to_number $_->value, @_[0,1];
-		new JE::Number $_global,
+		new JE::Number $global,
 			$denom ?
 				$num/$denom :
 			# Divide by zero:
@@ -764,7 +813,7 @@ BEGIN{*T = *JE::Code::T;}
 	*{'in%'} = sub {
 		my($num,$denom) = map to_number $_->value,
 			@_[0,1];
-		new JE::Number $_global,
+		new JE::Number $global,
 			$num+1 == $num ? nan :
 			$num == $num && abs($denom) == inf ?
 				$num :
@@ -776,16 +825,16 @@ BEGIN{*T = *JE::Code::T;}
 		$y = $y->to_primitive;
 		if($x->typeof eq 'string' or
 		   $y->typeof eq 'string') {
-			return _new JE::String $_global,
+			return _new JE::String $global,
 				$x->to_string->value16 .
 				$y->to_string->value16;
 		}
-		return new JE::Number $_global,
+		return new JE::Number $global,
 		                      $x->to_number->value +
 		                      $y->to_number->value;
 	};
 	*{'in-'} = sub {
-		new JE::Number $_global,
+		new JE::Number $global,
 			shift->to_number->value -
 			shift->to_number->value;
 	};
@@ -806,11 +855,11 @@ BEGIN{*T = *JE::Code::T;}
 		my $ret = ($num << $shift_by) % 2**32;
 		$ret -= 2**32 if $ret >= 2**31;
 
-		new JE::Number $_global, $ret;
+		new JE::Number $global, $ret;
 
 		# Fails on 64-bit:
 		#use integer;
-		#new JE::Number $_global,
+		#new JE::Number $global,
 		#	$num << $shift_by;
 	};
 	*{'in>>'} = sub {
@@ -828,7 +877,7 @@ BEGIN{*T = *JE::Code::T;}
 			: int($shift_by) % 32;
 
 		use integer;
-		new JE::Number $_global,
+		new JE::Number $global,
 			$num >> $shift_by;
 	};
 	*{'in>>>'} = sub {
@@ -844,12 +893,12 @@ BEGIN{*T = *JE::Code::T;}
 			? 0
 			: int($shift_by) % 32;
 
-		new JE::Number $_global,
+		new JE::Number $global,
 			$num >> $shift_by;
 	};
 	*{'in<'} = sub {
 		my($x,$y) = map to_primitive $_, @_[0,1];
-		new JE::Boolean $_global,
+		new JE::Boolean $global,
 			$x->typeof eq 'string' &&
 			$y->typeof eq 'string'
 			? $x->to_string->value16 lt $y->to_string->value16
@@ -857,7 +906,7 @@ BEGIN{*T = *JE::Code::T;}
 	};
 	*{'in>'} = sub {
 		my($x,$y) = map to_primitive $_, @_[0,1];
-		new JE::Boolean $_global,
+		new JE::Boolean $global,
 			$x->typeof eq 'string' &&
 			$y->typeof eq 'string'
 			? $x->to_string->value16 gt $y->to_string->value16
@@ -865,7 +914,7 @@ BEGIN{*T = *JE::Code::T;}
 	};
 	*{'in<='} = sub {
 		my($x,$y) = map to_primitive $_, @_[0,1];
-		new JE::Boolean $_global,
+		new JE::Boolean $global,
 			$x->typeof eq 'string' &&
 			$y->typeof eq 'string'
 			? $x->to_string->value16 le $y->to_string->value16
@@ -873,7 +922,7 @@ BEGIN{*T = *JE::Code::T;}
 	};
 	*{'in>='} = sub {
 		my($x,$y) = map to_primitive $_, @_[0,1];
-		new JE::Boolean $_global,
+		new JE::Boolean $global,
 			$x->typeof eq 'string' &&
 			$y->typeof eq 'string'
 			? $x->to_string->value16 ge $y->to_string->value16
@@ -881,53 +930,53 @@ BEGIN{*T = *JE::Code::T;}
 	};
 	*{'ininstanceof'} = sub {
 		my($obj,$func) = @_;
-		die new JE::Object::Error::TypeError $_global,
+		die new JE::Object::Error::TypeError $global,
 			add_line_number "$func is not an object"
 			if $func->primitive;
 
-		die new JE::Object::Error::TypeError $_global,
+		die new JE::Object::Error::TypeError $global,
 			add_line_number "$func is not a function"
 			if $func->typeof ne 'function';
 		
-		return new JE::Boolean $_global, 0 if $obj->primitive;
+		return new JE::Boolean $global, 0 if $obj->primitive;
 
 		my $proto_id = $func->prop('prototype');
 		!defined $proto_id || $proto_id->primitive and die new
-		   JE::Object::Error::TypeError $_global,
+		   JE::Object::Error::TypeError $global,
 		   add_line_number "Function $$$func{func_name} has no prototype property";
 		$proto_id = $proto_id->id;
 
 		0 while (defined($obj = $obj->prototype)
-		         or return new JE::Boolean $_global, 0),
+		         or return new JE::Boolean $global, 0),
 			$obj->id ne $proto_id;
 		
-		new JE::Boolean $_global, 1;
+		new JE::Boolean $global, 1;
 	};
 	*{'inin'} = sub {
 		my($prop,$obj) = @_;
-		die new JE::Object::Error::TypeError $_global,
+		die new JE::Object::Error::TypeError $global,
 		    add_line_number "$obj is not an object"
 			if $obj->primitive;
-		new JE::Boolean $_global, defined $obj->prop($prop);
+		new JE::Boolean $global, defined $obj->prop($prop);
 	};
 	*{'in=='} = sub {
 		my($x,$y) = @_;
 		my($xt,$yt) = (typeof $x, typeof $y);
 		my($xi,$yi) = (    id $x,     id $y);
-		$xt eq $yt and return new JE::Boolean $_global,
+		$xt eq $yt and return new JE::Boolean $global,
 			$xi eq $yi && $xi ne 'num:nan';
 
 		$xi eq 'null' and
-			return new JE::Boolean $_global,
+			return new JE::Boolean $global,
 				$yi eq 'undef';
 		$xi eq 'undef' and
-			return new JE::Boolean $_global,
+			return new JE::Boolean $global,
 				$yi eq 'null';
 		$yi eq 'null' and
-			return new JE::Boolean $_global,
+			return new JE::Boolean $global,
 				$xi eq 'undef';
 		$yi eq 'undef' and
-			return new JE::Boolean $_global,
+			return new JE::Boolean $global,
 				$xi eq 'null';
 
 		if($xt eq 'boolean') {
@@ -949,26 +998,26 @@ BEGIN{*T = *JE::Code::T;}
 		  ||
 		($yt eq 'number' and $xt eq 'string' || $xt eq 'number')
 		  and
-			return new JE::Boolean $_global,
+			return new JE::Boolean $global,
 			to_number $x->[0] == to_number $y->[0];
 
 		$xt eq 'string' && $yt eq 'string' and 
-			return new JE::Boolean $_global,
+			return new JE::Boolean $global,
 			$x->value16 eq $y->value16;
 		
-		new JE::Boolean $_global, 0;
+		new JE::Boolean $global, 0;
 	};
 	*{'in!='} = sub {
-		new JE::Boolean $_global, !&{'in=='}->[0];
+		new JE::Boolean $global, !&{'in=='}->[0];
 	};
 	*{'in==='} = sub {
 		my($x,$y) = @_;
 		my($xi,$yi) = (    id $x,     id $y);
-		return new JE::Boolean $_global,
+		return new JE::Boolean $global,
 			$xi eq $yi && $xi ne 'num:nan';
 	};
 	*{'in!=='} = sub {
-		new JE::Boolean $_global, !&{'in==='}->[0];
+		new JE::Boolean $global, !&{'in==='}->[0];
 	};
 
 	# ~~~ These three bitwise operators are slower than molasses. There
@@ -990,7 +1039,7 @@ BEGIN{*T = *JE::Code::T;}
 		$num2 -= 2**32 if $num2 >= 2**31;
 
 		use integer;
-		new JE::Number $_global,
+		new JE::Number $global,
 			$num & $num2;
 	};
 	*{'in^'} = sub {
@@ -1009,7 +1058,7 @@ BEGIN{*T = *JE::Code::T;}
 		$num2 -= 2**32 if $num2 >= 2**31;
 
 		use integer;
-		new JE::Number $_global,
+		new JE::Number $global,
 			$num ^ $num2;
 	};
 	*{'in|'} = sub {
@@ -1028,7 +1077,7 @@ BEGIN{*T = *JE::Code::T;}
 		$num2 -= 2**32 if $num2 >= 2**31;
 
 		use integer;
-		new JE::Number $_global,
+		new JE::Number $global,
 			$num | $num2;
 	};
 }
@@ -1098,7 +1147,7 @@ sub eval {  # evalate (sub)expression
 		}
 	}
 	if ($type eq 'assign') {
-		my @copy = @$expr[2..$#$expr];
+		my @copy = \(@$expr[2..$#$expr]);
 		# Evaluation is done left-first in JS, unlike in
 		# Perl, so a = b = c is evaluated in this order:
 		#  - evaluate a
@@ -1110,25 +1159,25 @@ sub eval {  # evalate (sub)expression
 		# Check first to see whether we have the terms
 		# of a ? : at the end:
 		my @qc_terms = @copy >= 3 && (
-				ref $copy[-2] # avoid stringification
-				|| $copy[-2] !~ /=\z/
+				ref ${$copy[-2]} # avoid stringification
+				|| ${$copy[-2]} =~ /^(?:[tfu]\z|[si0-9])/
 		)
 			? (pop @copy, pop @copy) : ();
 			# @qc_terms is now in reverse order
 
 		# Make a list of operands, evalling each
-		my @terms = _eval_term shift @copy;
+		my @terms = _eval_term ${shift @copy};
 		my @ops;
 		while(@copy) {
-			push @ops, shift @copy;
-			push @terms, _eval_term shift @copy;
+			push @ops, ${shift @copy};
+			push @terms, _eval_term ${shift @copy};
 		}
 
 		my $val = pop @terms;		
 
 		# Now apply ? : if it's there
 		@qc_terms and $val = _eval_term
-			$qc_terms[$val->to_boolean->[0]];
+			${$qc_terms[$val->to_boolean->[0]]};
 
 		for (reverse @ops) {
 			no strict 'refs';
@@ -1141,7 +1190,7 @@ sub eval {  # evalate (sub)expression
 				and $val = taint $val $taint;
 			eval { (pop @terms)->set($val) };
 			$@ and die new JE::Object::Error::ReferenceError
-				$_global, add_line_number "Cannot assign to a non-lvalue";
+				$global, add_line_number "Cannot assign to a non-lvalue";
 			# ~~~ This needs to check whether it was an error
 			#     other than 'Can't locate objec mtehod "set"
 			#     since store handlers can thrown other errors.
@@ -1153,27 +1202,28 @@ sub eval {  # evalate (sub)expression
 		return $val;
 	}
 	if($type eq 'lassoc') { # left-associative
-		my @copy = @$expr[2..$#$expr];
-		my $result = _eval_term shift @copy;
+		my @copy = \(@$expr[2..$#$expr]);
+		my $result = _eval_term ${shift @copy};
 		while(@copy) {
 			no strict 'refs';
 			# We have to deal with || && here for the sake of
 			# short-circuiting
-			if ($copy[0] eq '&&') {
-				$result = _eval_term($copy[1]) if
+			my $op = ${$copy[0]};
+			if ($op eq '&&') {
+				$result = _eval_term(${$copy[1]}) if
 					$result->to_boolean->[0];
 				$result = $result->get
 					if ref $result eq 'JE::LValue'; 
 			}
-			elsif($copy[0] eq '||') {
-				$result = _eval_term($copy[1]) unless
+			elsif($op eq '||') {
+				$result = _eval_term(${$copy[1]}) unless
 					$result->to_boolean->[0];
 				$result = $result->get
 					if ref $result eq 'JE::LValue'; 
 			}
 			else {
-				$result = &{'in' . $copy[0]}(
-					$result, _eval_term $copy[1]
+				$result = &{"in$op"}(
+					$result, _eval_term ${$copy[1]}
 				);
 			}
 			splice @copy, 0, 2; # double shift
@@ -1197,7 +1247,7 @@ sub eval {  # evalate (sub)expression
 
 		my $ret = (my $term = _eval_term $$expr[2])
 			->to_number;
-		$term->set(new JE::Number $_global,
+		$term->set(new JE::Number $global,
 			$ret->value + (-1,1)[$$expr[3] eq '++']);
 		return $ret;
 	}
@@ -1252,7 +1302,7 @@ sub eval {  # evalate (sub)expression
 			}
 		}
 
-		my $ary = new JE::Object::Array $_global;
+		my $ary = new JE::Object::Array $global;
 		$$$ary{array} = \@ary; # sticking it in like this
 		                       # makes 'undef' elements non-
 		                       # existent, rather
@@ -1260,13 +1310,13 @@ sub eval {  # evalate (sub)expression
 		return $ary;
 	}
 	if($type eq 'hash') {
-		my $obj = new JE::Object $_global;
-		local @_ = @$expr[2..$#$expr];
+		my $obj = new JE::Object $global;
+		local @_ = \(@$expr[2..$#$expr]);
 		my (@keys, $key, $value);
 		while(@_) { # I have to loop through them to keep
 		            # the order.
-			$key = shift;
-			$value = _eval_term shift;
+			$key = ${+shift};
+			$value = _eval_term ${shift;};
 			$value = get $value if ref $value eq 'JE::LValue';
 			$obj->prop($key, $value);
 		}
@@ -1274,17 +1324,20 @@ sub eval {  # evalate (sub)expression
 	}
 	if ($type eq 'func') {
 		# format: [[...], function=> 'name',
-		#          [ params ], $statements_obj] 
+		#          [ params ], $statements_obj, \@vars] 
 		#     or: [[...], function =>
-		#          [ params ], $statements_obj] 
+		#          [ params ], $statements_obj, \@vars] 
 		my($name,$params,$statements) = ref $$expr[2] ?
 			(undef, @$expr[2,3]) : @$expr[2..4];
 		my $func_scope = $name
-			? bless([@$scope, my $obj=new JE::Object $_global], 
+			? bless([@$scope, my $obj=new JE::Object $global], 
 				'JE::Scope')
 			: $scope;
-		(my $new_code_obj = bless {%$code}, 'JE::Code')
+		(my $new_code_obj = bless {
+			map+($_=>$code->{$_}),qw/global source file line/
+		}, 'JE::Code')
 		 ->{tree} = $statements;
+		$new_code_obj->{vars} = $$expr[-1];
 		my $f = new JE::Object::Function {
 			scope    => $func_scope,
 			defined $name ? (name => $name) : (),
@@ -1303,19 +1356,23 @@ sub eval {  # evalate (sub)expression
 	}
 }
 sub _eval_term {
-	my $term = shift;
-#my $copy = $term;
-	while (ref $term eq 'JE::Code::Expression') {
-		$term = $term->eval;
-	}
-#defined $term or print "@$copy";
+	my $term = $_[0];
 
-	# ~~~ For some reason this 'die' causes a bus error.	
-	#defined $term or die "Internal Error in _eval_term " .
-	#	"(this is a bug; please report it)";
+	return $term->eval if ref $term eq 'JE::Code::Expression';
 
-	ref $term ? $term : $term eq 'this' ?
-				$this : $scope->find_var($term);
+	ref $term     ? ref $term eq 'ARRAY'
+	                ? ( require JE::Object::RegExp,
+	                    return JE::Object::RegExp->new(
+	                      $global, @$term
+	                    ) )
+	                : $term :
+	$term eq'this'? $this :
+	$term =~ /^s/ ? $_[0] = JE::String->_new($global,substr $term,1) :
+	$term =~ /^i/ ? $scope->find_var(substr $term,1) :
+	$term eq 't'  ? $global->true :
+	$term eq 'f'  ? $global->false :
+	$term eq 'n'  ? $global->null :
+	               ($_[0] = JE::Number->new($global,$term));
 }
 
 
@@ -1323,7 +1380,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1335,7 +1392,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 sub list {
 	my $self = shift;
@@ -1381,7 +1438,7 @@ JE::Code - ECMAScript parser and code executor for JE
 
   $code->execute;
 
-=head1 THE METHOD
+=head1 METHODS
 
 =over 4
 
@@ -1412,6 +1469,14 @@ statement for a value to be returned.
 
 If an error occurs, C<undef> will be returned and C<$@> will contain the
 error message. If no error occurs, C<$@> will be a null string.
+
+=item $code->set_global( $thing )
+
+You can transfer a JE::Code object to another JavaScript environment by
+setting the global object this way. You can also set it to C<undef>, if,
+for instance, you want to serialise the compiled code without serialising
+the entire JS environment. If you do that, you'll need to set the global
+object again before you can use the code object.
 
 =back
 

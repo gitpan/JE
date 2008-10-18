@@ -830,3 +830,15 @@ is('ßSSΣσς κλσ σδφκλΞΛΚΔΞΣΦΣΔΞΚΛΦ нДСФКЛФДЛС�
 method_boilerplate_tests(String.prototype,'toLocaleUpperCase',0)
 
 // ~~~ ?
+
+// ===================================================
+// 15.5.5.1: length
+// ===================================================
+
+// We have to test this both for objects and strings, since JE sneakily
+// foregoes converting a string into an object, for speed’s sake. (In other
+// words, we have two implementations to test.)
+
+// ~~~
+
+diag("To do: finish writing this")

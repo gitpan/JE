@@ -1,6 +1,6 @@
 package JE::Object::Boolean;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 
 use strict;
@@ -53,7 +53,8 @@ is specific to JE::Object::Boolean is explained here.
 sub new {
 	my($class, $global, $val) = @_;
 	my $self = $class->SUPER::new($global, {
-		prototype => $global->prop('Boolean')->prop('prototype')
+		prototype => $global->prototype_for('Boolean')
+		          || $global->prop('Boolean')->prop('prototype')
 	});
 
 	$$$self{value} = defined $val
@@ -101,6 +102,7 @@ sub _new_constructor {
 		dontenum => 1,
 		readonly => 1,
 	}), __PACKAGE__;
+	$global->prototype_for('Boolean',$proto);
 
 	$$$proto{value} = !1;
 	
@@ -122,7 +124,7 @@ sub _new_constructor {
 				) unless $self->class eq 'Boolean';
 
 				return JE::String->_new($global,
-					qw/false true/[$$$self{value}]);
+					qw/false true/[$self->value]);
 			},
 		}),
 		dontenum => 1,

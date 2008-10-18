@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 
 use strict;
@@ -58,7 +58,8 @@ is specific to JE::Object::String is explained here.
 sub new {
 	my($class, $global, $val) = @_;
 	my $self = $class->SUPER::new($global, {
-		prototype => $global->prop('String')->prop('prototype')
+		prototype => $global->prototype_for('String')
+		          || $global->prop('String')->prop('prototype')
 	});
 
 	$$$self{value} = defined $val
@@ -108,7 +109,7 @@ sub value16 { ${+shift}->{value} }
 
 sub is_readonly {
 	my $self = shift;
-	$_[0] eq length and return 1;
+	$_[0] eq 'length' and return 1;
 	SUPER::is_readonly $self @_;
 }
 
@@ -174,6 +175,7 @@ sub _new_constructor {
 		readonly => 1,
 	}), __PACKAGE__;
 	$$$proto{value} = '';
+	$global->prototype_for('String', $proto);
 
 	$proto->prop({
 		name  => 'toString',
@@ -190,6 +192,7 @@ sub _new_constructor {
 					"String object"
 				) unless $self->class eq 'String';
 
+				return $self if ref $self eq 'JE::String';
 				JE::String->_new($global, $$$self{value});
 			},
 		}),
@@ -394,8 +397,8 @@ sub _new_constructor {
 				# from a call to String.prototype.exec
 
 				if (not $re_obj->prop('global')->value) {
-					return $global->prop('RegExp')
-						->prop('prototype')
+					return $global
+						->prototype_for('RegExp')
 						->prop('exec')
 						->apply($re_obj, $str);
 				}

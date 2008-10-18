@@ -1,6 +1,6 @@
 package JE::Object::Number;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 
 use strict;
@@ -56,7 +56,8 @@ is specific to JE::Object::Number is explained here.
 sub new {
 	my($class, $global, $val) = @_;
 	my $self = $class->SUPER::new($global, {
-		prototype => $global->prop('Number')->prop('prototype')
+		prototype => $global->prototype_for('Number')
+		          || $global->prop('Number')->prop('prototype')
 	});
 
 	$$$self{value} = defined blessed $val && $val->can('to_number')
@@ -156,6 +157,7 @@ sub _new_constructor {
 		dontenum => 1,
 		readonly => 1,
 	}), __PACKAGE__;
+	$global->prototype_for(Number=>$proto);
 
 	$$$proto{value} = 0;
 	

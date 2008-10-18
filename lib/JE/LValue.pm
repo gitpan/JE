@@ -1,6 +1,6 @@
 package JE::LValue;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -94,7 +94,6 @@ sub set {
 	my $obj = (my $self = shift)->[0];
 	defined blessed $obj or $obj = $$self[0] = $$obj;
 	$obj->prop($self->[1], shift);
-	$self;
 }
 
 sub call {
@@ -192,7 +191,7 @@ Gets the value of the property.
 
 =item $lv->set($value)
 
-Sets the property to $value and returns $lv. If the lvalue has no base
+Sets the property to $value and returns $value. If the lvalue has no base
 object, the global object will become its base object automatically. 
 <Note:> Whether the lvalue object itself is modified in the latter case is
 not set in stone yet. (Currently it is modified, but that may change.) 

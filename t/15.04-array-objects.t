@@ -148,8 +148,10 @@ is([1,null,true,false,void 0,{},"kjd"].toString(),
 	'toString')
 
 try { Array.prototype.toString.apply(3) }
-catch(it) { ok(it.message.substring(0,22) == 'Object is not an Array')
-            ok(it instanceof TypeError) }
+catch(it) { ok(it.message.substring(0,22) == 'Object is not an Array',
+               "toString's error message")
+            ok(it instanceof TypeError,
+               "toString's error type") }
 
 
 // ===================================================

@@ -1,6 +1,6 @@
 package JE::String;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 
 use strict;
@@ -63,23 +63,22 @@ sub prop {
 		));
 	}
 
-	JE::Object::String->new($$self[2], $self)->prop(@_);
+	$$self[2]->prototype_for('String')->prop(@_);
 }
 
 sub keys {
 	my $self = shift;
-	$$self[2]->prop('String')->prop('prototype')->keys;
-}
+	$$self[2]->prototype_for('String')->keys;}
 
 sub delete {
-	my $self = shift;
-	if ($_[0] eq 'length') { return !1 }
-	JE::Object::String->new($$self[2], $self)->delete(@_);
+	return $_[1] ne 'length'
 }
 
 sub method {
 	my $self = shift;
-	JE::Object::String->new($$self[2], $self)->method(@_);
+	$$self[2]->prototype_for('String')->prop(shift)->apply(
+		$self,$$self[2]->upgrade(@_)
+	);
 }
 
 

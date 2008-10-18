@@ -1,6 +1,6 @@
 package JE::Object::Error::TypeError;
 
-our $VERSION = '0.029';
+our $VERSION = '0.030';
 
 
 use strict;
@@ -49,8 +49,10 @@ sub new_constructor {
 			my $proto = shift;
 			my $global = $$proto->{global};
 			bless $proto, __PACKAGE__;
+			$global->prototype_for('TypeError',$proto);
 			$proto->prototype(
-				$global->prop('Error')->prop('prototype')
+			   $global->prototype_for('Error')
+			|| $global->prop('Error')->prop('prototype')
 			);
 			$proto->prop({
 				name  => 'name',

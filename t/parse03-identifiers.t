@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 27;
+use Test::More tests => 30;
 use strict;
 use utf8;
 
@@ -14,7 +14,7 @@ BEGIN { use_ok('JE') };
 
 my $j = new JE;
 
-isa_ok( my $code = $j->parse( <<'--end--' ), 'JE::Code');
+isa_ok( my $code = $j->parse( <<'--end--' ), 'JE::Code') || diag($@);
   a = 4;
   $ = 5;
   _ = 6;
@@ -45,6 +45,10 @@ isa_ok( my $code = $j->parse( <<'--end--' ), 'JE::Code');
   di\uFb03cult = 26;
 
   \u03c0\u03bf\u03c5\u03b8\ud801\udc29\u03bd\u1f70 = 27;
+
+  t\u0068is = "that"
+  f\u0061lse = "fraudulent"
+  nul\u006c = "nil"
 --end--
 
 #--------------------------------------------------------------------#
@@ -54,7 +58,7 @@ $code->execute;
 is($@, '', 'execute code');
 
 #--------------------------------------------------------------------#
-# Tests 4-27: Check side-effects
+# Tests 4-30: Check side-effects
 
 is( $j->prop('a'), 4 );
 is( $j->prop('$'), 5 );
@@ -80,3 +84,6 @@ is( $j->prop('ππ'), 24  );
 is( $j->prop('ﬁnal'), 25 );
 is( $j->prop('diﬃcult'), 26 );
 is( $j->prop('πουθ𐐩νὰ'), 27 );
+is( $j->prop('this'), 'that' );
+is( $j->prop('false'), 'fraudulent' );
+is( $j->prop('null'), 'nil' );
