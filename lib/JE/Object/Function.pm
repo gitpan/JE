@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.030';
+our $VERSION = '0.031';
 
 
 use strict;
@@ -308,6 +308,8 @@ sub new {
 	if(exists $opts{name}) {
 		$$guts{func_name} = $opts{name};
 	}
+
+	$self->prop({dontdel=>1, name=>'arguments',value=>$global->null});
 	 	
 	$self;
 }
@@ -441,11 +443,15 @@ sub apply { # ~~~ we need to upgrade the args passed to apply, but still
 	}
 	elsif ($$guts{function}) {
 		my $at = $@;
-		my $ret = $$guts{function}->execute(
-			$obj->to_object, _init_scope(
+		my $scope = _init_scope(
 				$self, $$guts{scope},
 				$$guts{func_argnames}, @_
-			), 2
+			);
+		my $time_bomb = bless [$self, $self->prop('arguments')],
+			'JE::Object::Function::_arg_wiper';
+		$self->prop('arguments', $$scope[-1]{-arguments});
+		my $ret = $$guts{function}->execute(
+			$obj->to_object, $scope, 2
 		);
 		defined $ret or die;
 		$@ = $at;
@@ -454,6 +460,13 @@ sub apply { # ~~~ we need to upgrade the args passed to apply, but still
 	else {
 		return $global->undefined;
 	}
+}
+
+sub JE::Object::Function::_arg_wiper::DESTROY {
+	$_[0][0] # function
+	 ->prop(
+	  'arguments', $_[0][1] # old arguments value
+	 )
 }
 
 sub _init_scope { # initialise the new scope for the function call
@@ -657,7 +670,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.030';
+our $VERSION = '0.031';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -680,9 +693,14 @@ sub new {
 	# latter have to be valid identifiers. Same 'pplies to dontdel, o'
 	# course.
 	
+	# Note on arguments vs  -arguments:  ‘arguments’  represents the
+	# actual ‘arguments’  property,  which may or may not refer to the
+	# Arguments object,  depending on  whether  there  is  an  argument
+	# named  ‘arguments’.  ‘-arguments’  always refers to the Arguments
+	# object, which we need further up when we assign to the arguments
+	# property of the function itself.
 
-	unless (exists $self{arguments}) {
-		$self{arguments} = 
+	$self{-arguments} = 
 			JE::Object::Function::Arguments->new(
 				$$opts{global},
 				$$opts{function},
@@ -690,6 +708,8 @@ sub new {
 				$$opts{argnames},
 				@{$$opts{args}},
 			);
+	unless (exists $self{arguments}) {
+		$self{arguments} = $self{-arguments}
 	};
 
 	return bless \%self, $class;
@@ -737,7 +757,7 @@ sub prototype{}
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.030';
+our $VERSION = '0.031';
 
 our @ISA = 'JE::Object';
 

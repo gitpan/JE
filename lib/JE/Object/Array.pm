@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.030';
+our $VERSION = '0.031';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -347,7 +347,7 @@ sub _new_constructor {
 			argnames => [qw/start end/],
 			no_proto => 1,
 			function_args => ['this'],
-			function => \&_shift,
+			function => \&_slice,
 		}),
 		dontenum => 1,
 	});

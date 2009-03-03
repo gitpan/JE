@@ -1,6 +1,6 @@
 package JE::Number;
 
-our $VERSION = '0.030';
+our $VERSION = '0.031';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -49,6 +49,10 @@ use overload fallback => 1,
 		my $value = $_[0][0];
 		$value && $value == $value;
 	 },
+	'+'   => sub { $_[0]->value + $_[1] }, # ~~~ I shouldn’t need this,
+	                                       #      but  perl’s  magic
+	                                       #      auto-generation
+	                                       #     isn’t so magic.
 #	 cmp  =>  sub { "$_[0]" cmp $_[1] };
 ;
 

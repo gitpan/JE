@@ -1,6 +1,6 @@
 package JE::LValue;
 
-our $VERSION = '0.030';
+our $VERSION = '0.031';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -124,9 +124,15 @@ sub AUTOLOAD {
 
 	return if $method eq 'DESTROY';
 
-	shift->get->$method(@_); # ~~~ Maybe I should use goto
+#my $l = $_[0]; my $ret, my @ret;;
+no warnings 'uninitialized';
+#eval {
+# $ret =	
+return shift->get->$method(@_); # ~~~ Maybe I should use goto
 	                         #     to remove AUTOLOAD from
 	                         #     the call stack.
+#1} or die add_line_number $l->base . ' ' . $l->property . ' ' . $l->get . #' ' . ref $_->get . qq': $@';
+#return $ret;
 }
 
 sub can { # I think this returns a *canned* lvalue, as opposed to a fresh

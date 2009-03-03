@@ -1,4 +1,4 @@
-JE, version 0.030
+JE, version 0.031
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -29,13 +29,10 @@ CHANGES IN THIS RELEASE
 
 (See the Changes file for the long version.)
 
-• A few minor optimisations
-• Various esoteric, mostly-internal new features
+• Date.prototype.setYear
+• Octal escapes within strings
+• Functions now have an ‘arguments’ property.
 • Various bug fixes
-• A few incompatible changes that will only affect  you  if  you  are
-  writing methods for built-in JS objects in Perl  or directly manipu-
-  lating scope chains and lvalues.
-• A new experimental run-time engine
 
 
 TO DO
@@ -108,8 +105,9 @@ his tests,
 
 to Andy Armstrong    [ andy        hexten net       ],
    Yair Lenga        [ yair lenga  gmail com        ],
-   Alex Robinson     [ alex        solidgoldpig com ] and
-   Christian Forster [ boronk      boronk de        ]
+   Alex Robinson     [ alex        solidgoldpig com ],
+   Christian Forster [ boronk      boronk de        ] and
+   Imre Rad          [ radimre     freemail hu      ]
 for their suggestions,
 
 and to the CPAN Testers for their helpful reports.

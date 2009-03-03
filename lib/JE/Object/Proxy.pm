@@ -1,6 +1,6 @@
 package JE::Object::Proxy;
 
-our $VERSION = '0.030';
+our $VERSION = '0.031';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -169,8 +169,9 @@ sub to_number {
 
 
 package JE::Object::Proxy::Array; # so this extra stuff doesn't slow down
-our $VERSION = '0.030';           # 'normal' usage
+our $VERSION = '0.031';           # 'normal' usage
 our @ISA = 'JE::Object::Proxy';
+require JE::Number;
 
 sub prop {
 	my $self = shift;
@@ -181,7 +182,8 @@ sub prop {
 	if ($$class_info{array}) {
 		if($name eq 'length') {
 			@_ ? ($#$wrappee = $_[0]-1, return shift)
-			   : return scalar @$wrappee
+			   : return new JE::Number
+			      $self->global, scalar @$wrappee
 		}
 		if($name =~ /^(?:0|[1-9]\d*)\z/ and $name < 4294967295){
 			@_ ? $$class_info{array}{store}(

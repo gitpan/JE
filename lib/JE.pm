@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.030';
+our $VERSION = '0.031';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.030 (alpha release)
+Version 0.031 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -2378,8 +2378,9 @@ his tests,
 
 to Andy Armstrong S<< [ andyE<nbsp>E<nbsp>hexten net ] >>, Yair Lenga
 S<< [ yair lengaE<nbsp>E<nbsp>gmail com ] >>, Alex Robinson
-S<< [ alexE<nbsp>E<nbsp>solidgoldpig com ] >> and Christian Forster
-S<< [ boronkE<nbsp>E<nbsp>boronk de ]
+S<< [ alexE<nbsp>E<nbsp>solidgoldpig com ] >>, Christian Forster
+S<< [ boronkE<nbsp>E<nbsp>boronk de ] >> and Imre Rad
+S<< [ radimreE<nbsp>E<nbsp>freemail hu ] >>
 for their suggestions,
 
 and to the CPAN Testers for their helpful reports.

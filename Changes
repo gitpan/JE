@@ -1,6 +1,19 @@
 Revision history for JE
 
-0.030   ? October, 2008
+0.031   3 March, 2009
+        New Features:
+        • setYear
+        • Octal escapes within strings
+        • Functions now have an ‘arguments’ property  (in addition to
+          the ‘arguments’ variable inside the function)  (RT  #43582).
+        Bug fixes:
+        • Probably  broken  by  0.029:  A  bind_class  array  class’s
+          object’s length property was a simple scalar,  which caused
+          various parts of JE’s internals to hiccough.
+        • slice no longer works like shift (!)
+        • ++ (in Perl) now works on JE::Numbers.
+
+0.030   17 October, 2008
         Some minor optimisations.
         Incompatible changes:
         • When a JavaScript method that is written in Perl  is called

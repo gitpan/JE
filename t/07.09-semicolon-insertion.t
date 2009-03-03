@@ -14,7 +14,6 @@ my $j = new JE;
 # Test 2: Bind the ok function
 isa_ok( $j->new_function( ok => \&ok ), 'JE::Object::Function' );
 
-
 # Run JS tests
 
 defined $j->eval( <<'--end--' ) or die;

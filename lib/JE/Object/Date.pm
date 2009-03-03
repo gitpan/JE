@@ -1,6 +1,6 @@
 package JE::Object::Date;
 
-our $VERSION = '0.030';
+our $VERSION = '0.031';
 
 
 use strict;
@@ -1073,6 +1073,45 @@ sub _new_constructor {
 	# ~~~ setUTCDate
 	# ~~~ setMonth
 	# ~~~ setUTCMonth
+
+	$proto->prop({
+		name  => 'setYear',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'setMilliseconds',
+			argnames => ['ms'],
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => sub {
+			  die JE::Object::Error::TypeError->new($global,
+			    add_line_number "setYear cannot be" .
+			      " called on an object of type"
+			      . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $y = defined $_[1] ? $_[1]->to_number->value
+			    : sin 9**9**9;
+			  if($y != $y) {
+			   $_[0]{value} = $y; return JE::Number->new($y)
+			  }
+			  my $inty = int $y;
+			  $inty >= 0 && $inty <= 99 and $y = $inty+1900;
+			  my $v = _gm2local $${$_[0]}{value};
+			  $v == $v or $v = 0;
+			  JE::Number->new( $global, $${$_[0]}{value} = 
+			    _time_clip _local2gm _make_date
+			      _make_day(
+			        $y,
+			        _month_from_time $v,
+			        _date_from_time $v
+			      ),
+			      _time_within_day $v
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
+
 	# ~~~ setFullYear
 	# ~~~ setUTCFullYear
 

@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.030';
+our $VERSION = '0.031';
 
 use strict;  # :-(
 use warnings;# :-(
@@ -185,13 +185,16 @@ sub str() { # public
 		 |
 		(v)
 		 |
+		([0-3][0-7]{0,2}) # actually slightly looser than what
+		 |                # ECMAScript v3 has in its addendum
 		(.)
 	)/
 		$1 ? chr(hex $1) :
 		$2 ? chr(hex $2) :
 		$3 ? eval "qq-\\$3-" :
 		$4 ? "\cK" :
-		$5
+		$5 ? chr oct $5 :
+		$6
 	/sgex;
 	"s$yarn";
 }
