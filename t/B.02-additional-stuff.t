@@ -3,7 +3,7 @@ do './t/jstest.pl' or die __DATA__
 
 // ===================================================
 // B.2.1: escape
-// 6 tests
+// 7 tests
 // ===================================================
 
 ok(escape(void 0) === 'undefined', 'escape(undefined)')
@@ -45,9 +45,11 @@ is(escape("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123" +
       "%u0100%ud800%udd31",
    'The Great Escape')
 
+is(escape(), 'undefined', 'argless escape')
+
 // ===================================================
 // B.2.2: unescape
-// 7 tests
+// 8 tests
 // ===================================================
 
 ok(unescape(void 0) === 'undefined', 'unescape(undefined)')
@@ -59,3 +61,5 @@ ok(unescape({})     === '[object Object]', 'unescape(object)')
 is(unescape("%%40%20%u0020%u0100%u123%F%3G%3F%ud800%udd31%u5"),
             "%@  \u0100%u123%F%3G?\ud800\udd31%u5", 'unescape')
 is(unescape("%3"), "%3", 'unscape with potential %XX cut off')
+
+is(unescape(), 'undefined', 'argless unescape')

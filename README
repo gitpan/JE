@@ -1,4 +1,4 @@
-JE, version 0.031
+JE, version 0.032
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -27,12 +27,9 @@ the API could be improved or reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-(See the Changes file for the long version.)
-
-• Date.prototype.setYear
-• Octal escapes within strings
-• Functions now have an ‘arguments’ property.
-• Various bug fixes
+• If a subclass overrides the global object’s  ‘prop’,  it no  longer
+  stops escape functions from working (RT #43582 again).
+• escape and unescape now work without arguments.
 
 
 TO DO

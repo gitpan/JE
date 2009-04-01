@@ -1,6 +1,6 @@
 package JE::Scope;
 
-our $VERSION = '0.031';
+our $VERSION = '0.032';
 
 use strict;
 use warnings; no warnings 'utf8';

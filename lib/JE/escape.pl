@@ -134,7 +134,7 @@ sub _encodeURIComponent {
 
 sub _escape {
 	my $global = shift;
-	my $str = shift->to_string->value16;
+	my $str = defined $_[0] ? shift->to_string->value16 : 'undefined';
 	no warnings 'utf8';
 	$str =~ s< ([^A-Za-z0-9\@*_+\-./])  >
 	         [ sprintf '%%' . (
@@ -147,7 +147,7 @@ sub _escape {
 
 sub _unescape {
 	my $global = shift;
-	my $str = shift->to_string->value16;
+	my $str = defined $_[0] ? shift->to_string->value16 : 'undefined';
 	$str =~s<%(?:u([a-f0-9]{4})|([a-f0-9]{2}))>
 	        < chr hex $+ >egix;
 	JE::String->_new($global, $str);

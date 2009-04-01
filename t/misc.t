@@ -7,7 +7,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 3;
+use Test::More tests => 9;
 use strict;
 use utf8;
 
@@ -44,3 +44,18 @@ is $j->eval('
 $j->eval(' die() ');
 is $@, '[object HTML::DOM::Exception]',
 	'bind_class-style error objects without try';
+
+#--------------------------------------------------------------------#
+# Tests 4-9: Escape functions with the global ‘prop’ overridden
+#            (fixed in 0.032)
+
+{
+ package subclass;
+ our @ISA = 'JE';
+ sub prop { SUPER::prop{shift}@_ }
+ my $j = new subclass;
+ ::ok eval {$j->{$_}();1}, "$_ with global prop overridden" or ::diag $@
+  for qw; escape unescape encodeURI decodeURI encodeURIComponent
+          decodeURIComponent;
+}
+

@@ -1,5 +1,12 @@
 Revision history for JE
 
+0.032   April Fools’ Day, 2009
+        Bug fixes:
+        • If a subclass overrides the global object’s ‘prop’, it
+          no longer stops  escape  functions  from  working  (RT
+          #43582 again).
+        • escape and unescape now work without arguments.
+
 0.031   3 March, 2009
         New Features:
         • setYear

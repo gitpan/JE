@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.031';
+our $VERSION = '0.032';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.031 (alpha release)
+Version 0.032 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -635,7 +635,7 @@ sub new {
 		        argnames => [qw/encodedURI/],
 		        no_proto => 1,
 		        function_args => ['scope','args'],
-		        function => \&_decodeURI,
+		        function => \&JE'_decodeURI,
 		    })
 		},
 		dontenum  => 1,
@@ -649,7 +649,7 @@ sub new {
 			argnames => [qw/encodedURIComponent/],
 			no_proto => 1,
 			function_args => ['scope','args'],
-			function => \&_decodeURIComponent
+			function => \&JE'_decodeURIComponent
 		    })
 		},
 		dontenum  => 1,
@@ -663,7 +663,7 @@ sub new {
 			argnames => [qw/uri/],
 			no_proto => 1,
 			function_args => ['scope','args'],
-			function => \&_encodeURI,
+			function => \&JE'_encodeURI,
 		    })
 		},
 		dontenum  => 1,
@@ -677,7 +677,7 @@ sub new {
 			argnames => [qw/uriComponent/],
 			no_proto => 1,
 			function_args => ['scope','args'],
-			function => \&_encodeURIComponent,
+			function => \&JE'_encodeURIComponent,
 		    })
 		},
 		dontenum  => 1,
@@ -702,7 +702,7 @@ sub new {
 				argnames => [qw/string/],
 				no_proto => 1,
 				function_args => ['scope','args'],
-				function => \&_escape,
+				function => \&JE'_escape,
 			})
 		},
 		dontenum  => 1,
@@ -717,7 +717,7 @@ sub new {
 				argnames => [qw/string/],
 				no_proto => 1,
 				function_args => ['scope','args'],
-				function => \&_unescape,
+				function => \&JE'_unescape,
 			})
 		},
 		dontenum  => 1,

@@ -4,7 +4,7 @@ package JE::Object;
 sub evall { my $global = shift; my $r = eval 'local *_;' . shift;
             $@ and die; $r }
 
-our $VERSION = '0.031';
+our $VERSION = '0.032';
 
 use strict;
 use warnings;
@@ -273,11 +273,16 @@ storage space will cause autoloading, but that is subject to change.
 C<autoload> can be a string or a coderef. It will be called/evalled the
 first time the property is accessed (accessing it with a hash ref as
 described here does not count). If it is a string, it will be
-evaluated in the calling package, in a scope that has a variable named
+evaluated in the calling package (see warning below), in a scope that has a 
+variable named
 C<$global> that refers to the global object. The result will become the
 property's value. The value returned is not currently upgraded. The behaviour when a simple scalar or unblessed reference is returned is
 undefined. C<autoload> will be
-ignored completely if C<value> or C<fetch> is also given.
+ignored completely if C<value> or C<fetch> is also given. B<Warning:> The
+'calling package' may not be what you think it is if a subclass overrides
+C<prop>. It may be the subclass in such cases. To be on the safe side,
+always begin the string of code with an explicit C<package> statement. (If
+anyone knows of a clean solution to this, please let the author know.)
 
 This hash ref calling convention does not work on Array
 objects when the property name is C<length> or an array index (a 
