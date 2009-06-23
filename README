@@ -1,4 +1,4 @@
-JE, version 0.032
+JE, version 0.033
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -26,6 +26,10 @@ the API could be improved or reworked, please e-mail me.
 
 
 CHANGES IN THIS RELEASE
+
+That should be singular,  actually,  since there is only  one  change:
+bind_class  no longer replaces an existing constructor  of  the  same
+name as the class being bound if the constructor arg is omitted.
 
 • If a subclass overrides the global object’s  ‘prop’,  it no  longer
   stops escape functions from working (RT #43582 again).
@@ -112,7 +116,7 @@ and to the CPAN Testers for their helpful reports.
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2007-8 Father Chrysostomos
+Copyright (C) 2007-9 Father Chrysostomos
 
 This program is free software; you may redistribute it and/or modify
 it under the same terms as perl.

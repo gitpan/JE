@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 197;
+use Test::More tests => 198;
 use strict;
 use Scalar::Util 1.14 'refaddr';
 use utf8;
@@ -1065,3 +1065,13 @@ is $j->{scalartest}->prop('prop6'), 10,
 eval { $j->bind_class(name => 'foo', methods => ["\x{d800}:"]) };
 ok !$@, 'bind_class doesn\'t croak on surrogates';
 
+#--------------------------------------------------------------------#
+# Test 198: Change in version 0.033: Don’t overwrite existing constructor.
+
+{
+ $j->bind_class(name => 'HTMLElement', package => 'HTML::DOM::Element');
+ my $constructor = $j->{HTMLElement};
+ $j->bind_class(name => 'HTMLElement', package =>'HTML::DOM::TreeBuilder');
+ cmp_ok refaddr $j->{HTMLElement}, '==', refaddr $constructor,
+  're-binding a class w/o a constructor arg uses the existing constructor';
+}

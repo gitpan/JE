@@ -1,5 +1,10 @@
 Revision history for JE
 
+0.033   First day of summer, 2009
+        bind_class  no longer replaces an existing constructor of the
+        same name as the class being bound  if  the  constructor  arg
+        is omitted.
+
 0.032   April Fools’ Day, 2009
         Bug fixes:
         • If a subclass overrides the global object’s ‘prop’, it

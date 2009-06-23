@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.032';
+our $VERSION = '0.033';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.032 (alpha release)
+Version 0.033 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -1072,7 +1072,13 @@ name of a class method of C<package>.
 
 If it is a coderef, it will be used as the constructor.
 
-If this is omitted, no constructor will be made.
+If this is omitted, the constructor will raise an error when called. If
+there is already a constructor with the same name, however, it will be left
+as it is (though methods will still be added to its prototype object). This
+allows two Perl classes to be bound to a single JavaScript class:
+
+ $j->bind_class( name => 'Foo', package => 'Class::One', methods => ... );
+ $j->bind_class( name => 'Foo', package => 'Class::Two' );
 
 =item methods => [ ... ]
 
@@ -1287,7 +1293,7 @@ to JavaScript (or the C<upgrade> method), appear as instances of the
 corresponding JS class. Actually, they are 'wrapped up' in a proxy object 
 (a JE::Object::Proxy 
 object), that provides the interface that JS operators require (see 
-C<JE::Types>). If the 
+L<JE::Types>). If the 
 object is passed back to Perl, it is the I<proxy,>
 not the original object that is returned. The proxy's C<value> method will
 return the original object. I<But,> if the C<unwrap> option above is used
@@ -1299,10 +1305,6 @@ Note that, if you pass a Perl object to JavaScript before binding its
 class,
 JavaScript's reference to it (if any) will remain as it is, and will not be
 wrapped up inside a proxy object.
-
-If C<constructor> is
-not given, a constructor function will be made that throws an error when
-invoked, unless C<wrapper> is given.
 
 To use Perl's overloading within JavaScript, well...er, you don't have to
 do
@@ -1346,6 +1348,9 @@ sub bind_class {
 
 	my $self = shift;
 	my %opts = @_;
+#{ no warnings;
+#warn refaddr $self, " ", $opts{name} , ' ' ,$opts{package}; }
+
 
 	# &upgrade relies on this, because it
 	# takes the value of  ->{proxy_cache},
@@ -1388,8 +1393,11 @@ sub bind_class {
 			die JE::Code::add_line_number(
 				"$class cannot be instantiated");
 		 };
+		$constructor = $self->prop($class);
+		defined $constructor and $constructor->typeof ne 'function'
+		 and $constructor = undef;
 	}
-	$class{prototype} = $proto = $self->prop({
+	$class{prototype} = $proto = ( $constructor || $self->prop({
 		name => $class,
 		value => $constructor = JE::Object::Function->new({
 			name => $class,
@@ -1399,7 +1407,7 @@ sub bind_class {
 			constructor => $coderef,
 			constructor_args => ['args'],
 		}),
-	})->prop('prototype');
+	}) )->prop('prototype');
 
 	my $super;
 	if(exists $opts{isa}) {
