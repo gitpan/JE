@@ -178,7 +178,7 @@ is('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890_'
 is(''.match(/.*/), '', '* minimum')
 // We can’t actually test the maximum, because we would need an infinite
 // string. This test should suffice, as it’s unlikely that anyone would put
-// an arbitrary ‘68’ in the regexp engine.
+// an arbitrary ‘68’ in the regexp.
 is('oeautnnttetttttttttttttttttttttttttttttttttttttttttttttttttttttttttt'
    .match(/.*/)[0].length, 68, '* maximum')
 is('aaaaaaaaaaaa'.match(/.*?/), '', '*? minimum')

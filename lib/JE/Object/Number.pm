@@ -1,6 +1,6 @@
 package JE::Object::Number;
 
-our $VERSION = '0.033';
+our $VERSION = '0.034';
 
 
 use strict;
@@ -99,7 +99,7 @@ sub _new_constructor {
 		argnames         => [qw/value/],
 		function         => sub {
 			defined $_[0] ? $_[0]->to_number :
-				__PACKAGE__->new($global, 0);
+				JE'Number->new($global, 0);
 		},
 		function_args    => ['args'],
 		constructor      => sub {

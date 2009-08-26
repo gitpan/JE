@@ -68,6 +68,7 @@ t/15.04-array-objects.t
 t/15.05-string-objects.t
 t/15.06-boolean-objects.t
 t/15.07-number-objects.t
+t/15.08-math.t
 t/15.09-dates.t
 t/15.10-regexp-objects.t
 t/15.11-error-objects.t

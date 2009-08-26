@@ -839,6 +839,20 @@ method_boilerplate_tests(String.prototype,'toLocaleUpperCase',0)
 // foregoes converting a string into an object, for speed’s sake. (In other
 // words, we have two implementations to test.)
 
-// ~~~
+// 6 tests
+s = "hello"
+so = new String("hello")
+fail = false
+for(var i in s) if(i == 'length') { fail = true; break }
+ok(!fail, "unenumerability of string.length")
+fail = false
+for(var i in so) if(i == 'length') { fail = true; break }
+ok(!fail, "unenumerability of string object.length")
+is(delete s.length, false, 'undeletability of string.length')
+is(delete so.length, false, 'undeletability of string object.length')
+s.length=6
+ok(s.length===5,'unwritability (and value) of string.length')
+so.length=6
+ok(so.length===5,'unwritability (and value) of string object.length')
 
-diag("To do: finish writing this")
+diag("To do: finish locale tests")

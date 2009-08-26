@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.033';
+our $VERSION = '0.034';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.033 (alpha release)
+Version 0.034 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -197,10 +197,13 @@ class inherits from, and L<< C<JE::Types> >>.
 
 =over 4
 
-=item $j = JE->new
+=item $j = JE->new( %opts )
 
 This class method constructs and returns a new JavaScript environment, the
 JE object itself being the global object.
+
+The (optional) options it can take are C<max_ops> and C<html_mode>, which
+correspond to the methods listed below.
 
 =cut
 
@@ -727,6 +730,7 @@ sub new {
 	# Constructor args
 	my %args = @_;
 	$$$self{max_ops} = delete $args{max_ops};
+	$$$self{html_mode} = delete $args{html_mode};
 
 	$self;
 }
@@ -857,6 +861,27 @@ sub max_ops {
 	my $self = shift;
 	if(@_) { $$$self{max_ops} = shift; return }
 	else { return $$$self{max_ops} }
+}
+
+
+=item $j->html_mode
+
+=item $j->html_mode( $new_value )
+
+Use this to turn on 'HTML mode', in which HTML comment delimiters are
+treated much like C<//>. C<new_value> is a boolean. Since this violates 
+ECMAScript, it is off by  default. 
+
+With no arguments, this method returns the current value.
+
+As shorthand, you can pass C<< html_mode => 1 >> to the constructor.
+
+=cut
+
+sub html_mode {
+	my $self = shift;
+	if(@_) { $$$self{html_mode} = shift; return }
+	else { return $$$self{html_mode} }
 }
 
 
@@ -2166,8 +2191,10 @@ C<hasOwnProperty> does not work properly with arrays and arguments objects.
 
 =item *
 
-NaN and Infinity do not currently work properly on Windows. Patches are
-welcome.
+NaN and Infinity may or may not work properly on Windows. I've received
+failure reports from someone using ActivePerl. But someone else (presumably
+using Strawberry) said it worked flawlessly. If someone can find out for
+me, I may be able to remove this from the list.
 
 =item *
 
@@ -2284,7 +2311,7 @@ reason the Number.MIN_VALUE and Number.MAX_VALUE properties do not exist.
 A Perl subroutine called from JavaScript can sneak past a C<finally> block and avoid triggering it:
 
   $j = new JE;
-  $j->new_function(outta_here => sub {  });
+  $j->new_function(outta_here => sub { last outta });
   outta: {
       $j->eval('
           try { x = 1; outta_here() }
@@ -2371,7 +2398,7 @@ the list of dependencies.
 
 =head1 AUTHOR, COPYRIGHT & LICENSE
 
-Copyright (C) 2007-8 Father Chrysostomos <sprout [at] cpan
+Copyright (C) 2007-9 Father Chrysostomos <sprout [at] cpan
 [dot] org>
 
 This program is free software; you may redistribute it and/or modify

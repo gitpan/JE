@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.033';
+our $VERSION = '0.034';
 
 use strict;  # :-(
 use warnings;# :-(
@@ -236,7 +236,7 @@ sub unescape_ident($) {
 }
 
  # public
-sub skip() { /\G$s/go } # skip whitespace
+sub skip() { /\G$s/g } # skip whitespace
 
 sub ident() { # public
 	return unless my($ident) = /\G($ident)/cgox;
@@ -250,7 +250,7 @@ sub params() { # Only called when we know we need it, which is why it dies
 	&skip;
 	if (@ret != push @ret, &ident) { # first identifier (not prec.
 	                               # by comma)
-		while (/\G$s,$s/ogc) {
+		while (/\G$s,$s/gc) {
 			# if there's a comma we need another ident
 			@ret != push @ret, &ident or expected 'identifier';
 		}
@@ -263,7 +263,7 @@ sub params() { # Only called when we know we need it, which is why it dies
 sub term() {
 	my $pos = pos;
 	my $tmp;
-	if(/\Gfunction(?!$id_cont)$s/cog) {
+	if(/\Gfunction(?!$id_cont)$s/cg) {
 		my @ret = (func => ident);
 		@ret == 2 and &skip;
 		push @ret, &params;
@@ -305,21 +305,21 @@ sub term() {
 # ~~~ This needs to unescape the flags.
 		return JE::Object::RegExp->new( $global, $1, $2);
 	}
-	elsif(/\G\[$s/cog) {
+	elsif(/\G\[$s/cg) {
 		my $anon;
 		my @ret;
 		my $length;
 
 		while () {
 			@ret != ($length = push @ret, &assign) and &skip;
-			push @ret, bless \$anon, 'comma' while /\G,$s/cog;
+			push @ret, bless \$anon, 'comma' while /\G,$s/cg;
 			$length == @ret and last;
 		}
 
 		/\G]/cg or expected "']'";
 		return bless [[$pos, pos], array => @ret], JECE;
 	}
-	elsif(/\G\{$s/cog) {
+	elsif(/\G\{$s/cg) {
 		my @ret;
 
 		if($tmp = &ident or defined($tmp = &str)&&$tmp=~s/^s// or
@@ -327,12 +327,12 @@ sub term() {
 			# first elem, not preceded by comma
 			push @ret, $tmp;
 			&skip;
-			/\G:$s/coggg or expected 'colon';
+			/\G:$s/cggg or expected 'colon';
 			@ret != push @ret, &assign
 				or expected \'expression';
 			&skip;
 
-			while (/\G,$s/cog) {
+			while (/\G,$s/cg) {
 				$tmp = ident
 				or defined($tmp = &str)&&$tmp=~s/^s// or
 					defined($tmp = &num)
@@ -341,7 +341,7 @@ sub term() {
 
 				push @ret, $tmp;
 				&skip;
-				/\G:$s/coggg or expected 'colon';
+				/\G:$s/cggg or expected 'colon';
 				@ret != push @ret, &assign
 					or expected 'expression';
 				&skip;
@@ -350,7 +350,7 @@ sub term() {
 		/\G}/cg or expected "'}'";
 		return bless [[$pos, pos], hash => @ret], JECE;
 	}
-	elsif (/\G\($s/cog) {
+	elsif (/\G\($s/cg) {
 		my $ret = &expr or expected 'expression';
 		&skip;
 		/\G\)/cg or expected "')'";
@@ -362,12 +362,12 @@ sub term() {
 sub subscript() { # skips leading whitespace
 	my $pos = pos;
 	my $subscript;
-	if (/\G$s\[$s/cog) {
+	if (/\G$s\[$s/cg) {
 		$subscript = &expr or expected 'expression';
 		&skip;
 		/\G]/cog or expected "']'";
 	}
-	elsif (/\G$s\.$s/cog) {
+	elsif (/\G$s\.$s/cg) {
 		$subscript = &ident or expected 'identifier';
 	} 
 	else { return }
@@ -378,10 +378,10 @@ sub subscript() { # skips leading whitespace
 sub args() { # skips leading whitespace
 	my $pos = pos;
 	my @ret;
-	/\G$s\($s/ogc or return;
+	/\G$s\($s/gc or return;
 	if (@ret != push @ret, &assign) { # first expression (not prec.
 	                               # by comma)
-		while (/\G$s,$s/ogc) {
+		while (/\G$s,$s/gc) {
 			# if there's a comma we need another expression
 			@ret != push @ret, &assign
 				or expected 'expression';
@@ -393,7 +393,7 @@ sub args() { # skips leading whitespace
 }
 
 sub new_expr() {
-	/\G new(?!$id_cont) $s /cogx or return;
+	/\G new(?!$id_cont) $s /cgx or return;
 	my $ret = bless [[pos], 'new'], JECE;
 	
 	my $pos = pos;
@@ -434,7 +434,7 @@ sub unary() {
 	    (?: delete | void | typeof )(?!$id_cont)
 	      |
 	    \+\+? | --? | ~ | !
-	) $s /cogx;
+	) $s /cgx;
 	@ret != push @ret, &postfix or (
 		@ret
 		? expected "expression"
@@ -447,7 +447,7 @@ sub unary() {
 sub multi() {
 	my($pos,@ret) = pos;
 	@ret != push @ret, &unary or return;
-	while(m-\G $s ( [*%](?!=) | / (?![*/=]) ) $s -cogx) {
+	while(m-\G $s ( [*%](?!=) | / (?![*/=]) ) $s -cgx) {
 		push @ret, $1;
 		@ret == push @ret, &unary and expected 'expression';
 	}
@@ -458,7 +458,7 @@ sub multi() {
 sub add() {
 	my($pos,@ret) = pos;
 	@ret != push @ret, &multi or return;
-	while(/\G $s ( \+(?![+=]) | -(?![-=]) ) $s /cogx) {
+	while(/\G $s ( \+(?![+=]) | -(?![-=]) ) $s /cgx) {
 		push @ret, $1;
 		@ret == push @ret, &multi and expected 'expression'
 	}
@@ -469,7 +469,7 @@ sub add() {
 sub bitshift() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, &add and return;
-	while(/\G $s (>>> | >>(?!>) | <<)(?!=) $s /cogx) {
+	while(/\G $s (>>> | >>(?!>) | <<)(?!=) $s /cgx) {
 		push @ret, $1;
 		@ret == push @ret, &add and expected 'expression';
 	}
@@ -481,7 +481,7 @@ sub rel() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, &bitshift and return;
 	while(/\G $s ( ([<>])(?!\2|=) | [<>]= |
-	               in(?:stanceof)?(?!$id_cont) ) $s /cogx) {
+	               in(?:stanceof)?(?!$id_cont) ) $s /cgx) {
 		push @ret, $1;
 		@ret== push @ret, &bitshift and expected 'expression';
 	}
@@ -493,7 +493,7 @@ sub rel_noin() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, &bitshift and return;
 	while(/\G $s ( ([<>])(?!\2|=) | [<>]= | instanceof(?!$id_cont) )
-	          $s /cogx) {
+	          $s /cgx) {
 		push @ret, $1;
 		@ret == push @ret, &bitshift and expected 'expression';
 	}
@@ -504,7 +504,7 @@ sub rel_noin() {
 sub equal() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, &rel and return;
-	while(/\G $s ([!=]==?) $s /cogx) {
+	while(/\G $s ([!=]==?) $s /cgx) {
 		push @ret, $1;
 		@ret == push @ret, &rel and expected 'expression';
 	}
@@ -515,7 +515,7 @@ sub equal() {
 sub equal_noin() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, &rel_noin and return;
-	while(/\G $s ([!=]==?) $s /cogx) {
+	while(/\G $s ([!=]==?) $s /cgx) {
 		push @ret, $1;
 		@ret == push @ret, &rel_noin and expected 'expression';
 	}
@@ -526,7 +526,7 @@ sub equal_noin() {
 sub bit_and() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, &equal and return;
-	while(/\G $s &(?![&=]) $s /cogx) {
+	while(/\G $s &(?![&=]) $s /cgx) {
 		@ret == push @ret, '&', &equal and expected 'expression';
 	}
 	@ret == 1 ? @ret : bless [[$pos, pos], 'lassoc', @ret],
@@ -536,7 +536,7 @@ sub bit_and() {
 sub bit_and_noin() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, &equal_noin and return;
-	while(/\G $s &(?![&=]) $s /cogx) {
+	while(/\G $s &(?![&=]) $s /cgx) {
 		@ret == push @ret, '&', &equal_noin
 			and expected 'expression';
 	}
@@ -547,7 +547,7 @@ sub bit_and_noin() {
 sub bit_or() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, &bit_and and return;
-	while(/\G $s \|(?![|=]) $s /cogx) {
+	while(/\G $s \|(?![|=]) $s /cgx) {
 		@ret == push @ret, '|', &bit_and and expected 'expression';
 	}
 	@ret == 1 ? @ret : bless [[$pos, pos], 'lassoc', @ret],
@@ -557,7 +557,7 @@ sub bit_or() {
 sub bit_or_noin() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, &bit_and_noin and return;
-	while(/\G $s \|(?![|=]) $s /cogx) {
+	while(/\G $s \|(?![|=]) $s /cgx) {
 		@ret == push @ret, '|', &bit_and_noin
 			and expected 'expression';
 	}
@@ -568,7 +568,7 @@ sub bit_or_noin() {
 sub bit_xor() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, &bit_or and return;
-	while(/\G $s \^(?!=) $s /cogx) {
+	while(/\G $s \^(?!=) $s /cgx) {
 		@ret == push @ret, '^', &bit_or and expected 'expression';
 	}
 	@ret == 1 ? @ret : bless [[$pos, pos], 'lassoc', @ret],
@@ -578,7 +578,7 @@ sub bit_xor() {
 sub bit_xor_noin() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, &bit_or_noin and return;
-	while(/\G $s \^(?!=) $s /cogx) {
+	while(/\G $s \^(?!=) $s /cgx) {
 		@ret == push @ret, '^', &bit_or_noin
 			and expected 'expression';
 	}
@@ -590,7 +590,7 @@ sub and_expr() { # If I just call it 'and', then I have to write
                  # CORE::and for the operator! (Far too cumbersome.)
 	my($pos,@ret) = pos;
 	@ret == push @ret, &bit_xor and return;
-	while(/\G $s && $s /cogx) {
+	while(/\G $s && $s /cgx) {
 		@ret == push @ret, '&&', &bit_xor
 			and expected 'expression';
 	}
@@ -601,7 +601,7 @@ sub and_expr() { # If I just call it 'and', then I have to write
 sub and_noin() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, &bit_xor_noin and return;
-	while(/\G $s && $s /cogx) {
+	while(/\G $s && $s /cgx) {
 		@ret == push @ret, '&&', &bit_xor_noin
 			and expected 'expression';
 	}
@@ -612,7 +612,7 @@ sub and_noin() {
 sub or_expr() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, &and_expr and return;
-	while(/\G $s \|\| $s /cogx) {
+	while(/\G $s \|\| $s /cgx) {
 		@ret == push @ret, '||', &and_expr
 			and expected 'expression';
 	}
@@ -623,7 +623,7 @@ sub or_expr() {
 sub or_noin() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, &and_noin and return;
-	while(/\G $s \|\| $s /cogx) {
+	while(/\G $s \|\| $s /cgx) {
 		@ret == push @ret, '||', &and_noin
 			and expected 'expression';
 	}
@@ -634,14 +634,14 @@ sub or_noin() {
 sub assign() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, &or_expr and return;
-	while(m@\G $s ((?>(?: [-*/%+&^|] | << | >>>? )?)=) $s @cogx) {
+	while(m@\G $s ((?>(?: [-*/%+&^|] | << | >>>? )?)=) $s @cgx) {
 		push @ret, $1;
 		@ret == push @ret, &or_expr and expected 'expression';
 	}
-	if(/\G$s\?$s/cog) {
+	if(/\G$s\?$s/cg) {
 		@ret == push @ret, &assign and expected 'expression';
 		&skip;
-		/\G:$s/cog or expected "colon";
+		/\G:$s/cg or expected "colon";
 		@ret == push @ret, &assign and expected 'expression';
 	}
 	@ret == 1 ? @ret : bless [[$pos, pos], 'assign', @ret],
@@ -651,14 +651,14 @@ sub assign() {
 sub assign_noin() {
 	my($pos,@ret) = pos;
 	@ret == push @ret, &or_noin and return;
-	while(m~\G $s ((?>(?: [-*/%+&^|] | << | >>>? )?)=) $s ~cogx) {
+	while(m~\G $s ((?>(?: [-*/%+&^|] | << | >>>? )?)=) $s ~cgx) {
 		push @ret, $1;
 		@ret == push @ret, &or_noin and expected 'expression';
 	}
-	if(/\G$s\?$s/cog) {
+	if(/\G$s\?$s/cg) {
 		@ret == push @ret, &assign and expected 'expression';
 		&skip;
-		/\G:$s/cog or expected "colon";
+		/\G:$s/cg or expected "colon";
 		@ret == push @ret, &assign_noin and expected 'expression';
 	}
 	@ret == 1 ? @ret : bless [[$pos, pos], 'assign', @ret],
@@ -668,7 +668,7 @@ sub assign_noin() {
 sub expr() { # public
 	my $ret = bless [[pos], 'expr'], JECE;
 	@$ret == push @$ret, &assign and return;
-	while(/\G$s,$s/cog) {
+	while(/\G$s,$s/cg) {
 		@$ret == push @$ret,& assign and expected 'expression';
 	}
 	push @{$$ret[0]},pos;
@@ -678,7 +678,7 @@ sub expr() { # public
 sub expr_noin() { # public
 	my $ret = bless [[pos], 'expr'], JECE;
 	@$ret == push @$ret, &assign_noin and return;
-	while(/\G$s,$s/cog) {
+	while(/\G$s,$s/cg) {
 		@$ret == push @$ret, &assign_noin
 			and expected 'expression';
 	}
@@ -691,7 +691,7 @@ sub vardecl() { # vardecl is only called when we *know* we need it, so it
                 # of returning undef
 	my @ret;
 	@ret == push @ret, &ident and expected 'identifier';
-	/\G$s=$s/cog and
+	/\G$s=$s/cg and
 		(@ret != push @ret, &assign or expected 'expression');
 	push @$_vars, $ret[0];
 	\@ret;
@@ -700,7 +700,7 @@ sub vardecl() { # vardecl is only called when we *know* we need it, so it
 sub vardecl_noin() {
 	my @ret;
 	@ret == push @ret, &ident and expected 'identifier';
-	/\G$s=$s/cog and
+	/\G$s=$s/cg and
 		(@ret != push @ret, &assign_noin or expected 'expression');
 	push @$_vars, $ret[0];
 	\@ret;
@@ -717,7 +717,7 @@ sub finish_for_sc_sc() {  # returns the last two expressions of a for (;;)
 		push @ret, 'empty';
 		$msg = 'expression or '
 	}
-	/\G;$s/cog or expected "${msg}semicolon";
+	/\G;$s/cg or expected "${msg}semicolon";
 	if(@ret != push @ret, expr) {
 		$msg = '';
 		&skip
@@ -725,7 +725,7 @@ sub finish_for_sc_sc() {  # returns the last two expressions of a for (;;)
 		push @ret, 'empty';
 		$msg = 'expression or '
 	}
-	/\G\)$s/cog or expected "${msg}')'";
+	/\G\)$s/cg or expected "${msg}')'";
 
 	@ret;
 }
@@ -764,7 +764,7 @@ sub block() {
 	         # statement modifier
 		@$ret == push @$ret, &statement and last;
 	}
-	expected "'}'" unless /\G\}$s/goc;
+	expected "'}'" unless /\G\}$s/gc;
 
 	push @{$$ret[0]},pos;
 
@@ -773,13 +773,13 @@ sub block() {
 
 sub empty() {
 	my $pos = pos;
-	/\G;$s/cog or return;
+	/\G;$s/cg or return;
 	bless [[$pos,pos], 'empty'], JECS;
 }
 
 sub function() {
 	my $pos = pos;
-	/\Gfunction$S/cog or return;
+	/\Gfunction$S/cg or return;
 	my $ret = [[$pos], 'function'];
 	@$ret == push @$ret, &ident
 		and expected "identifier";
@@ -791,7 +791,7 @@ sub function() {
 		local $_vars = [];
 		push @$ret, &statements, $_vars;
 	}
-	/\G \}$s /gocx or expected "'}'";
+	/\G \}$s /gcx or expected "'}'";
 
 	push @{$$ret[0]},pos;
 
@@ -802,16 +802,16 @@ sub function() {
 
 sub if() {
 	my $pos = pos;
-	/\Gif$s\($s/cog or return;
+	/\Gif$s\($s/cg or return;
 	my $ret = [[$pos], 'if'];
 
 	@$ret == push @$ret, &expr
 		and expected 'expression';
 	&skip;
-	/\G\)$s/goc or expected "')'";
+	/\G\)$s/gc or expected "')'";
 	@$ret != push @$ret, &statement
 		or expected 'statement';
-	if (/\Gelse(?!$id_cont)$s/cog) {
+	if (/\Gelse(?!$id_cont)$s/cg) {
 		@$ret == push @$ret, &statement
 			and expected 'statement';
 	}
@@ -823,13 +823,13 @@ sub if() {
 
 sub while() {
 	my $pos = pos;
-	/\Gwhile$s\($s/cog or return;
+	/\Gwhile$s\($s/cg or return;
 	my $ret = [[$pos], 'while'];
 
 	@$ret == push @$ret, &expr
 		and expected 'expression';
 	&skip;
-	/\G\)$s/goc or expected "')'";
+	/\G\)$s/gc or expected "')'";
 	@$ret != push @$ret, &statement
 		or expected 'statement';
 
@@ -840,17 +840,17 @@ sub while() {
 
 sub for() {
 	my $pos = pos;
-	/\Gfor$s\($s/cog or return;
+	/\Gfor$s\($s/cg or return;
 	my $ret = [[$pos], 'for'];
 
-	if (/\G var$S/cogx) {
+	if (/\G var$S/cgx) {
 		push @$ret, my $var = bless
 			[[pos() - length $1], 'var'],
 			'JE::Code::Statement';
 
 		push @$var, &vardecl_noin;
 		&skip;
-		if (/\G([;,])$s/ogc) {
+		if (/\G([;,])$s/gc) {
 			# if there's a comma or sc then
 			# this is a for(;;) loop
 			if ($1 eq ',') {
@@ -861,43 +861,43 @@ sub for() {
 				    push @$var, &vardecl 
 				    and expected
 				      'identifier'
-				} while (/\G$s,$s/ogc);
+				} while (/\G$s,$s/gc);
 				&skip;
-				/\G;$s/cog
+				/\G;$s/cg
 				   or expected 'semicolon';
 			}
 			push @$ret, &finish_for_sc_sc;
 		}
 		else {
-			/\Gin$s/cog or expected
+			/\Gin$s/cg or expected
 			    "'in', comma or semicolon";
 			push @$ret, 'in';
 			@$ret == push @$ret, &expr
 				and expected 'expresssion';
 			&skip;
-			/\G\)$s/cog or expected "')'";
+			/\G\)$s/cg or expected "')'";
 		}
 	}
 	elsif(@$ret != push @$ret, &expr_noin) {
 		&skip;
-		if (/\G;$s/ogc) {
+		if (/\G;$s/gc) {
 			# if there's a semicolon then
 			# this is a for(;;) loop
 			push @$ret, &finish_for_sc_sc;
 		}
 		else {
-			/\Gin$s/cog or expected
+			/\Gin$s/cg or expected
 				"'in' or semicolon";
 			push @$ret, 'in';
 			@$ret == push @$ret, &expr
 				and expected 'expresssion';
 			&skip;
-			/\G\)$s/cog or expected "')'";
+			/\G\)$s/cg or expected "')'";
 		}
 	}
 	else {
 		push @$ret, 'empty';
-		/\G;$s/cog
+		/\G;$s/cg
 		    or expected 'expression or semicolon';
 		push @$ret, &finish_for_sc_sc;
 	}
@@ -913,13 +913,13 @@ sub for() {
 
 sub with() { # almost identical to while
 	my $pos = pos;
-	/\Gwith$s\($s/cog or return;
+	/\Gwith$s\($s/cg or return;
 	my $ret = [[$pos], 'with'];
 
 	@$ret == push @$ret, &expr
 		and expected 'expression';
 	&skip;
-	/\G\)$s/goc or expected "')'";
+	/\G\)$s/gc or expected "')'";
 	@$ret != push @$ret, &statement
 		or expected 'statement';
 
@@ -930,36 +930,36 @@ sub with() { # almost identical to while
 
 sub switch() {
 	my $pos = pos;
-	/\Gswitch$s\($s/cog or return;
+	/\Gswitch$s\($s/cg or return;
 	my $ret = [[$pos], 'switch'];
 
 	@$ret == push @$ret, &expr
 		 and expected 'expression';
 	&skip;
-	/\G\)$s/goc or expected "')'";
-	/\G\{$s/goc or expected "'{'";
+	/\G\)$s/gc or expected "')'";
+	/\G\{$s/gc or expected "'{'";
 
-	while (/\G case(?!$id_cont) $s/cogx) {
+	while (/\G case(?!$id_cont) $s/cgx) {
 		@$ret == push @$ret, &expr
 			and expected 'expression';
 		&skip;
-		/\G:$s/cog or expected 'colon';
+		/\G:$s/cg or expected 'colon';
 		push @$ret, &statements;
 	}
 	my $default=0;
-	if (/\G default(?!$id_cont) $s/cogx) {
-		/\G : $s /cgox or expected 'colon';
+	if (/\G default(?!$id_cont) $s/cgx) {
+		/\G : $s /cgx or expected 'colon';
 		push @$ret, default => &statements;
 		++$default;
 	}
-	while (/\G case(?!$id_cont) $s/cogx) {
+	while (/\G case(?!$id_cont) $s/cgx) {
 		@$ret == push @$ret, &expr
 			and expected 'expression';
 		&skip;
-		/\G:$s/cog or expected 'colon';
+		/\G:$s/cg or expected 'colon';
 		push @$ret, &statements;
 	}
-	/\G \} $s /cgox or expected (
+	/\G \} $s /cgx or expected (
 		$default
 		? "'}' or 'case'"
 		: "'}', 'case' or 'default'"
@@ -972,28 +972,28 @@ sub switch() {
 
 sub try() {
 	my $pos = pos;
-	/\Gtry$s\{$s/cog or return;
+	/\Gtry$s\{$s/cg or return;
 	my $ret = [[$pos], 'try', &statements];
 
-	/\G \} $s /cgox or expected "'}'";
+	/\G \} $s /cgx or expected "'}'";
 
 	$pos = pos;
 
-	if(/\Gcatch$s/cgo) {
-		/\G \( $s /cgox or expected "'('";
+	if(/\Gcatch$s/cg) {
+		/\G \( $s /cgx or expected "'('";
 		@$ret == push @$ret, &ident
 			and expected 'identifier';
 		&skip;
-		/\G \) $s /cgox or expected "')'";
+		/\G \) $s /cgx or expected "')'";
 
-		/\G \{ $s /cgox or expected "'{'";
+		/\G \{ $s /cgx or expected "'{'";
 		push @$ret, &statements;
-		/\G \} $s /cgox or expected "'}'";
+		/\G \} $s /cgx or expected "'}'";
 	}
-	if(/\Gfinally$s/cgo) {
-		/\G \{ $s /cgox or expected "'{'";
+	if(/\Gfinally$s/cg) {
+		/\G \{ $s /cgx or expected "'{'";
 		push @$ret, &statements;
-		/\G \} $s /cgox or expected "'}'";
+		/\G \} $s /cgx or expected "'}'";
 	}
 
 	pos eq $pos and expected "'catch' or 'finally'";
@@ -1005,10 +1005,10 @@ sub try() {
 
 sub labelled() {
 	my $pos = pos;
-	/\G ($ident) $s : $s/cogx or return;
+	/\G ($ident) $s : $s/cgx or return;
 	my $ret = [[$pos], 'labelled', unescape_ident $1];
 
-	while (/\G($ident)$s:$s/cog) {
+	while (/\G($ident)$s:$s/cg) {
 		push @$ret, unescape_ident $1;
 	}
 	@$ret != push @$ret, &statement
@@ -1021,12 +1021,12 @@ sub labelled() {
 
 sub var() {
 	my $pos = pos;
-	/\G var $S/cogx or return;
+	/\G var $S/cgx or return;
 	my $ret = [[$pos], 'var'];
 
 	do{
 		push @$ret, &vardecl;
-	} while(/\G$s,$s/ogc);
+	} while(/\G$s,$s/gc);
 
 	optional_sc;
 
@@ -1037,13 +1037,13 @@ sub var() {
 
 sub do() {
 	my $pos = pos;
-	/\G do(?!$id_cont)$s/cogx or return;
+	/\G do(?!$id_cont)$s/cgx or return;
 	my $ret = [[$pos], 'do'];
 
 	@$ret != push @$ret, &statement
 		or expected 'statement';
-	/\Gwhile$s/cog               or expected "'while'";
-	/\G\($s/cog                or expected "'('";
+	/\Gwhile$s/cg               or expected "'while'";
+	/\G\($s/cg                or expected "'('";
 	@$ret != push @$ret, &expr
 		or expected 'expression';
 	&skip;
@@ -1146,7 +1146,7 @@ sub statement_default() {
 		( try $s \{ $s )
 		  |
 		($ident) $s : $s
-	   ) /xogc) {
+	   ) /xgc) {
 		no warnings 'uninitialized';
 		if($1 eq '{') {
 			push @$ret, 'statements';
@@ -1157,7 +1157,7 @@ sub statement_default() {
 					&statement_default and last;
 			}
 			
-			expected "'}'" unless /\G\}$s/goc;
+			expected "'}'" unless /\G\}$s/gc;
 		}
 		elsif($1 eq ';') {
 			push @$ret, 'empty';
@@ -1175,7 +1175,7 @@ sub statement_default() {
 				local $_vars = [];
 				push @$ret, &statements, $_vars;
 			}
-			/\G \}$s /gocx or expected "'}'";
+			/\G \}$s /gcx or expected "'}'";
 			push @$_vars, $ret;
 		}
 		elsif($3 eq 'if') {
@@ -1183,10 +1183,10 @@ sub statement_default() {
 			@$ret == push @$ret, &expr
 				and expected 'expression';
 			&skip;
-			/\G\)$s/goc or expected "')'";
+			/\G\)$s/gc or expected "')'";
 			@$ret != push @$ret, &statement_default
 				or expected 'statement';
-			if (/\Gelse(?!$id_cont)$s/cog) {
+			if (/\Gelse(?!$id_cont)$s/cg) {
 				@$ret == push @$ret, 
 					&statement_default
 					and expected 'statement';
@@ -1197,20 +1197,20 @@ sub statement_default() {
 			@$ret == push @$ret, &expr
 				and expected 'expression';
 			&skip;
-			/\G\)$s/goc or expected "')'";
+			/\G\)$s/gc or expected "')'";
 			@$ret != push @$ret, &statement_default
 				or expected 'statement';
 		}
 		elsif($3 eq 'for') {
 			push @$ret, 'for';
-			if (/\G var$S/cogx) {
+			if (/\G var$S/cgx) {
 				push @$ret, my $var = bless
 					[[pos() - length $1], 'var'],
 					'JE::Code::Statement';
 
 				push @$var, &vardecl_noin;
 				&skip;
-				if (/\G([;,])$s/ogc) {
+				if (/\G([;,])$s/gc) {
 					# if there's a comma or sc then
 					# this is a for(;;) loop
 					if ($1 eq ',') {
@@ -1221,43 +1221,43 @@ sub statement_default() {
 						    push @$var, &vardecl 
 						    and expected
 						      'identifier'
-						} while (/\G$s,$s/ogc);
+						} while (/\G$s,$s/gc);
 						&skip;
-						/\G;$s/cog
+						/\G;$s/cg
 						   or expected 'semicolon';
 					}
 					push @$ret, &finish_for_sc_sc;
 				}
 				else {
-					/\Gin$s/cog or expected
+					/\Gin$s/cg or expected
 					    "'in', comma or semicolon";
 					push @$ret, 'in';
 					@$ret == push @$ret, &expr
 						and expected 'expresssion';
 					&skip;
-					/\G\)$s/cog or expected "')'";
+					/\G\)$s/cg or expected "')'";
 				}
 			}
 			elsif(@$ret != push @$ret, &expr_noin) {
 				&skip;
-				if (/\G;$s/ogc) {
+				if (/\G;$s/gc) {
 					# if there's a semicolon then
 					# this is a for(;;) loop
 					push @$ret, &finish_for_sc_sc;
 				}
 				else {
-					/\Gin$s/cog or expected
+					/\Gin$s/cg or expected
 						"'in' or semicolon";
 					push @$ret, 'in';
 					@$ret == push @$ret, &expr
 						and expected 'expresssion';
 					&skip;
-					/\G\)$s/cog or expected "')'";
+					/\G\)$s/cg or expected "')'";
 				}
 			}
 			else {
 				push @$ret, 'empty';
-				/\G;$s/cog
+				/\G;$s/cg
 				    or expected 'expression or semicolon';
 				push @$ret, &finish_for_sc_sc;
 			}
@@ -1271,7 +1271,7 @@ sub statement_default() {
 			@$ret == push @$ret, &expr
 				and expected 'expression';
 			&skip;
-			/\G\)$s/goc or expected "')'";
+			/\G\)$s/gc or expected "')'";
 			@$ret != push @$ret, &statement_default
 				or expected 'statement';
 		}
@@ -1280,30 +1280,30 @@ sub statement_default() {
 			@$ret == push @$ret, &expr
 				 and expected 'expression';
 			&skip;
-			/\G\)$s/goc or expected "')'";
-			/\G\{$s/goc or expected "'{'";
+			/\G\)$s/gc or expected "')'";
+			/\G\{$s/gc or expected "'{'";
 
-			while (/\G case(?!$id_cont) $s/cogx) {
+			while (/\G case(?!$id_cont) $s/cgx) {
 				@$ret == push @$ret, &expr
 					and expected 'expression';
 				&skip;
-				/\G:$s/cog or expected 'colon';
+				/\G:$s/cg or expected 'colon';
 				push @$ret, &statements;
 			}
 			my $default=0;
-			if (/\G default(?!$id_cont) $s/cogx) {
-				/\G : $s /cgox or expected 'colon';
+			if (/\G default(?!$id_cont) $s/cgx) {
+				/\G : $s /cgx or expected 'colon';
 				push @$ret, default => &statements;
 				++$default;
 			}
-			while (/\G case(?!$id_cont) $s/cogx) {
+			while (/\G case(?!$id_cont) $s/cgx) {
 				@$ret == push @$ret, &expr
 					and expected 'expression';
 				&skip;
-				/\G:$s/cog or expected 'colon';
+				/\G:$s/cg or expected 'colon';
 				push @$ret, &statements;
 			}
-			/\G \} $s /cgox or expected (
+			/\G \} $s /cgx or expected (
 				$default
 				? "'}' or 'case'"
 				: "'}', 'case' or 'default'"
@@ -1311,32 +1311,32 @@ sub statement_default() {
 		}
 		elsif($4) { # try
 			push @$ret, 'try', &statements;
-			/\G \} $s /cgox or expected "'}'";
+			/\G \} $s /cgx or expected "'}'";
 
 			my $pos = pos;
 
-			if(/\Gcatch$s/cgo) {
-				/\G \( $s /cgox or expected "'('";
+			if(/\Gcatch$s/cg) {
+				/\G \( $s /cgx or expected "'('";
 				@$ret == push @$ret, &ident
 					and expected 'identifier';
 				&skip;
-				/\G \) $s /cgox or expected "')'";
+				/\G \) $s /cgx or expected "')'";
 
-				/\G \{ $s /cgox or expected "'{'";
+				/\G \{ $s /cgx or expected "'{'";
 				push @$ret, &statements;
-				/\G \} $s /cgox or expected "'}'";
+				/\G \} $s /cgx or expected "'}'";
 			}
-			if(/\Gfinally$s/cgo) {
-				/\G \{ $s /cgox or expected "'{'";
+			if(/\Gfinally$s/cg) {
+				/\G \{ $s /cgx or expected "'{'";
 				push @$ret, &statements;
-				/\G \} $s /cgox or expected "'}'";
+				/\G \} $s /cgx or expected "'}'";
 			}
 
 			pos eq $pos and expected "'catch' or 'finally'";
 		}
 		else { # labelled statement
 			push @$ret, 'labelled', unescape_ident $5;
-			while (/\G($ident)$s:$s/cog) {
+			while (/\G($ident)$s:$s/cg) {
 				push @$ret, unescape_ident $1;
 			}
 			@$ret != push @$ret, &statement_default
@@ -1345,19 +1345,19 @@ sub statement_default() {
 	}
 	# Statements that do have an optional semicolon
 	else {
-		if (/\G var$S/xcog) {
+		if (/\G var$S/xcg) {
 			push @$ret, 'var';
 
 			do{
 				push @$ret, &vardecl;
-			} while(/\G$s,$s/ogc);
+			} while(/\G$s,$s/gc);
 		}
-		elsif(/\Gdo(?!$id_cont)$s/cog) {
+		elsif(/\Gdo(?!$id_cont)$s/cg) {
 			push @$ret, 'do';
 			@$ret != push @$ret, &statement_default
 				or expected 'statement';
-			/\Gwhile$s/cog               or expected "'while'";
-			/\G\($s/cog                or expected "'('";
+			/\Gwhile$s/cg               or expected "'while'";
+			/\G\($s/cg                or expected "'('";
 			@$ret != push @$ret, &expr
 				or expected 'expression';
 			&skip;
@@ -1387,23 +1387,8 @@ sub statement_default() {
 		}
 
 		# Check for optional semicolon
-		m-\G (?:
-		    $s (?: \z | ; $s | (?=\}) )
-		      |
-
-		    # optional horizontal whitespace
-		    # then a line terminator or a comment containing one
-		    # then optional trailing whitespace
-		    $h
-		    (?: $n | //[^\cm\cj\x{2028}\x{2029}]* $n |
-		        /\* [^*\cm\cj\x{2028}\x{2029}]* 
-			    (?: \*(?!/) [^*\cm\cj\x{2028}\x{2029}] )*
-			  $n
-		          (?s:.)*?
-		        \*/
-		    )
-		    $s
-		)-cogx or expected "semicolon, '}' or end of line";
+		m-$optional_sc-cgx
+		 or expected "semicolon, '}' or end of line";
 	}
 	push @{$$ret[0]},pos unless @{$$ret[0]} == 2; # an expr will 
 	                                             # already have this
@@ -1425,7 +1410,7 @@ sub statement() { # public
 # This takes care of leading white space.
 sub statements() {
 	my $ret = bless [[pos], 'statements'], 'JE::Code::Statement';
-	/\G$s/go; # skip initial whitespace
+	/\G$s/g; # skip initial whitespace
 	while () { # 'last' does not work when 'while' is a
 	           # statement modifier
 		@$ret != push @$ret,
@@ -1439,7 +1424,7 @@ sub statements() {
 sub program() { # like statements(), but it allows function declarations
                 # as well
 	my $ret = bless [[pos], 'statements'], 'JE::Code::Statement';
-	/\G$s/go; # skip initial whitespace
+	/\G$s/g; # skip initial whitespace
 	if($_parser) {
 		while () {	
 			DECL: {
@@ -1486,6 +1471,60 @@ sub _parse($$$;$$) { # Returns just the parse tree, not a JE::Code object.
 
 	# remove unicode format chrs
 	$src =~ s/\p{Cf}//g;
+
+	# In HTML mode, modify the whitespace regexps to remove HTML com-
+	# ment delimiters and following junk up to the end of the line.
+	$my_global->html_mode and
+	 local $s = qr(
+	  (?> [ \t\x0b\f\xa0\p{Zs}]* )
+	  (?> (?>
+	       $n
+	       (?>(?:
+	        (?>[ \t\x0b\f\xa0\p{Zs}]*) -->
+	        (?>[^\cm\cj\x{2028}\x{2029}]*)(?>$n|\z)
+	       )?)
+	        |
+	       ^
+	       (?>[ \t\x0b\f\xa0\p{Zs}]*) -->
+	       (?>[^\cm\cj\x{2028}\x{2029}]*)(?>$n|\z)
+	        |
+	       (?>//|<!--)(?>[^\cm\cj\x{2028}\x{2029}]*)(?>$n|\z)
+	        |
+	       /\*.*?\*/
+	      )
+	      (?> [ \t\x0b\f\xa0\p{Zs}]* )
+	  ) *
+	 )sx,
+	 local $S = qr(
+	  (?>
+	   $ss
+	    |
+	   (?>//|<!--)[^\cm\cj\x{2028}\x{2029}]*
+	    |
+	   /\*.*?\*/
+	  )
+	  $s
+	 )xs,
+	 local $optional_sc = qr _\G (?:
+	    $s (?: \z | ; $s | (?=\}) )
+	      |
+	    # optional horizontal whitespace
+	    # then a line terminator or a comment containing one
+	    # then optional trailing whitespace
+	    $h
+	    (?:
+	        $n
+	         |
+	        (?>//|<!--)[^\cm\cj\x{2028}\x{2029}]* $n
+	         |
+	        /\* [^*\cm\cj\x{2028}\x{2029}]* 
+	            (?: \*(?!/) [^*\cm\cj\x{2028}\x{2029}] )*
+	          $n
+	          (?s:.)*?
+	        \*/
+	    )
+	    $s
+	 )_x;
 
 	my $tree;
 	local $_vars = [];

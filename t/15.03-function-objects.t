@@ -60,11 +60,14 @@ ok(error instanceof SyntaxError, 'Function (null, body)')
 */
 
 // These work with JE, but if I ever make it more strict, I need to replace
-// these tests with those above. It’s actually impossible to test that the
-// vars named in the param list are created, since they cannot be accessed
-// by name, but only through the arguments object.
-ok(Function(true, '')() === undefined, 'Function(bool, body)')
-ok(Function(null, '')()=== undefined, 'Function(null, body)')
+// these tests with those above. I used to think it was impossible to test
+// that the vars named in the param list are created, since they supposedly
+// could not be accessed by name, but they actually *can* be accessed by
+// name if we use escapes.
+ok(Function(true, 'return tru\\u0065')('blext') === 'blext',
+  'Function(bool, body)')
+ok(Function(null, 'return n\\u0075ll')('cled')=== 'cled',
+  'Function(null, body)')
 
 
 error = false
@@ -134,11 +137,14 @@ ok(error instanceof SyntaxError, 'new Function (null, body)')
 */
 
 // These work with JE, but if I ever make it more strict, I need to replace
-// these tests with those above. It’s actually impossible to test that the
-// vars named in the param list are created, since they cannot be accessed
-// by name, but only through the arguments object.
-ok(new Function(true, '')() === undefined, 'new Function(bool, body)')
-ok(new Function(null, '')()=== undefined, 'new Function(null, body)')
+// these tests with those above. I used to think it was impossible to test
+// that the vars named in the param list are created, since they supposedly
+// could not be accessed by name, but they actually *can* be accessed by
+// name if we use escapes.
+ok(new Function(true, 'return tru\\u0065')('blext') === 'blext',
+  'new Function(bool, body)')
+ok(new Function(null, 'return n\\u0075ll')('cled')=== 'cled',
+  'new Function(null, body)')
 
 
 error = false

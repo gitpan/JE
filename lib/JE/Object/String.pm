@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.033';
+our $VERSION = '0.034';
 
 
 use strict;
@@ -83,7 +83,7 @@ sub prop {
 
 sub delete {
 	my $self = shift;
-	$_[0] eq length and return !1;
+	$_[0] eq 'length' and return !1;
 	SUPER::delete $self @_;
 }
 

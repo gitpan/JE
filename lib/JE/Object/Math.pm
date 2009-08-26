@@ -1,6 +1,6 @@
 package JE::Object::Math;
 
-our $VERSION = '0.033';
+our $VERSION = '0.034';
 
 
 use strict;
@@ -103,7 +103,7 @@ sub new {
 		readonly  => 1,
 	});
 	$self->prop({
-		name  => 'SQRT1_2',
+		name  => 'SQRT2',
 		value  => JE::Number->new($global, 2**.5),
 		dontenum => 1,
 		dontdel   => 1,
@@ -119,7 +119,7 @@ sub new {
 			no_proto => 1,
 			function_args => ['args'],
 			function => sub {	
-				JE::Object::Number->new($global,
+				JE::Number->new($global,
 					defined $_[0]
 					? abs $_[0]->to_number->value
 					: 'nan');
@@ -146,7 +146,7 @@ sub new {
 				else {
 					$num = 'nan';
 				}	
-				JE::Object::Number->new($global, $num);
+				JE::Number->new($global, $num);
 			},
 		}),
 		dontenum => 1,
@@ -170,7 +170,7 @@ sub new {
 				else {
 					$num = 'nan';
 				}	
-				JE::Object::Number->new($global, $num);
+				JE::Number->new($global, $num);
 			},
 		}),
 		dontenum => 1,
@@ -184,7 +184,7 @@ sub new {
 			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
-				JE::Object::Number->new($global,
+				JE::Number->new($global,
 					defined $_[0]
 					? atan2($_[0]->to_number->value, 1)
 					: 'nan');
@@ -201,7 +201,7 @@ sub new {
 			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
-				JE::Object::Number->new($global,
+				JE::Number->new($global,
 					defined $_[0] && defined $_[1]
 					? atan2($_[0]->to_number->value, 
 					        $_[1]->to_number->value)
@@ -219,7 +219,7 @@ sub new {
 			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
-				JE::Object::Number->new($global,
+				JE::Number->new($global,
 					defined $_[0]
 					? ceil($_[0]->to_number->value)
 					: 'nan');
@@ -236,7 +236,7 @@ sub new {
 			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
-				JE::Object::Number->new($global,
+				JE::Number->new($global,
 					defined $_[0]
 					? cos($_[0]->to_number->value)
 					: 'nan');
@@ -253,7 +253,7 @@ sub new {
 			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
-				JE::Object::Number->new($global,
+				JE::Number->new($global,
 					defined $_[0]
 					? exp($_[0]->to_number->value)
 					: 'nan');
@@ -270,7 +270,7 @@ sub new {
 			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
-				JE::Object::Number->new($global,
+				JE::Number->new($global,
 					defined $_[0]
 					? floor($_[0]->to_number->value)
 					: 'nan');
@@ -295,7 +295,7 @@ sub new {
 					       log $num;
 				}
 				else { $num = 'nan' }
-				JE::Object::Number->new($global, $num);
+				JE::Number->new($global, $num);
 			},
 		}),
 		dontenum => 1,
@@ -309,16 +309,14 @@ sub new {
 			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
-@_ or return JE::Object::Number->new($global, '-inf');
+@_ or return JE::Number->new($global, '-inf');
 my $result; my $num;
 for (@_) {
-	defined or return JE::Object::Number->new($global, 'nan');
-
 	($num = $_->to_number->value) == $num or
-		 return JE::Object::Number->new($global, 'nan');;
+		 return JE::Number->new($global, 'nan');;
 	$result = $num if !defined $result or $result < $num;
 }
-JE::Object::Number->new($global, $result);
+JE::Number->new($global, $result);
 
 			},
 		}),
@@ -333,16 +331,14 @@ JE::Object::Number->new($global, $result);
 			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
-@_ or return JE::Object::Number->new($global, 'inf');
+@_ or return JE::Number->new($global, 'inf');
 my $result; my $num;
 for (@_) {
-	defined or return JE::Object::Number->new($global, 'nan');
-
 	($num = $_->to_number->value) == $num or
-		 return JE::Object::Number->new($global, 'nan');;
+		 return JE::Number->new($global, 'nan');;
 	$result = $num if !defined $result or $result > $num;
 }
-JE::Object::Number->new($global, $result);
+JE::Number->new($global, $result);
 
 			},
 		}),
@@ -364,7 +360,7 @@ my $y = defined $_[1] ? $_[1]->to_number->value : nan;
 abs $x == 1 && abs $y == inf &&
 	return JE::Object::Number->new($global, 'nan');
 
-return JE::Object::Number->new($global, $x ** $y);
+return JE::Number->new($global, $x ** $y);
 
 			},
 		}),
@@ -378,7 +374,7 @@ return JE::Object::Number->new($global, $x ** $y);
 			no_proto => 1,
 			function_args => [],
 			function => sub {
-				JE::Object::Number->new($global, rand);
+				JE::Number->new($global, rand);
 			},
 		}),
 		dontenum => 1,
@@ -392,7 +388,7 @@ return JE::Object::Number->new($global, $x ** $y);
 			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
-				JE::Object::Number->new($global,
+				JE::Number->new($global,
 					defined $_[0]
 					? floor($_[0]->to_number->value+.5)
 					: 'nan');
@@ -409,7 +405,7 @@ return JE::Object::Number->new($global, $x ** $y);
 			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
-				JE::Object::Number->new($global,
+				JE::Number->new($global,
 					defined $_[0]
 					? sin($_[0]->to_number->value)
 					: 'nan');
@@ -426,7 +422,7 @@ return JE::Object::Number->new($global, $x ** $y);
 			no_proto => 1,
 			function_args => ['args'],
 			function => sub {
-				JE::Object::Number->new($global,
+				JE::Number->new($global,
 					defined $_[0]
 					? $_[0]->to_number->value ** .5
 					: 'nan');
@@ -449,7 +445,7 @@ return JE::Object::Number->new($global, $x ** $y);
 					$num = sin($num) / cos $num;
 				}
 				else { $num = nan }
-				JE::Object::Number->new($global, $num);
+				JE::Number->new($global, $num);
 			},
 		}),
 		dontenum => 1,

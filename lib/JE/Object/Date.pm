@@ -1,6 +1,6 @@
 package JE::Object::Date;
 
-our $VERSION = '0.033';
+our $VERSION = '0.034';
 
 
 use strict;
@@ -305,10 +305,16 @@ sub _week_day($) { (&_day + 4) % 7 }
 }
 
 sub _gm2local($) {
+	# shortcut for nan & inf to avoid localtime(nan) warning
+	return $_[0] unless $_[0] == $_[0] and $_[0]+1 != $_[0];
+
 	$_[0] + LOCAL_TZA + &_ds_time_adjust
 }
 
 sub _local2gm($) {
+	# shortcut for nan & inf to avoid localtime(nan) warning
+	return $_[0] unless $_[0] == $_[0] and $_[0]+1 != $_[0];
+
 	$_[0] - LOCAL_TZA - _ds_time_adjust $_[0] - LOCAL_TZA
 }
 

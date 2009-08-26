@@ -1,5 +1,23 @@
 Revision history for JE
 
+0.034   25 August, 2009
+        New feature:  an ECMAScript-violating HTML  mode that ignores
+        HTML comment delimiters (or, more precisely, treats them like
+        //  [except that -->  has to be preceded by nothing but white-
+        space on the same line]).
+        Bug fixes:
+        • Date  functions no longer  produce  warnings  in  bleadperl
+          (5.11.0-to-be) when handling NaN values.
+        • delete new String().length used to return true, even though
+          it did not  delete  the  property.  Now  it  returns  false.
+        • Number() with no args (and no ‘new’ keyword) used to return
+          a number object containing 0 instead of just the  number  0.
+        • The Math.SQRT2 property didn’t exist and Math.SQRT1_2  held
+          the square root of two. (Oops!)
+        • *All*  the  Math  functions used to return  number  objects
+          instead of plain numbers.  I must have been asleep  when  I
+          wrote those.
+
 0.033   First day of summer, 2009
         bind_class  no longer replaces an existing constructor of the
         same name as the class being bound  if  the  constructor  arg

@@ -7,7 +7,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 35;
+use Test::More tests => 48;
 use strict;
 use Scalar::Util 'refaddr';
 use utf8;
@@ -140,4 +140,48 @@ SKIP: { skip 'unimplemented in the experimental version', 7
 	like $@, qr/^max_ops \(110\) exceeded at/, 'max_ops error message';
 	ok $j->{i} < 110 && $j->{i} > 0,
 	  "max_ops stopped in mid-processing (at $j->{i} to be precise)";
+}
+
+#--------------------------------------------------------------------#
+# Tests 36-48: max_ops
+
+SKIP: { skip 'unimplemented in the experimental version', 13
+		if $ENV{YES_I_WANT_JE_TO_OPTIMISE};
+	my $j = new JE html_mode => 1;
+	ok $j->html_mode, 'html_mode as arg to constructor';
+	$j->html_mode(0);
+	ok! $j->html_mode, 'html_mode with arg';
+	$j->html_mode(1);
+
+	$j->eval(' brext = cled = 1 ');
+	is $j->eval("brext<!--cled ||cled+''\n+brext"), 2,
+	 "<!-- is equivalent to // in HTML mode";
+	is $j->eval("brext\n\t -->-1\n+1"), '2',
+		'--> acts like // when preceded only by whitespace';
+	$j->eval('brext=1');
+	is $j->eval("brext-->-1\n+1"), 'true',
+		'but is two ops (-- >) otherwise';
+	is $j->eval("//\n2"), 2,
+	 "comments at the beginning of code still work in HTML mode";
+
+	is $j->eval('"\"<!--"'), '"<!--',
+	 'HTML comment delimiters in double-quoted strings';
+	is $j->eval("'\\'<!--'"), "'<!--",
+	 'HTML comment delimiters in single-quoted strings';
+	is $j->eval("m=1; /* <!-- */\n 3 */4/m.multiline"), 3,
+	 '<!-- is ignored between /* and */ (& does not wipe out the */)';
+	is $j->eval("m=1; /*\n --> */\n 3 */4/m.multiline"), 3,
+	 '\n--> is ignored between /* and */ (& does not wipe out the */)';
+	is $j->eval('/<!--/.test("<!--")'), 'true',
+	 'delimiters work in regexps';
+
+	$j->html_mode(0);
+	$j->eval(' brext = cled = 1 ');
+	is $j->eval("brext<!--cled ||cled+''\n+brext"), '01',
+	 "<!-- is equivalent to < ! -- when HTML mode is off";
+	is $j->eval("brext\n\t -->-1\n+1"), undef,
+		'\n--> is a syntax error when HTML mode is off';
+	# ~~~ Since this particular case is always a syntax error (a line
+	#     break being prohibited before a postfix), maybe we could sup-
+	#     port the closing delimiter all the time.
 }

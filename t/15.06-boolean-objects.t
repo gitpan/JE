@@ -64,7 +64,7 @@ is(Object.prototype.toString.apply(Boolean.prototype),
 	'[object Boolean]',
 	'class of Boolean.prototype')
 is(Boolean.prototype, false,
-	'Boolean.prototype as boolean')
+	'value of Boolean.prototype')
 ok(peval('shift->prototype',Boolean.prototype) === Object.prototype,
 	'Boolean.prototype\'s prototype')
 
