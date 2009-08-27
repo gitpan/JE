@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.034';
+our $VERSION = '0.035';
 
 use strict;  # :-(
 use warnings;# :-(
@@ -140,12 +140,12 @@ our $n = qr((?>[\cm\cj\x{2028}\x{2029}]));
 our $ss = qr((?>[\p{Zs}\s\ck]));
 
 # optional comments and whitespace
-our $s = qr(
+our $s = qr((?>
 	(?> $ss* )
 	(?> (?> //[^\cm\cj\x{2028}\x{2029}]* (?>$n|\z) | /\*.*?\*/ )
 	    (?> $ss* )
 	) *
-)sx;
+))sx;
 
 # mandatory comments/whitespace
 our $S = qr(
@@ -1475,7 +1475,7 @@ sub _parse($$$;$$) { # Returns just the parse tree, not a JE::Code object.
 	# In HTML mode, modify the whitespace regexps to remove HTML com-
 	# ment delimiters and following junk up to the end of the line.
 	$my_global->html_mode and
-	 local $s = qr(
+	 local $s = qr((?>
 	  (?> [ \t\x0b\f\xa0\p{Zs}]* )
 	  (?> (?>
 	       $n
@@ -1494,7 +1494,7 @@ sub _parse($$$;$$) { # Returns just the parse tree, not a JE::Code object.
 	      )
 	      (?> [ \t\x0b\f\xa0\p{Zs}]* )
 	  ) *
-	 )sx,
+	 ))sx,
 	 local $S = qr(
 	  (?>
 	   $ss

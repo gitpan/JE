@@ -1,5 +1,10 @@
 Revision history for JE
 
+0.035   27 August, 2009
+        Bug fix:  Made the new HTML-comment-ignoring feature actually
+        work properly :-).  Specifically, <!-- to the end of the line
+        is  now  ignored  in  cases where  a  <  operator  can  occur.
+
 0.034   25 August, 2009
         New feature:  an ECMAScript-violating HTML  mode that ignores
         HTML comment delimiters (or, more precisely, treats them like

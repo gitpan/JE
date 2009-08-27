@@ -7,7 +7,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 48;
+use Test::More tests => 49;
 use strict;
 use Scalar::Util 'refaddr';
 use utf8;
@@ -143,7 +143,7 @@ SKIP: { skip 'unimplemented in the experimental version', 7
 }
 
 #--------------------------------------------------------------------#
-# Tests 36-48: max_ops
+# Tests 36-49: html_mode
 
 SKIP: { skip 'unimplemented in the experimental version', 13
 		if $ENV{YES_I_WANT_JE_TO_OPTIMISE};
@@ -154,8 +154,10 @@ SKIP: { skip 'unimplemented in the experimental version', 13
 	$j->html_mode(1);
 
 	$j->eval(' brext = cled = 1 ');
-	is $j->eval("brext<!--cled ||cled+''\n+brext"), 2,
+	is $j->eval("1<!--"), 1,
 	 "<!-- is equivalent to // in HTML mode";
+	is $j->eval("brext<!--cled ||cled+''\n+brext"), 2,
+	 "<!-- with line break is equivalent to // in HTML mode";
 	is $j->eval("brext\n\t -->-1\n+1"), '2',
 		'--> acts like // when preceded only by whitespace';
 	$j->eval('brext=1');
