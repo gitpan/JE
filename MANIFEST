@@ -93,6 +93,7 @@ t/jstest.pl
 t/misc.t
 t/non-ecma.t
 t/parse00-strings.t
+t/parse00.1-long_strings.t
 t/parse01-decimals.t
 t/parse02-hexadecimals.t
 t/parse03-identifiers.t

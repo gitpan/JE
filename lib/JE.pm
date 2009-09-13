@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.035';
+our $VERSION = '0.036';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.035 (alpha release)
+Version 0.036 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -2406,7 +2406,10 @@ it under the same terms as perl.
 
 =head1 ACKNOWLEDGEMENTS
 
-Thanks to Max Maischein S<< [ webmasterE<nbsp>E<nbsp>corion net ] >> for 
+Thanks to Kevin Cameron S<< [ kevinE<nbsp>E<nbsp>cameron net ] >> for his
+contributions,
+
+to Max Maischein S<< [ webmasterE<nbsp>E<nbsp>corion net ] >> for 
 letting
 me use
 his tests,

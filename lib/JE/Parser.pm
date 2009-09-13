@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.035';
+our $VERSION = '0.036';
 
 use strict;  # :-(
 use warnings;# :-(
@@ -171,15 +171,22 @@ our $id_cont = qr(
 
 
 sub str() { # public
-	/\G (?: '((?>(?:[^'\\] | \\.)*))'
+        # For very long strings (>~45000), this pattern hits a perl bug (Complex regular subexpression recursion limit (32766) exceeded) 
+	#/\G (?: '((?>(?:[^'\\] | \\.)*))'
+	#          |
+	#        "((?>(?:[^"\\] | \\.)*))"  )/xcgs or return;
+	/\G (?: '([^'\\]*(?:\\.[^'\\]*)*)'
 	          |
-	        "((?>(?:[^"\\] | \\.)*))"  )/xcgs or return;
+	        "([^"\\]*(?:\\.[^"\\]*)*)"  )/xcgs or return;
 
+        # transform special chars
 	no re 'taint'; # I need eval "qq-..." to work
 	(my $yarn = $+) =~ s/\\(?:
 		u([0-9a-fA-F]{4})
 		 |
 		x([0-9a-fA-F]{2})
+		 |
+                (\r\n?|[\n\x{2028}\x{2029}])
 		 |
 		([bfnrt])
 		 |
@@ -191,10 +198,11 @@ sub str() { # public
 	)/
 		$1 ? chr(hex $1) :
 		$2 ? chr(hex $2) :
-		$3 ? eval "qq-\\$3-" :
-		$4 ? "\cK" :
-		$5 ? chr oct $5 :
-		$6
+                $3 ? "" :               # escaped line feed disappears
+		$4 ? eval "qq-\\$4-" :
+		$5 ? "\cK" :
+		$6 ? chr oct $6 :
+		$7
 	/sgex;
 	"s$yarn";
 }

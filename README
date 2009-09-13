@@ -1,4 +1,4 @@
-JE, version 0.035
+JE, version 0.036
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -29,8 +29,11 @@ CHANGES IN THIS RELEASE
 
 See the Changes file for the long version.
 
-• A new HTML mode that ignores HTML comment delimiters
-• Bug fixes
+• Strings can now contain  ‘continuation’  backslashes  (escaped  new
+  new lines).
+• Long string no longer cause SEGVs or syntax errors.
+
+Thanks to Kevin Cameron for both these changes.
 
 
 TO DO
@@ -98,8 +101,10 @@ Or try using man (it's faster, in my experience):
 
 ACKNOWLEDGEMENTS
 
-Thanks to Max Maischein [ webmaster  corion net ] for letting me use
-his tests,
+Thanks to Kevin Cameron [ kevin  cameron com ] for his  contributions,
+
+to Max Maischein [ webmaster  corion net ] for  letting  me  use  his
+tests,
 
 to Andy Armstrong    [ andy        hexten net       ],
    Yair Lenga        [ yair lenga  gmail com        ],

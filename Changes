@@ -1,5 +1,13 @@
 Revision history for JE
 
+0.036   13 September, 2009
+        New feature:
+        • Escaped line breaks in strings are now ignored  (RT #49607)
+         (Kevin Cameron).
+        Bug fix:
+        • Very long strings no longer cause  syntax  errors  in  perl
+          5.10.x and SEGVs in perl 5.8.x (RT #49607)  (Kevin Cameron).
+
 0.035   27 August, 2009
         Bug fix:  Made the new HTML-comment-ignoring feature actually
         work properly :-).  Specifically, <!-- to the end of the line
