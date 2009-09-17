@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 198;
+use Test::More tests => 200;
 use strict;
 use Scalar::Util 1.14 'refaddr';
 use utf8;
@@ -623,7 +623,7 @@ isa_ok $j->upgrade(bless[],'Wrappee'),'Wrapper', 'the wrapper';
 
 
 #--------------------------------------------------------------------#
-# Tests 90-123: Class bindings: arrays and hashes
+# Tests 90-125: Class bindings: arrays and hashes
 
 @{$j->{Object}{prototype}}{0,'doodad'} = qw "something weird";
 
@@ -751,11 +751,20 @@ $j->bind_class(qw 5
 	is join(':-)', sort keys %$ugh), '0:-)doodad:-)length';
 }
 
+# Bug in JE 0.036 and earlier: array- and hash-like classes do not over-
+# ride exists to reflect the extra properties:
+{
+ my $a = $j->upgrade(bless \my %a, 'Hush!');
+ $a{frext} = "ghed";
+ ok $a->exists('frext'), 'exists works on hash elements';
+ ok exists $$a{frext}, 'exists works on hash elements (tie interface)';
+}
+
 
 delete $j->{Object}{$_} for qw _0 doodad_;
 
 #--------------------------------------------------------------------#
-# Tests 124-67 (17+17+9+1=44): Class bindings: method return types
+# Tests 126-69 (17+17+9+1=44): Class bindings: method return types
 
 sub ___::AUTOLOAD{scalar reverse $___::AUTOLOAD}
 sub ___::oof{}
@@ -941,7 +950,7 @@ is $j->upgrade(bless[],'____')->to_primitive, 'null',
 
 
 #--------------------------------------------------------------------#
-# Test 168: Class bindings: inherited property [gs]etters
+# Test 170: Class bindings: inherited property [gs]etters
 
 $j->bind_class(package => 'base_class',
                props => { property => sub { ${+shift} } });
@@ -954,7 +963,7 @@ $j->bind_class(package => 'subclarce', isa => 'base_class');
 }
 
 #--------------------------------------------------------------------#
-# Tests 169-74: Class bindings: respect of Perl's overloading
+# Tests 171-6: Class bindings: respect of Perl's overloading
 
 {package ov; use overload '""' => sub { 43 }}
 $j->bind_class(name => 'ov');
@@ -974,7 +983,7 @@ is ($j->upgrade(bless [], 'un')->to_primitive, '[object un]',
 
 
 #--------------------------------------------------------------------#
-# Tests 175-96: Scalar context for methods/coderefs passed to bind_class
+# Tests 177-98: Scalar context for methods/coderefs passed to bind_class
 
 sub scalartest::ten { 3, 10 }
 sub scalartest::three { 7, 3 }
@@ -1060,13 +1069,13 @@ is $j->{scalartest}->prop('prop6'), 10,
   'scalar context for static untyped method-name prop specified in hash';
 
 #--------------------------------------------------------------------#
-# Test 197: Make sure "\x{d800}" doesn’t make it die.
+# Test 199: Make sure "\x{d800}" doesn’t make it die.
 
 eval { $j->bind_class(name => 'foo', methods => ["\x{d800}:"]) };
 ok !$@, 'bind_class doesn\'t croak on surrogates';
 
 #--------------------------------------------------------------------#
-# Test 198: Change in version 0.033: Don’t overwrite existing constructor.
+# Test 200: Change in version 0.033: Don’t overwrite existing constructor.
 
 {
  $j->bind_class(name => 'HTMLElement', package => 'HTML::DOM::Element');

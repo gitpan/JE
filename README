@@ -1,4 +1,4 @@
-JE, version 0.036
+JE, version 0.037
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -29,11 +29,10 @@ CHANGES IN THIS RELEASE
 
 See the Changes file for the long version.
 
-• Strings can now contain  ‘continuation’  backslashes  (escaped  new
-  new lines).
-• Long string no longer cause SEGVs or syntax errors.
-
-Thanks to Kevin Cameron for both these changes.
+• Numification of strings and the  parser’s  whitespace  regexps  have
+  been fixed to work with bleadperl (perl 5.11.0-to-be).
+• Hash or array elements in ‘bind_class’ classes are now accessible as
+  scope variables (i.e., with(document){ theForm })
 
 
 TO DO

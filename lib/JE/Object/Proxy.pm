@@ -1,6 +1,6 @@
 package JE::Object::Proxy;
 
-our $VERSION = '0.036';
+our $VERSION = '0.037';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -169,7 +169,7 @@ sub to_number {
 
 
 package JE::Object::Proxy::Array; # so this extra stuff doesn't slow down
-our $VERSION = '0.036';           # 'normal' usage
+our $VERSION = '0.037';           # 'normal' usage
 our @ISA = 'JE::Object::Proxy';
 require JE::Number;
 
@@ -244,10 +244,31 @@ sub delete {
 	}
 	if($$class_info{hash} && !exists $$class_info{props}{$name} and
 	   exists $wrappee->{$name}) {
-		delete $self->value->{$name};
-		return !exists $self->value->{$name};
+		delete $wrappee->{$name};
+		return !exists $wrappee->{$name};
 	}
 	SUPER::delete $self @_;
+}
+
+sub exists {
+	my $self = shift;
+	my $wrappee = $self->value;
+	my($name) = @_;
+	my $class_info = $$$self{class_info};
+	if ($$class_info{array}){
+		if ($name =~ /^(?:0|[1-9]\d*)\z/ and $name < 4294967295) {
+			return 1 if exists $wrappee->[$name];
+			# If it doesn’t exists, try hash keys below.
+		}
+		elsif ($name eq 'length') {
+			return 1
+		}
+	}
+	if($$class_info{hash}) {
+	   return 1 if exists $wrappee->{$name};
+	}
+	SUPER::exists $self @_;
+
 }
 
 

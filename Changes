@@ -1,5 +1,18 @@
 Revision history for JE
 
+0.037   17 September, 2009
+        Bug fixes:
+        • Numification of strings  containing  initial  Unicode  para-
+          graph or line separators has been fixed to work with  blead
+          (perl 5.11.0-to-be).
+        • The parser has been fixed to  recognise  Unicode  paragraph
+          and line separators as whitespace in blead.
+        • Proxy objects for array-  or  hash-like  Perl  objects  now
+          implement the ‘exists’ method, so that hash elements can be
+          referenced via JE::Scope’s find_var method.  This makes the
+          following work if there is a form named theForm:
+            with(document) theForm.submit()
+
 0.036   13 September, 2009
         New feature:
         • Escaped line breaks in strings are now ignored  (RT #49607)

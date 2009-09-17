@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.036';
+our $VERSION = '0.037';
 
 use strict;  # :-(
 use warnings;# :-(
@@ -137,7 +137,7 @@ our $h = qr(
 our $n = qr((?>[\cm\cj\x{2028}\x{2029}]));
 
 # single space char
-our $ss = qr((?>[\p{Zs}\s\ck]));
+our $ss = qr((?>[\p{Zs}\s\ck\x{2028}\x{2029}]));
 
 # optional comments and whitespace
 our $s = qr((?>

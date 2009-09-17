@@ -1,6 +1,6 @@
 package JE::String;
 
-our $VERSION = '0.036';
+our $VERSION = '0.037';
 
 
 use strict;
@@ -105,7 +105,7 @@ sub to_boolean { JE::Boolean->new(       $_[0][2],
 ) }
 sub to_object  { JE::Object::String->new($_[0][2], shift) }
 
-our $s = qr.[\p{Zs}\s\ck]*.;
+our $s = qr.[\p{Zs}\s\ck\x{2028}\x{2029}]*.;
 
 sub to_number  {
 	my $value = (my $self = shift)->[0];
