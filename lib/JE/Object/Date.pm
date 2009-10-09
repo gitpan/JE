@@ -1,6 +1,6 @@
 package JE::Object::Date;
 
-our $VERSION = '0.037';
+our $VERSION = '0.038';
 
 
 use strict;
@@ -1045,11 +1045,9 @@ sub _new_constructor {
 			      " called on an object of type"
 			      . shift->class)
 			    unless $_[0]->isa('JE::Object::Date');
-			  my $ms = defined $_[1] ? $_[1]->to_number->value
-			    : sin 9**9**9;
-			  my $v = _gm2local $${$_[0]}{value};
+			  my $v = $${$_[0]}{value};
 			  JE::Number->new( $global, $${$_[0]}{value} = 
-			    _time_clip _local2gm _make_date
+			    _time_clip _make_date
 			      _day $v,
 			      _make_time
 			        _hours_from_time $v,
@@ -1069,15 +1067,221 @@ sub _new_constructor {
 		dontenum => 1,
 	});
 
-	# ~~~ setSeconds
+	$proto->prop({
+		name  => 'setSeconds',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'setSeconds',
+			argnames => ['sec','ms'],
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => sub {
+			  die JE::Object::Error::TypeError->new($global,
+			    add_line_number "setSeconds cannot be" .
+			      " called on an object of type"
+			      . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $s = defined $_[1] ? $_[1]->to_number->value
+			    : sin 9**9**9;
+			  if($s != $s) {
+			   $_[0]{value} = sin 9**9**9;
+			   return JE::Number->new($global,sin 9**9**9);
+			  }
+			  my $v = $${$_[0]}{value};
+			  my $ms =
+			   defined $_[2]
+			   ? $_[2]->to_number->value
+			   : _ms_from_time $v;
+			  if($ms!=$ms) {
+			   $_[0]{value} = sin 9**9**9;
+			   return JE::Number->new(sin 9**9**9);
+			  }
+			  JE::Number->new( $global, $${$_[0]}{value} = 
+			    _time_clip _make_date
+			      _day $v,
+			      _make_time
+			        _hours_from_time $v,
+			        _min_from_time $v,
+			         $s,
+			         $ms,
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
 	# ~~~ setUTCSeconds
-	# ~~~ setMinutes
+
+	$proto->prop({
+		name  => 'setMinutes',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'setMinutes',
+			argnames => ['min','sec','ms'],
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => sub {
+			  die JE::Object::Error::TypeError->new($global,
+			    add_line_number "setHours cannot be" .
+			      " called on an object of type"
+			      . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $m = defined $_[1] ? $_[1]->to_number->value
+			    : sin 9**9**9;
+			  if($m != $m) {
+			   $_[0]{value} = sin 9**9**9;
+			   return JE::Number->new($global,sin 9**9**9);
+			  }
+			  my $v = _gm2local $${$_[0]}{value};
+			  my $s =
+			   defined $_[2]
+			   ? $_[2]->to_number->value
+			   : _sec_from_time $v;
+			  my $ms =
+			   defined $_[3]
+			   ? $_[3]->to_number->value
+			   : _ms_from_time $v;
+			  if($s!=$s || $ms!=$ms) {
+			   $_[0]{value} = sin 9**9**9;
+			   return JE::Number->new(sin 9**9**9);
+			  }
+			  JE::Number->new( $global, $${$_[0]}{value} = 
+			    _time_clip _local2gm _make_date
+			      _day $v,
+			      _make_time _hours_from_time $v, $m, $s, $ms
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
 	# ~~~ setUTCMinutes
-	# ~~~ setHours
+
+	$proto->prop({
+		name  => 'setHours',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'setHours',
+			argnames => ['hour','min','sec','ms'],
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => sub {
+			  die JE::Object::Error::TypeError->new($global,
+			    add_line_number "setHours cannot be" .
+			      " called on an object of type"
+			      . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $h = defined $_[1] ? $_[1]->to_number->value
+			    : sin 9**9**9;
+			  if($h != $h) {
+			   $_[0]{value} = sin 9**9**9;
+			   return JE::Number->new($global,sin 9**9**9);
+			  }
+			  my $v = _gm2local $${$_[0]}{value};
+			  my $m =
+			   defined $_[2]
+			   ? $_[2]->to_number->value
+			   : _min_from_time $v;
+			  my $s =
+			   defined $_[3]
+			   ? $_[3]->to_number->value
+			   : _sec_from_time $v;
+			  my $ms =
+			   defined $_[4]
+			   ? $_[4]->to_number->value
+			   : _ms_from_time $v;
+			  if($m!=$m || $s!=$s || $ms!=$ms) {
+			   $_[0]{value} = sin 9**9**9;
+			   return JE::Number->new(sin 9**9**9);
+			  }
+			  JE::Number->new( $global, $${$_[0]}{value} = 
+			    _time_clip _local2gm _make_date
+			      _day $v,
+			      _make_time $h, $m, $s, $ms
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
 	# ~~~ setUTCHours
-	# ~~~ setDate
+
+	$proto->prop({
+		name  => 'setDate',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'setDate',
+			argnames => ['date'],
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => sub {
+			  die JE::Object::Error::TypeError->new($global,
+			    add_line_number "setDate cannot be" .
+			      " called on an object of type"
+			      . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $d = defined $_[1] ? $_[1]->to_number->value
+			    : sin 9**9**9;
+			  if($d != $d) {
+			   $_[0]{value} = $d;
+			   return JE::Number->new($global,$d)
+			  }
+			  my $v = _gm2local $${$_[0]}{value};
+			  JE::Number->new( $global, $${$_[0]}{value} = 
+			    _time_clip _local2gm _make_date
+			      _make_day(
+			        _year_from_time $v,
+			        _month_from_time $v,
+			        $d
+			      ),
+			      _time_within_day $v
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
 	# ~~~ setUTCDate
-	# ~~~ setMonth
+
+	$proto->prop({
+		name  => 'setMonth',
+		value => JE::Object::Function->new({
+			scope  => $global,
+			name    => 'setMonth',
+			argnames => ['month','date'],
+			no_proto => 1,
+			function_args => ['this','args'],
+			function => sub {
+			  die JE::Object::Error::TypeError->new($global,
+			    add_line_number "setMonth cannot be" .
+			      " called on an object of type"
+			      . shift->class)
+			    unless $_[0]->isa('JE::Object::Date');
+			  my $m = defined $_[1] ? $_[1]->to_number->value
+			    : sin 9**9**9;
+			  if($m != $m) {
+			   $_[0]{value} = sin 9**9**9;
+			   return JE::Number->new($global,sin 9**9**9)
+			  }
+			  my $v = _gm2local $${$_[0]}{value};
+			  my $d =
+			   defined $_[2]
+			   ? $_[2]->to_number->value
+			   : _date_from_time $v;
+			  JE::Number->new( $global, $${$_[0]}{value} = 
+			    _time_clip _local2gm _make_date
+			      _make_day(
+			        _year_from_time $v,
+			        $m,
+			        $d
+			      ),
+			      _time_within_day $v
+			  );
+			},
+		}),
+		dontenum => 1,
+	});
+
 	# ~~~ setUTCMonth
 
 	$proto->prop({

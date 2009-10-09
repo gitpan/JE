@@ -1,35 +1,6 @@
 #!perl -T
 do './t/jstest.pl' or die __DATA__
 
-function is_nan(n) { return n != n }
-
-// Every call to this runs 10 tests + the number of no-arg tests
-function method_boilerplate_tests(proto,meth,length,noargobjs,noargresults)
-{
-	is(typeof proto[meth], 'function', 'typeof ' + meth);
-	is(Object.prototype.toString.apply(proto[meth]),
-		'[object Function]',
-		'class of ' + meth)
-	ok(proto[meth].constructor === Function, meth + '\'s prototype')
-	var $catched = false;
-	try{ new proto[meth] } catch(e) { $catched = e }
-	ok($catched, 'new ' + meth + ' fails')
-	ok(!('prototype' in proto[meth]), meth +
-		' has no prototype property')
-	ok(proto[meth].length === length, meth + '.length')
-	ok(! proto[meth].propertyIsEnumerable('length'),
-		meth + '.length is not enumerable')
-	ok(!delete proto[meth].length, meth + '.length cannot be deleted')
-	is((proto[meth].length++, proto[meth].length), length,
-		meth + '.length is read-only')
-	ok(!proto.propertyIsEnumerable(meth),
-		meth + ' is not enumerable')
-	if(!noargobjs)return;
-	for (var i = 0; i < noargobjs.length; ++i)
-		ok(noargobjs[i][meth]() === noargresults[i],
-			noargobjs[i] + '.' + meth + ' without args')
-}
-
 // ===================================================
 // 15.9.2 Date()
 // ===================================================
@@ -1479,30 +1450,356 @@ ok(error instanceof TypeError, 'setMilliseconds death')
 
 
 // ===================================================
-// 15.9.5.29 Date.prototype.setMilliseconds
+// 15.9.5.29 Date.prototype.setUTCMilliseconds
 // ===================================================
 
 // 10 tests
-method_boilerplate_tests(Date.prototype,'setMilliseconds',1)
+method_boilerplate_tests(Date.prototype,'setUTCMilliseconds',1)
 
 // 6 tests
 d = new Date(+(e = new Date)); // two identical objects
-ok(d.setMilliseconds(85)===+e-e.getMilliseconds()+85,
-	'retval of setMilliseconds')
+ok(d.setUTCMilliseconds(85)===+e-e.getMilliseconds()+85,
+	'retval of setUTCMilliseconds')
 is(d.getTime(),e-e.getMilliseconds()+85,
-	 'affect of setMilliseconds')
+	 'affect of setUTCMilliseconds')
 d = new Date(+(e = new Date)); // two identical objects
-ok(d.setMilliseconds(1000)===+e-e.getMilliseconds()+1000,
-	'retval of setMilliseconds(1000)')
+ok(d.setUTCMilliseconds(1000)===+e-e.getMilliseconds()+1000,
+	'retval of setUTCMilliseconds(1000)')
 is(d.getMilliseconds(),0,
-	 'affect of setMilliseconds(1000)')
+	 'affect of setUTCMilliseconds(1000)')
 is(d.getTime(),e-e.getMilliseconds()+1000,
-	 'affect of setMilliseconds(1000)')
+	 'affect of setUTCMilliseconds(1000)')
 
 error = false
-try{Date.prototype. setMilliseconds.apply([])}
+try{Date.prototype. setUTCMilliseconds.apply([])}
 catch(e){error = e}
-ok(error instanceof TypeError, 'setMilliseconds death')
+ok(error instanceof TypeError, 'setUTCMilliseconds death')
+
+
+// ===================================================
+// 15.9.5.30 Date.prototype.setSeconds
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Date.prototype,'setSeconds',2)
+
+// 2 test
+d = new Date
+d.setSeconds("1","2")
+ok(d.getSeconds() === 1, 'getSeconds after setSeconds with strings')
+ok(d.getMilliseconds() === 2, 'getMilliseconds after setSeconds w/strings')
+
+// 8 tests
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setSeconds(15)===d.getTime(), 'retval of setSeconds')
+is(d.getYear(), e.getYear(), 'setSeconds does not change the year')
+is(d.getMonth(), e.getMonth(), 'setSeconds does not change the month')
+is(d.getDate(), e.getDate(), 'setSeconds does not change the date')
+is(d.getHours(), e.getHours(), 'setSeconds does not change the hours')
+is(d.getMinutes(), e.getMinutes(), 'setSeconds does not set the minutes')
+is(d.getSeconds(), 15, 'setSeconds changes the seconds')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setSeconds does not change the ms')
+
+// 8 tests: setSeconds with two args
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setSeconds(15,3)===d.getTime(), 'retval of setSeconds w/2 args')
+is(d.getYear(), e.getYear(), 'setSeconds w/2 args does not change year')
+is(d.getDate(), e.getDate(), 'setSeconds w/2 args does not change date')
+is(d.getMonth(), e.getMonth(), 'setSeconds w/2 args changeth not month')
+is(d.getHours(), e.getHours(), 'setSeconds w/2 args does not change hours')
+is(d.getMinutes(), e.getMinutes(),'setSeconds w/2 args does not set mins')
+is(d.getSeconds(), 15, 'setSeconds w/2 args sets the sec')
+is(d.getMilliseconds(), 3,
+ 'setSeconds w/2 args changes the ms')
+
+// 1 test for setSeconds without arguments
+ok(is_nan(d.setSeconds()), 'setSeconds without arguments')
+
+// 1 test here
+error = false
+try{Date.prototype. setSeconds.apply([])}
+catch(e){error = e}
+ok(error instanceof TypeError, 'setSeconds death')
+
+
+// ...
+
+
+// ===================================================
+// 15.9.5.35 Date.prototype.setMinutes
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Date.prototype,'setMinutes',3)
+
+// 3 test
+d = new Date
+d.setMinutes("1","2","3")
+ok(d.getMinutes() === 1, 'getMinutes after setMinutes with strings')
+ok(d.getSeconds() === 2, 'getSeconds after setMinutes with strings')
+ok(d.getMilliseconds() === 3, 'getMilliseconds after setMinutes w/strings')
+
+// 8 tests
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setMinutes(15)===d.getTime(), 'retval of setMinutes')
+is(d.getYear(), e.getYear(), 'setMinutes does not change the year')
+is(d.getMonth(), e.getMonth(), 'setMinutes does not change the month')
+is(d.getDate(), e.getDate(), 'setMinutes does not change the date')
+is(d.getHours(), e.getHours(), 'setMinutes does not change the hours')
+is(d.getMinutes(), 15, 'setMinutes sets the minutes')
+is(d.getSeconds(), e.getSeconds(), 'setMinutes does not change the seconds')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setMinutes does not change the ms')
+
+// Let’s try a date six months from now (so DST offset will be different)
+// 8 tests more
+d = new Date(+(e = new Date(e.getTime()+180*3600*24000)));
+ok(d.setMinutes(15)===d.getTime(), 'retval of setMinutes (in 6 mths)')
+is(d.getYear(), e.getYear(), 'setMinutes does not change year (in 6 mths)')
+is(d.getDate(), e.getDate(), 'setMinutes does not change date (in 6 mo.)')
+is(d.getMonth(), e.getMonth(), 'setMinutes changeth not month (in 6 mths)')
+is(d.getHours(), e.getHours(), 'setMinutes does not change hrs (in 6 mo.)')
+is(d.getMinutes(), 15, 'setMinutes changeth not min (in 6 mths)')
+is(d.getSeconds(),e.getSeconds(),'setMinutes changeth not sec (in 6 mths)')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setMinutes does not change the ms (in 6 mths)')
+
+// 8 tests: setMinutes with two args
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setMinutes(15,3)===d.getTime(), 'retval of setMinutes w/2 args')
+is(d.getYear(), e.getYear(), 'setMinutes w/2 args does not change year')
+is(d.getDate(), e.getDate(), 'setMinutes w/2 args does not change date')
+is(d.getMonth(), e.getMonth(), 'setMinutes w/2 args changeth not month')
+is(d.getHours(), e.getHours(), 'setMinutes w/2 args does not change hours')
+is(d.getMinutes(), 15, 'setMinutes w/2 args sets the minutes')
+is(d.getSeconds(), 3, 'setMinutes w/2 args sets the sec')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setMinutes w/2 args does not change the ms')
+
+// 8 tests: setMinutes with 3 args
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setMinutes(15,3,34)===d.getTime(), 'retval of setMinutes w/3 args')
+is(d.getYear(), e.getYear(), 'setMinutes w/3 args does not change year')
+is(d.getDate(), e.getDate(), 'setMinutes w/3 args does not change date')
+is(d.getMonth(), e.getMonth(), 'setMinutes w/3 args changeth not month')
+is(d.getHours(), e.getHours(), 'setMinutes w/3 args does not change hours')
+is(d.getMinutes(), 15, 'setMinutes w/3 args sets the minutes')
+is(d.getSeconds(), 3, 'setMinutes w/3 args sets the seconds')
+is(d.getMilliseconds(), 34,
+ 'setMinutes w/3 args sets the the ms')
+
+// 1 test for setMinutes without arguments
+ok(is_nan(d.setMinutes()), 'setMinutes without arguments')
+
+// 1 test here
+error = false
+try{Date.prototype. setMinutes.apply([])}
+catch(e){error = e}
+ok(error instanceof TypeError, 'setMinutes death')
+
+
+// ===================================================
+// 15.9.5.34 Date.prototype.setUTCMinutes
+// ===================================================
+
+// ...
+
+// ===================================================
+// 15.9.5.35 Date.prototype.setHours
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Date.prototype,'setHours',4)
+
+// 4 test
+d = new Date
+d.setHours("1","2","3","4")
+ok(d.getHours() === 1, 'getHours after setHours with strings')
+ok(d.getMinutes() === 2, 'getMinutes after setHours with strings')
+ok(d.getSeconds() === 3, 'getSeconds after setHours with strings')
+ok(d.getMilliseconds() === 4, 'getMilliseconds after setHours w/strings')
+
+// 8 tests
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setHours(15)===d.getTime(), 'retval of setHours')
+is(d.getHours(), 15, 'setHours set the hours')
+is(d.getYear(), e.getYear(), 'setHours does not change the year')
+is(d.getDate(), e.getDate(), 'setHours does not change the date')
+is(d.getMonth(), e.getMonth(), 'setHours does not change the month')
+is(d.getMinutes(), e.getMinutes(), 'setHours does not change the minutes')
+is(d.getSeconds(), e.getSeconds(), 'setHours does not change the seconds')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setHours does not change the ms')
+
+// Let’s try a date six months from now (so DST offset will be different)
+// 8 tests more
+d = new Date(+(e = new Date(e.getTime()+180*3600*24000)));
+ok(d.setHours(15)===d.getTime(), 'retval of setHours (in 6 mths)')
+is(d.getHours(), 15, 'setHours set the date (6 months hence)')
+is(d.getYear(), e.getYear(), 'setHours does not change year (in 6 mths)')
+is(d.getDate(), e.getDate(), 'setHours does not change date (in 6 mo.)')
+is(d.getMonth(), e.getMonth(), 'setHours changeth not month (in 6 mths)')
+is(d.getMinutes(), e.getMinutes(), 'setHours changeth not min (in 6 mths)')
+is(d.getSeconds(), e.getSeconds(), 'setHours changeth not sec (in 6 mths)')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setHours does not change the ms (in 6 mths)')
+
+// 8 tests: setHours with two args
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setHours(15,3)===d.getTime(), 'retval of setHours w/2 args')
+is(d.getHours(), 15, 'setHours w/2 args set the hours')
+is(d.getYear(), e.getYear(), 'setHours w/2 args does not change the year')
+is(d.getDate(), e.getDate(), 'setHours w/2 args does not change the date')
+is(d.getMonth(), e.getMonth(), 'setHours w/2 args does not change  month')
+is(d.getMinutes(), 3, 'setHours w/2 args sets the minutes')
+is(d.getSeconds(), e.getSeconds(), 'setHours w/2 args does not change sec')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setHours w/2 args does not change the ms')
+
+// 8 tests: setHours with 3 args
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setHours(15,3,34)===d.getTime(), 'retval of setHours w/3 args')
+is(d.getHours(), 15, 'setHours w/3 args set the hours')
+is(d.getYear(), e.getYear(), 'setHours w/3 args does not change the year')
+is(d.getDate(), e.getDate(), 'setHours w/3 args does not change the date')
+is(d.getMonth(), e.getMonth(), 'setHours w/3 args does not change  month')
+is(d.getMinutes(), 3, 'setHours w/3 args sets the minutes')
+is(d.getSeconds(), 34, 'setHours w/3 args sets the seconds')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setHours w/3 args does not change the ms')
+
+// 8 tests: setHours with 4 args
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setHours(15,3,34,695)===d.getTime(), 'retval of setHours w/4 args')
+is(d.getHours(), 15, 'setHours w/4 args set the hours')
+is(d.getYear(), e.getYear(), 'setHours w/4 args does not change the year')
+is(d.getDate(), e.getDate(), 'setHours w/4 args does not change the date')
+is(d.getMonth(), e.getMonth(), 'setHours w/4 args does not change  month')
+is(d.getMinutes(), 3, 'setHours w/4 args sets the minutes')
+is(d.getSeconds(), 34, 'setHours w/4 args sets the seconds')
+is(d.getMilliseconds(), 695, 'setHours w/4 args sets the ms')
+
+// 1 test for setHours without arguments
+ok(is_nan(d.setHours()), 'setHours without arguments') ||diag(d.setHours())
+
+// 1 test here
+error = false
+try{Date.prototype. setHours.apply([])}
+catch(e){error = e}
+ok(error instanceof TypeError, 'setHours death')
+
+
+// ===================================================
+// 15.9.5.36a Date.prototype.setUTCHours
+// ===================================================
+
+// ... 
+
+// ===================================================
+// 15.9.5.36b Date.prototype.setDate
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Date.prototype,'setDate',1)
+
+// 2 tests
+d = new Date()
+ok(is_nan(d.setDate()), 'setDate without arguments')
+d.setDate("5")
+is(d.getDate(), 5, 'setDate with string arg')
+
+// 8 tests
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setDate(15)===d.getTime(), 'retval of setDate')
+is(d.getDate(), 15, 'setDate set the date')
+is(d.getYear(), e.getYear(), 'setDate does not change the year')
+is(d.getMonth(), e.getMonth(), 'setDate does not change the month')
+is(d.getHours(), e.getHours(), 'setDate does not change the hours')
+is(d.getMinutes(), e.getMinutes(), 'setDate does not change the minutes')
+is(d.getSeconds(), e.getSeconds(), 'setDate does not change the seconds')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setDate does not change the ms')
+
+// Let’s try a date six months from now (so DST offset will be different)
+// 8 tests more
+d = new Date(+(e = new Date(e.getTime()+180*3600*24000)));
+ok(d.setDate(15)===d.getTime(), 'retval of setDate (in 6 mths)')
+is(d.getDate(), 15, 'setDate set the date (6 months hence)')
+is(d.getYear(), e.getYear(), 'setDate does not change  year (in 6 mths)')
+is(d.getMonth(), e.getMonth(), 'setDate does not change month (in 6 mths)')
+is(d.getHours(), e.getHours(), 'setDate does not change hours (in 6 mths)')
+is(d.getMinutes(), e.getMinutes(), 'setDate changeth not min (in 6 mths)')
+is(d.getSeconds(), e.getSeconds(), 'setDate changeth not sec (in 6 mths)')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setDate does not change the ms (in 6 mths)')
+
+// 1 test here
+error = false
+try{Date.prototype. setDate.apply([])}
+catch(e){error = e}
+ok(error instanceof TypeError, 'setDate death')
+
+
+// ===================================================
+// 15.9.5.37 Date.prototype.setUTCDate
+// ===================================================
+
+
+// ===================================================
+// 15.9.5.38 Date.prototype.setMonth
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Date.prototype,'setMonth',2)
+
+// 3 tests
+d = new Date()
+ok(is_nan(d.setMonth()), 'setMonth without arguments')
+d.setMonth("5","12")
+is(d.getMonth(), 5, 'setMonth with string arg')
+is(d.getDate(), 12, 'setMonth with string 2nd arg')
+
+// 96 tests
+for(i = 0; i<=11; ++i)
+ d = new Date(+(e = new Date(2009, i, 15))),
+ ok(d.setMonth(i==11?10:i+1)===d.getTime(),'retval of setMonth('+i+')'),
+ is(d.getYear(), e.getYear(), 'setMonth('+i+') does not change the year'),
+ is(d.getMonth(), i==11 ? 10 : i+1, 'setMonth('+i+') set the month'),
+ is(d.getDate(), e.getDate(), 'setDate('+i+') set the date'),
+ is(d.getHours(), e.getHours(), 'setMonth('+i+') does not change hours'),
+ is(d.getMinutes(), e.getMinutes(),'setMonth('+i+') does not change min'),
+ is(d.getSeconds(), e.getSeconds(),'setMonth('+i+') does not change secs'),
+ is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setMonth('+i+') does not change the ms')
+
+// 2 tests
+d = new Date(+(e = new Date(2009, 0, 31))),
+d.setMonth(1),
+is(d.getMonth(), 2, 'setMonth() overflowing into the following month')
+is(d.getDate(), 3, 'date set my overflowing setMonth')
+
+// 8 tests: setMonth with two args
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setMonth(5,3)===d.getTime(), 'retval of setMonth w/2 args')
+is(d.getYear(), e.getYear(), 'setMonth w/2 args does not change the year')
+is(d.getMonth(), 5, 'setMonth w/2 args does not change  month')
+is(d.getDate(), 3, 'setMonth w/2 args does not change the date')
+is(d.getHours(), e.getHours(), 'setMonth w/2 args does not set the hours')
+is(d.getMinutes(), e.getMinutes(), 'setMonth w/2 args sets no minutes')
+is(d.getSeconds(), e.getSeconds(), 'setMonth w/2 args does not change sec')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setMonth w/2 args does not change the ms')
+
+// 1 test here
+error = false
+try{Date.prototype. setMonth.apply([])}
+catch(e){error = e}
+ok(error instanceof TypeError, 'setMonth death')
 
 
 // # ~~~ Eye knead two Finnish righting this.
+
+diag("To do: finish writing this test script");
+// We ought to supplement the tests for all the set(UTC)Milliseconds func-
+// tions with tests for type conversion and lack of arguments

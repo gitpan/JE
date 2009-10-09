@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.037';
+our $VERSION = '0.038';
 
 
 use strict;
@@ -12,7 +12,10 @@ use overload
 	fallback => 1,
 	'&{}' => sub {
 		my $self = shift;
-		sub { $self->call($self->global->upgrade(@_)) }
+		sub {
+			my $ret = $self->call($self->global->upgrade(@_));
+			typeof $ret eq 'undefined' ? undef : $ret
+		}
 	 };
 
 our @ISA = 'JE::Object';
@@ -55,13 +58,15 @@ JE::Object::Function - JavaScript function class
   };
 
 
-  $f->call(@args);
-  $f->construct(@args); # if this is a constructor function
-  $f->apply($obj, @args);
+  $f->(@args);
+  $f->call_with($obj, @args);
 
 =head1 DESCRIPTION
 
-All JavaScript functions are instances of this class.
+All JavaScript functions are instances of this class. If you want to call
+a JavaScript function from Perl, just treat is as a coderef (C<< $f->() >>)
+or use the C<call_with> method (C<< $f->call_with($obj, @args) >>) if you
+want to specify the invocant (the 'this' value).
 
 =head1 OBJECT CREATION
 
@@ -315,12 +320,28 @@ sub new {
 }
 
 
+=item call_with ( $obj, @args )
 
+Calls a function with the given arguments. The C<$obj> becomes the
+function's invocant. This method is intended for general use from the Perl
+side. The arguments (including C<$obj>) are automatically upgraded.
+
+=cut
+
+sub call_with {
+ my $func = shift;
+ my $ret = $func->apply( $func->global->upgrade(@_) );
+ typeof $ret eq 'undefined' ? undef : $ret
+}
 
 =item call ( @args )
 
-Calls a function with the given arguments. The invocant (the 'this' value)
+This method, intended mainly for internal use, calls a function with the 
+given arguments, without upgrading them. The invocant (the 'this' value)
 will be the global object. This is just a wrapper around C<apply>.
+
+This method is very badly named and will probably be renamed in a future
+version. Does anyone have any suggestions?
 
 =cut
 
@@ -334,7 +355,8 @@ sub call {
 
 =item construct
 
-Calls the constructor, if this function has one (functions written in JS
+This method, likewise intended mainly for internal use, calls the 
+constructor, if this function has one (functions written in JS
 don't have this). Otherwise, an object will be created and passed to the 
 function as its invocant. The return value of the function will be
 discarded, and the object (possibly modified) will be returned instead.
@@ -397,7 +419,12 @@ sub construct { # ~~~ we need to upgrade the args passed to construct, but
 
 =item apply ( $obj, @args )
 
-Calls the function with $obj as the invocant and @args as the args.
+This method, intended mainly for internal use just like the two above,
+calls the function with $obj as the invocant and @args as the args. No
+upgrading occurs.
+
+This method is very badly named and will probably be renamed in a future
+version. Does anyone have any suggestions?
 
 =cut
 
@@ -670,7 +697,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.037';
+our $VERSION = '0.038';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -757,7 +784,7 @@ sub prototype{}
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.037';
+our $VERSION = '0.038';
 
 our @ISA = 'JE::Object';
 

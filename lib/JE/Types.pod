@@ -143,6 +143,11 @@ Just use a function as though it were a coderef:
 
   $je->{Array}->();
 
+If you need to specify the invocant ('this' value), use the C<call_with>
+method:
+
+  $je->{Number}{prototype}{toString}->call_with($je->eval('42'), 16);
+
 =head2 Just Getting a Simple Perl Scalar
 
 To convert one of the fancy objects returned by JE into a simple Perl

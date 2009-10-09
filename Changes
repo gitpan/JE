@@ -1,5 +1,15 @@
 Revision history for JE
 
+0.038   9 October, 2009
+        Incompatible change:
+        • When a JavaScript function is called as a coderef, the unde-
+          fined value is now returned as a Perl  undef,  instead of a
+          JE::Undefined object.
+        New features:
+        • New date methods:  setDate, setHours, setMinutes,  setMonth
+          and setSeconds
+        • Function objects now have a call_with method.
+
 0.037   17 September, 2009
         Bug fixes:
         • Numification of strings  containing  initial  Unicode  para-

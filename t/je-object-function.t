@@ -1,6 +1,6 @@
 #!perl  -T
 
-use Test::More tests => 7;
+use Test::More tests => 10;
 use strict;
 
 
@@ -24,12 +24,14 @@ isa_ok $func, 'JE::Object::Function';
 
 
 #--------------------------------------------------------------------#
-# Test 5: Overloading
+# Tests 5-6: Overloading
 
 is &$func, 34, '&{} overloading';
+is &{$j->eval('0,function(){}')}, undef,
+ '&{} overloading changes a returned JE::Undefined into undef';
 
 #--------------------------------------------------------------------#
-# Test 6: no_proto makes construct die
+# Test 7: no_proto makes construct die
 
 {
 	my $func = new JE::Object::Function {
@@ -41,10 +43,20 @@ is &$func, 34, '&{} overloading';
 }
 
 #--------------------------------------------------------------------#
-# Test 7: The really weird ‘warn’ bug
+# Test 8: The really weird ‘warn’ bug
 
 ok eval{local $SIG{__WARN__}=sub{};
         $j->upgrade(sub{warn})->();1}, 'the really weird warn bug';
+
+#--------------------------------------------------------------------#
+# Tests 9-10: call_with
+
+is $j->eval('0,function(a){return this + " " + a}')->call_with(
+    "quext","qued"
+   ), 'quext qued', 'call_with';
+is $j->eval('0,function(){}')->call_with({}), undef,
+ 'call_with turns an undefined retval into undef';
+
 
 diag 'TO DO: Finish writing this script.';
 

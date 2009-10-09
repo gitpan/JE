@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.037';
+our $VERSION = '0.038';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -262,7 +262,8 @@ sub _objectify_error {
 	my $class = 'JE::Object::Error';
 
 	if($msg =~ /^Can't\ locate\ object\ method\ 
-	    "(?:c(?:all|onstruct)|apply)"/x) {
+	    "(?:c(?:all|onstruct)|apply|invoke_with)"/x) {
+	     # ~~~ the ‘apply’ in there is legacy and can be removed b4 v1
 		$class = 'JE::Object::Error::TypeError';
 		$msg = "Argument to new is not a constructor";
 	}
@@ -281,7 +282,7 @@ sub DDS_freeze {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.037';
+our $VERSION = '0.038';
 
 use subs qw'_eval_term';
 use List::Util 'first';
@@ -689,7 +690,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.037';
+our $VERSION = '0.038';
 
 # B::Deparse showed me how to get these values.
 use constant nan => sin 9**9**9;
@@ -1380,7 +1381,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.037';
+our $VERSION = '0.038';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1392,7 +1393,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.037';
+our $VERSION = '0.038';
 
 sub list {
 	my $self = shift;

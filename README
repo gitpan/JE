@@ -1,4 +1,4 @@
-JE, version 0.037
+JE, version 0.038
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -27,12 +27,14 @@ the API could be improved or reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-See the Changes file for the long version.
-
-• Numification of strings and the  parser’s  whitespace  regexps  have
-  been fixed to work with bleadperl (perl 5.11.0-to-be).
-• Hash or array elements in ‘bind_class’ classes are now accessible as
-  scope variables (i.e., with(document){ theForm })
+Incompatible change:
+• When a JavaScript  function  is  called  as  a  coderef,  the  unde-
+  fined value  is  now  returned  as  a  Perl  undef,  instead  of  a
+  JE::Undefined object.
+New features:
+• New date  methods:  setDate,  setHours,  setMinutes,  setMonth  and
+  setSeconds
+• Function objects now have a call_with method.
 
 
 TO DO
@@ -67,7 +69,7 @@ Or you can use the following:
     [sudo] make install
 
 
-DEPENDENCIES
+PREREQUISITES
 
 This module requires perl 5.8.3 or higher and the following modules:
 • Scalar::Util version 1.14 or later
