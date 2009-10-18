@@ -1,4 +1,4 @@
-JE, version 0.038
+JE, version 0.039
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -27,14 +27,8 @@ the API could be improved or reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-Incompatible change:
-• When a JavaScript  function  is  called  as  a  coderef,  the  unde-
-  fined value  is  now  returned  as  a  Perl  undef,  instead  of  a
-  JE::Undefined object.
-New features:
-• New date  methods:  setDate,  setHours,  setMinutes,  setMonth  and
-  setSeconds
-• Function objects now have a call_with method.
+Bug fix:  Calling some_number.valueOf() no longer dies.  (valueOf now
+knows how to  handle  plain  numbers  as  well  as  number  objects.)
 
 
 TO DO

@@ -1,6 +1,6 @@
 package JE::Object::Number;
 
-our $VERSION = '0.038';
+our $VERSION = '0.039';
 
 
 use strict;
@@ -258,8 +258,11 @@ sub _new_constructor {
 					"Number object"
 				) unless $self->class eq 'Number';
 
-				return JE::Number->new($global,
-					$$$self{value});
+				# We also deal with plain JE::Numbers here
+				return
+				 ref $self eq 'JE::Number'
+				 ? $self
+				 : JE::Number->new($global,$$$self{value});
 			},
 		}),
 		dontenum => 1,
