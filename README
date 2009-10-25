@@ -1,4 +1,4 @@
-JE, version 0.039
+JE, version 0.040
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -27,8 +27,13 @@ the API could be improved or reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-Bug fix:  Calling some_number.valueOf() no longer dies.  (valueOf now
-knows how to  handle  plain  numbers  as  well  as  number  objects.)
+Bug fixes:
+• Calling a_string.valueOf() no longer dies.
+• Array literals  no  longer  store  lvalues.  This  means  that  ‘a =
+  [nonexistent_var]; a[0]+""’  now dies on the first  statement,  not
+  the second;  and  ‘s='string'; [s][0].valueOf()’  no longer  chokes.
+• Number.prototype.toPrecision  actually works  instead  of  behaving
+  like toString.
 
 
 TO DO

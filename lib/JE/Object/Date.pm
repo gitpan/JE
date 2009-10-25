@@ -1,6 +1,6 @@
 package JE::Object::Date;
 
-our $VERSION = '0.039';
+our $VERSION = '0.040';
 
 
 use strict;

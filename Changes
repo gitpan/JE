@@ -1,5 +1,16 @@
 Revision history for JE
 
+0.040   25 October, 2009
+        Bug fixes:
+        • Same as  last  time,  but  for  strings:  Calling  a_string
+         .valueOf() no longer dies.
+        • Array literals no longer store  lvalues.  This  means  that
+         ‘a = [nonexistent_var]; a[0]+""’ now dies on the first state-
+          ment, not the second; and ‘s='string'; [s][0].valueOf()’ no
+          longer chokes.
+        • Number.prototype.toPrecision  actually works instead of  be-
+          having like toString.
+
 0.039   18 October, 2009
         Bug fix:  Calling some_number.valueOf() no longer dies.  (val-
         ueOf  now knows how to handle plain numbers as  well  as  num-

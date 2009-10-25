@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 73;
+use Test::More tests => 74;
 use strict;
 use utf8;
 
@@ -22,7 +22,9 @@ $j->prop(global => $j);
 
 # Run JS tests
 
-defined $j->eval( <<'--end--' ) or die;
+my $line = __LINE__+3; # If I put this on the next line, it gives the last
+                       # line of the here-doc (or something like that).
+defined $j->eval( <<'--end--', __FILE__, $line ) or die;
 
 // ===================================================
 // 11.1.1 this (not that)
@@ -67,7 +69,7 @@ ok(!error, 'The result of evalling an identifier is always an lvalue')
 // 11.1.3 Array literals
 // ===================================================
 
-/* Tests 9-59 */
+/* Tests 9-60 */
 
 a = []
 ok(a.length === 0,                               '[]')
@@ -217,12 +219,19 @@ ok(a.length === 8 && !('0' in a) && !('1' in a) && a[2] === 1  &&
    !('3' in a)    && !('4' in a) && a[5] === 2  && !('6' in a) &&
    !('7' in a), '[ ,, expr, ,, expr, ,, ]')
 
+var error = false
+try {
+ a = [i_hope_this_variable_does_not_exist]
+}
+catch(e) { error = e }
+ok(error instanceof ReferenceError, 'array literals resolve lvalues');
+
 
 // ===================================================
 // 11.1.3 Object literals
 // ===================================================
 
-/* Tests 60-72 */
+/* Tests 61-73 */
 
 function keys(obj) {
 	var k = []
@@ -271,7 +280,7 @@ ok(keys(o) == '6,7' && o[6] === 'autou' && o[7] === 'meletēsei',
 // 11.1.3 Grouping parentheses
 // ===================================================
 
-/* Test 73 */
+/* Test 74 */
 
 ok((3)===3, 'grouping parentheses')
 

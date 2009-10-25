@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.039';
+our $VERSION = '0.040';
 
 
 use strict;
@@ -214,7 +214,12 @@ sub _new_constructor {
 					"String object"
 				) unless $self->class eq 'String';
 
-				JE::String->_new($global, $$$self{value});
+				# We also deal with plain strings here.
+				ref $self eq 'JE::String'
+				 ? $self
+				 : JE::String->_new(
+				    $global, $$$self{value}
+				   );
 			},
 		}),
 		dontenum => 1,

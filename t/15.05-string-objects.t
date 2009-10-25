@@ -147,8 +147,9 @@ method_boilerplate_tests(String.prototype,'valueOf',0)
 	catch(e){ok(e instanceof TypeError,testname)}
 }()
 
-// 1 test more
-ok(new String("foo").valueOf() === 'foo', 'valueOf')
+// 2 test more
+ok(new String("foo").valueOf() === 'foo', 'valueOf with string object')
+ok("foo".valueOf() === 'foo', 'valueOf with string')
 
 
 // ===================================================

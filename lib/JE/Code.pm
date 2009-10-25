@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.039';
+our $VERSION = '0.040';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -282,7 +282,7 @@ sub DDS_freeze {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.039';
+our $VERSION = '0.040';
 
 use subs qw'_eval_term';
 use List::Util 'first';
@@ -690,7 +690,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.039';
+our $VERSION = '0.040';
 
 # B::Deparse showed me how to get these values.
 use constant nan => sin 9**9**9;
@@ -1300,6 +1300,8 @@ sub eval {  # evalate (sub)expression
 			}
 			else {
 				push @ary, _eval_term $$expr[$_];
+				$ary[-1] = $ary[-1]->get
+				 if ref $ary[-1] eq 'JE::LValue';
 			}
 		}
 
@@ -1381,7 +1383,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.039';
+our $VERSION = '0.040';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1393,7 +1395,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.039';
+our $VERSION = '0.040';
 
 sub list {
 	my $self = shift;

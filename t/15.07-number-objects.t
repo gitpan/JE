@@ -222,7 +222,7 @@ method_boilerplate_tests(Number.prototype,'toLocaleString',0)
 // 10 tests
 method_boilerplate_tests(Number.prototype,'valueOf',0)
 
-// 3 tests for misc this values
+// 4 tests for misc this values
 0,function(){
 	var f = Number.prototype.valueOf;
 	var testname='valueOf with boolean for this';
@@ -234,6 +234,7 @@ method_boilerplate_tests(Number.prototype,'valueOf',0)
 	var testname='valueOf with string for this';
 	try{f.call('true'); fail(testname) }
 	catch(e){ok(e instanceof TypeError,testname)}
+	ok(f.call(3)===3, 'valueOf with plain number for this')
 }()
 
 // more tests ...
@@ -309,6 +310,9 @@ method_boilerplate_tests(Number.prototype,'toPrecision',1)
 }()
 
 // more tests ...
+
+// 1 test more for now
+is(80..toPrecision(4), '80.00', 'toPrecision')
 
 
 

@@ -4,7 +4,7 @@ package JE::Object;
 sub evall { my $global = shift; my $r = eval 'local *_;' . shift;
             $@ and die; $r }
 
-our $VERSION = '0.039';
+our $VERSION = '0.040';
 
 use strict;
 use warnings;

@@ -1,6 +1,6 @@
 package JE::Object::Number;
 
-our $VERSION = '0.039';
+our $VERSION = '0.040';
 
 
 use strict;
@@ -361,7 +361,7 @@ return JE::String->_new($global, $result);
 			name    => 'toPrecision',
 			no_proto => 1,
 			argnames => ['precision'],
-			function_args => ['this'],
+			function_args => ['this','args'],
 			function => sub {
 my $self = shift;
 die JE::Object::Error::TypeError->new(
@@ -405,7 +405,7 @@ else {
 		($num = sprintf "%.${prec}e", $num)	
 		 =~ s/(?<=e[+-])0+(?!\z)//;   # convert 0e+00 to 0e+0
 	}
-	else { $num = sprintf "%." . ($prec - 1 - $e) . 'f' }
+	else { $num = sprintf "%." . ($prec - 1 - $e) . 'f', $num }
 }
 
 return JE::String->_new($global, $num);
