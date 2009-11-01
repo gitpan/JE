@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.040';
+our $VERSION = '0.041';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.040 (alpha release)
+Version 0.041 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -898,6 +898,8 @@ is subject to change, so don't do that.
 
 =cut
 
+fieldhash my %wrappees;
+
 sub upgrade {
 	my @__;
 	my $self = shift;
@@ -913,8 +915,15 @@ sub upgrade {
 			        ? $$proxy_cache{$ident}
 			        : ($$proxy_cache{$ident} =
 			            exists $$classes{$class}{wrapper}
-			                ? $$classes{$class}{wrapper}->(
-			                    $self,$_)
+			                ? do {
+			                   weaken( $wrappees{
+			                    my $proxy
+			                     = $$classes{$class}{wrapper}(
+			                        $self,$_
+			                       )
+			                   } = $_);
+			                   $proxy
+			                  }
 			                : JE::Object::Proxy->new($self,$_)
 			           )
 			    : $_;
@@ -1361,8 +1370,11 @@ sub _unwrap {
 	my @ret;
 	for(@_){
 		push @ret,
-			ref =~ /^JE::(?:Object::Proxy|Undefined|Null)\z/
+		   ref =~  # Check the most common classes for efficiency.
+		    /^JE::(?:Object::Proxy(?:::Array)?|Undefined|Null)\z/
 			? $_->value
+		 : exists $wrappees{$_}
+			? $wrappees{$_}
 			: $_
 	}
 	@ret;

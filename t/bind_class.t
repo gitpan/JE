@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 200;
+use Test::More tests => 203;
 use strict;
 use Scalar::Util 1.14 'refaddr';
 use utf8;
@@ -1083,4 +1083,32 @@ ok !$@, 'bind_class doesn\'t croak on surrogates';
  $j->bind_class(name => 'HTMLElement', package =>'HTML::DOM::TreeBuilder');
  cmp_ok refaddr $j->{HTMLElement}, '==', refaddr $constructor,
   're-binding a class w/o a constructor arg uses the existing constructor';
+}
+
+#--------------------------------------------------------------------#
+# Tests 201-3: unwrap
+
+{
+ my $unwrapped;
+ $j->bind_class(
+  package => 'HTML::DOM',
+  methods => { 'insertBefore' => sub { $unwrapped = $_[1] } },
+  unwrap => 1,
+ );
+ $j->bind_class(package => 'HTML::DOM::Element::Form', array=>1, hash=>1);
+ $j->bind_class(package => 'WWW::Scripter', wrapper => sub {
+  bless [], "WWW::Scripter::Plugin::JavaScript::JE::Proxy"
+ });
+ $j->bind_class(package => 'HTML::DOM::Node');
+
+ my $doc = $j->upgrade(bless[], 'HTML::DOM');
+ $doc->method(insertBefore => bless [], 'HTML::DOM::Element::Form');
+ is ref $unwrapped, 'HTML::DOM::Element::Form',
+  'unwrapping an array-like object';
+ $doc->method(insertBefore => bless [], 'WWW::Scripter');
+ is ref $unwrapped, 'WWW::Scripter',
+  'unwrapping a custom-wrapped object';
+ $doc->method(insertBefore => bless [], 'HTML::DOM::Node');
+ is ref $unwrapped, 'HTML::DOM::Node',
+  'unwrapping an array-like object';
 }

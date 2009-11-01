@@ -1,5 +1,9 @@
 Revision history for JE
 
+0.041   1 November, 2009
+        Bug fix:  The unwrap option to  bind_class  now unwraps array-
+        like objects and custom wrappers (RT #50473).
+
 0.040   25 October, 2009
         Bug fixes:
         • Same as  last  time,  but  for  strings:  Calling  a_string
