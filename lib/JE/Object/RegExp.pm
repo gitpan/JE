@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.041';
+our $VERSION = '0.042';
 
 
 use strict;
@@ -160,6 +160,12 @@ supported, except for C<(?s)>
 and C<(?m)>, which don't do anything, and C<(?|...)>, which is 
 unpredictable.
 
+In versions prior to 0.042, a hyphen adjacent to C<\d>, C<\s> or C<\w> in a
+character class would be unpredictable (sometimes a syntax error). Now it
+is interpreted literally. This matches what most implementations do, which
+happens to be the same as Perl's behaviour. (It is a syntax error
+in ECMAScript.)
+
 =head1 METHODS
 
 =over 4
@@ -176,6 +182,7 @@ unpredictable.
 #
 # But it would be nice if this would work:
 #	$j->eval("'\x{10000}'") =~ $j->eval('/../')
+# ~~~ We might be able to make this work with perl 5.12’s qr overloading.
 
 our %_patterns = qw/
 \b  (?:(?<=[A-Za-z0-9_])(?![A-Za-z0-9_])|(?<![A-Za-z0-9_])(?=[A-Za-z0-9_]))
@@ -422,7 +429,9 @@ sub new {
 			else {
 				my @full_classes;
 				($sub_pat = $1) =~ s/
-				  (\\[vnrdsw])
+				  (\\[vnr])
+				    |
+				  (-?)(\\[dsw])(-?)
 				    |
 				  (\.|\\[DSW])
 				    |
@@ -431,10 +440,14 @@ sub new {
 				  (\\(?:[^c]|c.))
 				/
 			  	  defined $1 ? $_class_patterns{$1} :
-				  defined $2 ? ((push @full_classes,
-					$_patterns{$2}),'') :
-				  defined $3 ? "\\x{$3}"  :
-			    	  $4
+			  	  defined $3 ?
+				     ($2 ? '\-' : '')
+				    .$_class_patterns{$3}
+				    .($4 ? '\-' : '')     :
+				  defined $5 ? ((push @full_classes,
+					$_patterns{$5}),'') :
+				  defined $6 ? "\\x{$6}"  :
+			    	  $7
 				/egxs;
 
 				$new_re .= length $sub_pat

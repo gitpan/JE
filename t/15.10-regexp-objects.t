@@ -305,6 +305,16 @@ is(' !"#$%&\'()*+,-./;:<=>?@[\\]^_`{|}~¡¢£·'.match(
 
 // ...
 
+// character classes (wherever this goes)
+// 2 tests
+// This is a syntax error according to ECMAScript, but we support it any-
+// way. See RT #51123.
+name =  '- adjacent to \\w in char classes';
+try{ ok(RegExp('[\\w-\\d]').test('-'),name) }
+catch(e) { fail(name) }
+// and a bug we almost introduced while adding this feature:
+ok( /[\n-\r]/.test('\v'), '[\\n-\\r] is a range' )
+
 
 // ===================================================
 // 15.10.6.2 exec

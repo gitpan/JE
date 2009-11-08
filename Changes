@@ -1,5 +1,20 @@
 Revision history for JE
 
+0.042   8 November, 2009
+        New feature:  We extend ECMAScript by treating hyphens in reg-
+        exp character classes that are  adjacent  to  \d,  \s  or  \w
+        always as literal hyphens and  no  longer  as  syntax  errors
+        (RT #51123).
+        Bug fixes:
+        • JE::Number’s id  method has been fixed such  that  ===  and
+          isNaN  now recognise positive  NaN  as  NaN  on Windows (RT
+          #51036).
+        • Parsing long strings no longer causes  perl  5.8  to  crash
+          on  Windows  (see  http://www.nntp.perl.org/group/perl.cpan
+         .testers/2009/11/msg5881496.html).  I fixed this by  reïncor-
+          porating part of Kevin Cameron’s code  (RT #49607)  that  I
+          had simplified to make it faster.
+
 0.041   1 November, 2009
         Bug fix:  The unwrap option to  bind_class  now unwraps array-
         like objects and custom wrappers (RT #50473).

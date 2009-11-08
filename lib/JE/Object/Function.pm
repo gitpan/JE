@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.041';
+our $VERSION = '0.042';
 
 
 use strict;
@@ -697,7 +697,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.041';
+our $VERSION = '0.042';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -784,7 +784,7 @@ sub prototype{}
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.041';
+our $VERSION = '0.042';
 
 our @ISA = 'JE::Object';
 

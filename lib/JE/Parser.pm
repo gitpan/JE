@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.041';
+our $VERSION = '0.042';
 
 use strict;  # :-(
 use warnings;# :-(
@@ -175,13 +175,53 @@ sub str() { # public
 	#/\G (?: '((?>(?:[^'\\] | \\.)*))'
 	#          |
 	#        "((?>(?:[^"\\] | \\.)*))"  )/xcgs or return;
-	/\G (?: '([^'\\]*(?:\\.[^'\\]*)*)'
-	          |
-	        "([^"\\]*(?:\\.[^"\\]*)*)"  )/xcgs or return;
+	# There are two solutions:
+	# 1) Use the unrolling technique from the Owl Book.
+	# 2) Use shorter patterns but more code (contributed by Kevin
+	#    Cameron)
+	# Number 1 should be faster, but it crashes under perl 5.8.8 on
+	# Windows, and perhaps on other platforms, too. So we use #2 for
+	# 5.8.x regardless on platform to be on the safe side.
+
+	use constant'lexical old_perl => $] < 5.01; # Use a constant so the
+	my $yarn;                                   # if-block disappears
+	if(old_perl) {                              # at compile-time.
+		# Use a simpler pattern (but more code) to break strings up
+		# into extents bounded by the quote or escape
+		my $qt = substr($_,pos($_),1);
+		$qt =~ /['"]/ or return; # not a string literal if first
+		pos($_)++;               # char not a quote
+		my $done = 0;
+		while (defined(substr($_,pos($_),1))) {
+		    my ($part) = /\G([^\\$qt]*)/xcgs;
+		    defined($part) or $part = "";
+		    $yarn .= $part;
+		    my $next = substr($_,pos($_)++,1);
+
+		    if ($next eq "\\") {
+		        #pass on any escaped char
+		        $next = substr($_,pos($_)++,1);
+		        $yarn .= "\\$next";
+		    } else {
+		        # handle end quote
+		        $done = 1;
+		        last;
+		    }
+		}
+
+		# error if EOF before end of string
+        	return if !$done;
+	}
+	else {
+		/\G (?: '([^'\\]*(?:\\.[^'\\]*)*)'
+		          |
+		        "([^"\\]*(?:\\.[^"\\]*)*)"  )/xcgs or return;
+		$yarn = $+;
+	}
 
         # transform special chars
 	no re 'taint'; # I need eval "qq-..." to work
-	(my $yarn = $+) =~ s/\\(?:
+	$yarn =~ s/\\(?:
 		u([0-9a-fA-F]{4})
 		 |
 		x([0-9a-fA-F]{2})

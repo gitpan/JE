@@ -1,6 +1,6 @@
 package JE::Boolean;
 
-our $VERSION = '0.041';
+our $VERSION = '0.042';
 
 
 use strict;

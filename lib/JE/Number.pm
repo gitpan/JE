@@ -1,6 +1,6 @@
 package JE::Number;
 
-our $VERSION = '0.041';
+our $VERSION = '0.042';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -128,7 +128,7 @@ sub id        {
 	my $value = shift->value;
 	# This should (I hope) take care of systems that stringify nan and
 	# inf oddly:
-	'num:' . ($value eq   nan ?  'nan' : 
+	'num:' . ($value != $value ? 'nan' : 
 	          $value ==   inf ?  'inf' :
 	          $value == -+inf ? '-inf' :
 	          $value)
