@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 300;
+use Test::More tests => 301;
 use strict;
 use utf8;
 
@@ -407,7 +407,7 @@ inf		0
 
 
 // ---------------------------------------------------
-/* Tests 287-294: ToString */
+/* Tests 287-295: ToString */
 
 ok(''+void 0 === 'undefined', 'undefined to string')
 ok(''+null  === 'null',      'null to string')
@@ -415,12 +415,13 @@ ok(''+true  === 'true',    'true to string')
 ok(''+false === 'false',   'false to string')
 ok(''+NaN    === 'NaN',     'NaN to string')
 ok(''+0        === '0',       '0 to string')
+ok(''+-0        === '0',       '-0 to string')
 ok(''+-Infinity === '-Infinity', '-Infinity to string')
 ok(''+Infinity  === 'Infinity',    'Infinity to string')
 diag('TO DO: Write tests for number-to-string conversion')
 
 // ---------------------------------------------------
-/* Tests 295-300: ToObject */
+/* Tests 296-301: ToObject */
 
 Object.prototype.to_object = function() {
 	return this

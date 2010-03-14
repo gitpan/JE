@@ -1,6 +1,6 @@
 package JE::Object::Math;
 
-our $VERSION = '0.042';
+our $VERSION = '0.043';
 
 
 use strict;
@@ -203,8 +203,16 @@ sub new {
 			function => sub {
 				JE::Number->new($global,
 					defined $_[0] && defined $_[1]
-					? atan2($_[0]->to_number->value, 
-					        $_[1]->to_number->value)
+					? do {
+					   my $a = $_[0]->to_number->value;
+					   my $b = $_[1]->to_number->value;
+					   # Windoze has trouble
+					   # with two infs.
+					   $a + 1 == $a && $b+1 == $b
+					    ? ($b>0 ? 1 : 3) * atan2(1,1)
+					       * ($a > 0 ? 1 : -1)
+					    : atan2($a, $b)
+					  }
 					: 'nan');
 			},
 		}),
@@ -360,6 +368,9 @@ my $y = defined $_[1] ? $_[1]->to_number->value : nan;
 abs $x == 1 && abs $y == inf &&
 	return JE::Object::Number->new($global, 'nan');
 
+$y == 0 &&
+	return JE::Number->new($global, 1);
+
 return JE::Number->new($global, $x ** $y);
 
 			},
@@ -424,7 +435,13 @@ return JE::Number->new($global, $x ** $y);
 			function => sub {
 				JE::Number->new($global,
 					defined $_[0]
-					? $_[0]->to_number->value ** .5
+					? do {
+					   my $num
+					    = $_[0]->to_number->value;
+					   $num == -+inf
+					    ? 'nan'
+					    : $num ** .5
+					  }
 					: 'nan');
 			},
 		}),

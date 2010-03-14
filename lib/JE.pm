@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.042';
+our $VERSION = '0.043';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.042 (alpha release)
+Version 0.043 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -2168,10 +2168,6 @@ more security bugs. Is there any way to eliminate all those closures?)
 
 =item *
 
-The Date class is incomplete.
-
-=item *
-
 The JE::Scope class, which has an C<AUTOLOAD> sub that 
 delegates methods to the global object, does not yet implement 
 the C<can> method, so if you call $scope->can('to_string')
@@ -2410,7 +2406,7 @@ the list of dependencies.
 
 =head1 AUTHOR, COPYRIGHT & LICENSE
 
-Copyright (C) 2007-9 Father Chrysostomos <sprout [at] cpan
+Copyright (C) 2007-10 Father Chrysostomos <sprout [at] cpan
 [dot] org>
 
 This program is free software; you may redistribute it and/or modify
@@ -2429,8 +2425,9 @@ his tests,
 to Andy Armstrong S<< [ andyE<nbsp>E<nbsp>hexten net ] >>, Yair Lenga
 S<< [ yair lengaE<nbsp>E<nbsp>gmail com ] >>, Alex Robinson
 S<< [ alexE<nbsp>E<nbsp>solidgoldpig com ] >>, Christian Forster
-S<< [ boronkE<nbsp>E<nbsp>boronk de ] >> and Imre Rad
-S<< [ radimreE<nbsp>E<nbsp>freemail hu ] >>
+S<< [ boronkE<nbsp>E<nbsp>boronk de ] >>, Imre Rad
+S<< [ radimreE<nbsp>E<nbsp>freemail hu ] >> and Craig Mackenna
+S<< [ craigE<nbsp>E<nbsp>animalhead com ] >>
 for their suggestions,
 
 and to the CPAN Testers for their helpful reports.
@@ -2470,5 +2467,7 @@ L<JavaScript.pm|JavaScript>, L<JavaScript::SpiderMonkey> and
 L<JavaScript::Lite>--all 
 interfaces to
 Mozilla's open-source SpiderMonkey JavaScript engine.
+
+L<JavaScript::V8>
 
 L<WWW::Mechanize::Plugin::JavaScript>

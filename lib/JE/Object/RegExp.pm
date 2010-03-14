@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.042';
+our $VERSION = '0.043';
 
 
 use strict;
@@ -55,10 +55,7 @@ our @EraseCapture;
 #    \w         [A-Za-z0-9_]
 #    \W         [^A-Za-z0-9_]
 #    [^]	(?s:.)
-# ('/[]]/' is a syntax error in ECMAScript. A positive char class cannot be
-# empty,  nor can the first character within a char  class  be  a  closing
-# bracket.  JE  is  more  lenient  and  allows  Perl’s  behaviour  [i.e.,
-# '/[\]]/'].)
+#    []         (?!)
 
 # Other differences
 #
@@ -359,6 +356,7 @@ sub new {
 	# enclosing group,  but that causes the  same  \1  problem  men-
 	# tioned above.
 
+	no constant 1.03 (); # multiple
 	use constant::lexical {
 		# array indices within each item on the @stack:
 		posi => 0, # position within $new_re where the current
@@ -422,8 +420,11 @@ sub new {
 		}
 
 		# char class:
-		elsif($re=~s/^\[((?:[^\\]|\\.)[^]\\]*(?:\\.[^]\\]*)*)]//s){
-			if($1 eq '^') {
+		elsif($re=~s/^\[([^]\\]*(?:\\.[^]\\]*)*)]//s){
+			if($1 eq '') {
+				$new_re .= '(?!)';
+			}
+			elsif($1 eq '^') {
 				$new_re .= '(?s:.)';
 			}
 			else {
@@ -667,6 +668,83 @@ Returns the string 'RegExp'.
 sub class { 'RegExp' }
 
 
+sub call {
+				my ($self,$str) = @_;
+
+				die JE::Object::Error::TypeError->new(
+					$self->global, add_line_number
+					"Argument to exec is not a " .
+					"RegExp object"
+				) unless $self->class eq 'RegExp';
+
+				my $je_str;
+				if (defined $str) {
+					$str =
+					($je_str=$str->to_string)->value16;
+				}
+				else {
+					$str = 'undefined';
+				}
+
+				my(@ary,$indx);
+
+				my $g = $self->prop('global')->value;
+				if ($g) {
+					pos $str =
+					   $self->prop('lastIndex')->value;
+					$str =~ /$$$self{value}/g or do {
+					  $self->prop(lastIndex =>
+					    JE::Number->new(
+					     my $global = $$$self{global},
+					     0
+					    ));
+					  return $global->null;
+					};
+
+					@ary = @Match;
+					$ary[0] = substr($str, $-[0],
+						$+[0] - $-[0]);
+					$indx = $-[0];
+
+					$self->prop(lastIndex =>
+						JE::Number->new(
+							$$$self{global},
+							pos $str
+						));							}
+				else {
+					$str =~ /$$$self{value}/ or do {
+					  $self->prop(lastIndex =>
+					    JE::Number->new(
+					     my $global = $$$self{global},
+					     0
+					    ));
+					  return $global->null;
+					};
+
+					@ary = @Match;
+					$ary[0] = substr($str, $-[0],
+						$+[0] - $-[0]);
+					$indx = $-[0];
+
+				}
+			
+				my $ary = JE::Object::Array->new(
+					my $global = $$$self{global}, 
+					\@ary
+				);
+				$ary->prop(index =>
+					JE::Number->new($global,$indx));
+				$ary->prop(input => defined $je_str
+					? $je_str :
+					JE::String->_new(
+						$global, $str
+					));
+				
+				$ary;
+}
+
+sub apply { splice @'_, 1, 1; goto &call }
+
 
 sub new_constructor {
 	my($package,$global) = @_;
@@ -706,69 +784,7 @@ sub new_constructor {
 			argnames => ['string'],
 			no_proto => 1,
 			function_args => ['this','args'],
-			function => my $exec = sub {
-				my ($self,$str) = @_;
-
-				die JE::Object::Error::TypeError->new(
-					$global, add_line_number
-					"Argument to exec is not a " .
-					"RegExp object"
-				) unless $self->class eq 'RegExp';
-
-				my $je_str;
-				if (defined $str) {
-					$str =
-					($je_str=$str->to_string)->value16;
-				}
-				else {
-					$str = 'undefined';
-				}
-
-				my(@ary,$indx);
-
-				my $g = $self->prop('global')->value;
-				if ($g) {
-					pos $str =
-					   $self->prop('lastIndex')->value;
-					$str =~ /$$$self{value}/g or
-					  $self->prop(lastIndex =>
-					    JE::Number->new($global, 0)),
-					  return $global->null;
-
-					@ary = @Match;
-					$ary[0] = substr($str, $-[0],
-						$+[0] - $-[0]);
-					$indx = $-[0];
-
-					$self->prop(lastIndex =>
-						JE::Number->new(
-							$global, pos $str
-						));							}
-				else {
-					$str =~ /$$$self{value}/ or
-					  $self->prop(lastIndex =>
-					    JE::Number->new($global, 0)),
-					  return $global->null;
-
-					@ary = @Match;
-					$ary[0] = substr($str, $-[0],
-						$+[0] - $-[0]);
-					$indx = $-[0];
-
-				}
-			
-				my $ary = JE::Object::Array->new(
-					$global, \@ary);
-				$ary->prop(index =>
-					JE::Number->new($global,$indx));
-				$ary->prop(input => defined $je_str
-					? $je_str :
-					JE::String->_new(
-						$global, $str
-					));
-				
-				$ary;
-			},
+			function => \&call,
 		}),
 		dontenum => 1,
 	});
@@ -788,7 +804,7 @@ sub new_constructor {
 					"Argument to test is not a " .
 					"RegExp object"
 				) unless $self->class eq 'RegExp';
-				my $ret = &$exec($self,$str);
+				my $ret = call($self,$str);
 				JE::Boolean->new(
 					$global, $ret->id ne 'null'
 				);

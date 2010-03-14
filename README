@@ -1,4 +1,4 @@
-JE, version 0.042
+JE, version 0.043
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -16,9 +16,8 @@ Here are its main weakness:
     - It uses lots of memory.
     - It leaks memory (to be fixed).
 
-This is still an alpha release. The core objects are not yet complete,
-but as long as you don't need all  the  methods  of  dates  (more pre-
-cisely,  those beginning with ‘set’),  this module is actually usable.
+This is still an alpha release, but it fully implements ECMAScript v3,
+except for a few seldom-used features like  -0  and  Number.MAX_VALUE.
 
 If  you have the time and the interest,  please experiment  with  this
 module (or maybe even lend a hand :-). If you have any ideas as to how
@@ -27,22 +26,15 @@ the API could be improved or reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-New feature:  We extend ECMAScript by treating hyphens in regexp char-
-acter classes that are adjacent to \d,  \s  or  \w  always as literal
-hyphens and no longer as syntax errors (RT #51123).
-Bug fixes:
-• JE::Number’s id method has been fixed such that  ===  and isNan now
-  recognise positive NaN as NaN on Windows (RT #51036).
-• Parsing long strings no longer causes perl  5.8  to  crash  on  Win-
-  dows  (see http://www.nntp.perl.org/group/perl.cpan.testers/2009/11
-  /msg5881496.html).  I fixed this by reïncorporating part  of  Kevin
-  Cameron’s code (RT #49607)  that I had simplified to make it faster.
-
+• The Date  class in now complete,  as the rest of the  set*  methods
+  have been added.
+• Regular expressions can now be  called  as  functions  (RT  #55405).
+• Various minor bug  fixes relating to numbers, Math functions, dates,
+  and regexps
 
 TO DO
 
 - Make the parser extensible/customisable
-- Finish the core object classes (Date needs to be finished)
 - Add more helpful error messages
 - Determine some logical way of dealing with locale settings (for
   String.prototype.localeCompare, et al.)
@@ -112,8 +104,9 @@ tests,
 to Andy Armstrong    [ andy        hexten net       ],
    Yair Lenga        [ yair lenga  gmail com        ],
    Alex Robinson     [ alex        solidgoldpig com ],
-   Christian Forster [ boronk      boronk de        ] and
-   Imre Rad          [ radimre     freemail hu      ]
+   Christian Forster [ boronk      boronk de        ],
+   Imre Rad          [ radimre     freemail hu      ] and
+   Craig MacKenna    [ craig       animalhead com   ]
 for their suggestions,
 
 and to the CPAN Testers for their helpful reports.
@@ -121,7 +114,7 @@ and to the CPAN Testers for their helpful reports.
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2007-9 Father Chrysostomos
+Copyright (C) 2007-10 Father Chrysostomos
 
 This program is free software; you may redistribute it and/or modify
 it under the same terms as perl.

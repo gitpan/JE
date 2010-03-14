@@ -237,7 +237,8 @@ method_boilerplate_tests(Number.prototype,'valueOf',0)
 	ok(f.call(3)===3, 'valueOf with plain number for this')
 }()
 
-// more tests ...
+// 1 test more
+ok( new Number().valueOf() === 0, 'valueOf' )
 
 
 // ===================================================
@@ -261,7 +262,18 @@ method_boilerplate_tests(Number.prototype,'toFixed',1)
 	catch(e){ok(e instanceof TypeError,testname)}
 }()
 
-// more tests ...
+// 10 tests
+ok(NaN.toFixed() === "NaN", 'NaN.toFixed')
+ok(27.3.toFixed() === "27", 'toFixed with no args')
+is(27.3.toFixed(NaN), "27", 'toFixed with NaN arg')
+is(27.37.toFixed(1.9), "27.4", 'toFixed with float arg')
+is(27.3.toFixed(0), "27", 'toFixed with 0 arg')
+is(30.1.toFixed(5), "30.10000", 'toFixed returns trailing zeroes')
+is(30.125.toFixed(2), "30.13", 'toFixed rounds 5 up')
+is(1.5.toFixed(0), "2", 'toFixed(0) rounds 5 up')
+is(.1.toFixed(2), "0.10", 'toFixed returns a leading 0.')
+is(1000000000000000000001..toFixed(7), 1000000000000000000001..toString(),
+   'toFixed uses toString for really big numbers');
 
 
 // ===================================================
@@ -285,7 +297,22 @@ method_boilerplate_tests(Number.prototype,'toExponential',1)
 	catch(e){ok(e instanceof TypeError,testname)}
 }()
 
-// more tests ...
+// 15 tests
+ok(NaN.toExponential(-200) === "NaN", 'NaN.toExponential')
+ok((-Infinity).toExponential(-200) === "-Infinity", "-inf.toExponential")
+ok(Infinity.toExponential(-200) === "Infinity", "inf.toExponential")
+is(3..toExponential(), '3e+0', 'integer.toExponential')
+is(300..toExponential(), '3e+2', 'power of ten .toExponential')
+is(37.2.toExponential(), '3.72e+1', 'float>1 .toExponential')
+is(.00372.toExponential(), '3.72e-3', 'positive float<1 .toExponential')
+is(0..toExponential(), '0e+0', '0..toExponential()')
+is(37.2.toExponential(1), '3.7e+1', 'toExponential with arg')
+is(37.2.toExponential(1.9), '3.7e+1', 'toExponential with float arg')
+is(37.2.toExponential(NaN), '4e+1', 'toExponential with nan arg')
+is(30.125.toExponential(3), '3.013e+1', 'toExponential with arg rounds up')
+is(9.5.toExponential(0), '1e+0', '9.5.toExponential(0)')
+is(1.5.toExponential(0), '2e+0', 'toExponential with 0 arg rounds up')
+is((-1.).toExponential(), '-1e+0', 'negative .toExponential')
 
 
 // ===================================================
@@ -309,11 +336,26 @@ method_boilerplate_tests(Number.prototype,'toPrecision',1)
 	catch(e){ok(e instanceof TypeError,testname)}
 }()
 
-// more tests ...
-
-// 1 test more for now
-is(80..toPrecision(4), '80.00', 'toPrecision')
-
+// 17 test
+ok(80..toPrecision() === '80', 'int.toPrecision with no args stringifies')
+ok(80.1.toPrecision() === '80.1',
+  'float.toPrecision with no args stringifies')
+ok(NaN.toPrecision(1) === 'NaN', 'NaN.toPrecision')
+is(Infinity.toPrecision(1), 'Infinity', 'inf.toPrecision')
+is((-Infinity).toPrecision(1), '-Infinity', '-inf.toPrecision')
+is(0..toPrecision(1), '0', '0..toPrecision(1)')
+is(0..toPrecision(7), '0.000000', '0..toPrecision(7)')
+is(.0000001.toPrecision(1), '1.e-7', '.000001.toPrecision(1)')
+is(10..toPrecision(1), '1.e+1', '10..toPrecision(1)')
+is(100..toPrecision(1), '1.e+2', '100..toPrecision(2)')
+is(100..toPrecision(3), '100', '100..toPrecision(3)')
+is((-100).toPrecision(3), '-100', '(-100)..toPrecision(3)')
+is(1.5.toPrecision(1), '2', '1.5.toPrecision(1)')
+is(9.5.toPrecision(1), '1.e+1', '9.5.toPrecision(1)')
+is(80..toPrecision(4), '80.00', '80..toPrecision(4)')
+is(.01.toPrecision(1), '0.01', '.01.toPrecision(1)')
+is(80..toPrecision(4.6), '80.00', 'toPrecision with float arg')
 
 
 diag('TO DO: Finish writing this test script');
+// We still need tests for toString and toLocaleString

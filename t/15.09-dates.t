@@ -350,15 +350,15 @@ match = new Date(1199275200000).toString().match(
 )
 ok(match && (
 	match[1] == 'Tue' && match[2] == 1 && match[5] == '-' &&
-		36-match[3]*60-match[4] == -match[6]*60+match[7]
+		36-match[3]*60-match[4] == -match[6]*60-match[7]
 	  ||
 	match[1] == 'Wed' && match[2] == 2 &&
-	    (match[5]+match[6])*-60+ +match[7] +
+	    (match[5]+match[6])*-60-(match[5]+match[7]) +
 	     match[3]*60+ +match[4]          == 720
 	  ||
 	match[1] == 'Thu' && match[2] == 3 && match[5] == '+' &&
 		match[6]*60+ +match[7]-match[3]*60-match[4] == 720
-), 'toString')
+), 'toString') || diag(new Date(1199275200000).toString())
 
 is(new Date(2008,0,6).toString().substring(0,3), 'Sun', 'toString - Sun')
 is(new Date(2008,0,7).toString().substring(0,3), 'Mon', 'toString - Mon')
@@ -481,10 +481,10 @@ match = new Date(1199275200000).toLocaleString().match(
 )
 ok(match && (
 	match[1] == 'Tue' && match[2] == 1 && match[5] == '-' &&
-		36-match[3]*60-match[4] == -match[6]*60+match[7]
+		36-match[3]*60-match[4] == -match[6]*60-match[7]
 	  ||
 	match[1] == 'Wed' && match[2] == 2 &&
-	    (match[5]+match[6])*-60+ +match[7] +
+	    (match[5]+match[6])*-60-(match[5]+match[7]) +
 	     match[3]*60+ +match[4]          == 720
 	  ||
 	match[1] == 'Thu' && match[2] == 3 && match[5] == '+' &&
@@ -1406,7 +1406,7 @@ ok(error instanceof TypeError, 'getUTCMilliseconds death')
 // 10 tests
 method_boilerplate_tests(Date.prototype,'setTime',1)
 
-// 7 tests
+// 8 tests
 ok(is_nan(d = new Date().setTime(285619*365*24000*3600)),
 	'retval of setTime out of range')
 ok(is_nan(+d), 'affect of setTime out of range')
@@ -1415,6 +1415,7 @@ ok(is_nan(d = new Date().setTime()),
 ok(is_nan(+d), 'affect of setTime w/o args')
 is((d=new Date).setTime(785), 785, 'setTime retval')
 is(+d, 785, 'affect of setTime')
+ok(new Date().setTime("3") === 3, 'setTime with string arg')
 
 error = false
 try{Date.prototype. setTime.apply([])}
@@ -1428,6 +1429,12 @@ ok(error instanceof TypeError, 'setTime death')
 
 // 10 tests
 method_boilerplate_tests(Date.prototype,'setMilliseconds',1)
+
+// 2 tests
+ok(is_nan(new Date().setMilliseconds()), 'setMilliseconds without args')
+d = new Date(+(e=new Date()));
+is(d.setMilliseconds("3"), e.setMilliseconds(3),
+  'setMilliseconds treats strings the same way as numbers')
 
 // 6 tests
 d = new Date(+(e = new Date)); // two identical objects
@@ -1455,6 +1462,13 @@ ok(error instanceof TypeError, 'setMilliseconds death')
 
 // 10 tests
 method_boilerplate_tests(Date.prototype,'setUTCMilliseconds',1)
+
+// 2 tests
+ok(is_nan(new Date().setUTCMilliseconds()),
+  'setUTCMilliseconds without args')
+d = new Date(+(e=new Date()));
+is(d.setUTCMilliseconds("3"), e.setUTCMilliseconds(3),
+  'setUTCMilliseconds treats strings the same way as numbers')
 
 // 6 tests
 d = new Date(+(e = new Date)); // two identical objects
@@ -1523,11 +1537,57 @@ catch(e){error = e}
 ok(error instanceof TypeError, 'setSeconds death')
 
 
-// ...
+// ===================================================
+// 15.9.5.31 Date.prototype.setUTCSeconds
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Date.prototype,'setUTCSeconds',2)
+
+// 2 test
+d = new Date
+d.setUTCSeconds("1","2")
+ok(d.getSeconds() === 1, 'getSeconds after setUTCSeconds with strings')
+ok(d.getMilliseconds() === 2,
+ 'getMilliseconds after setUTCSeconds w/strings')
+
+// 8 tests
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setUTCSeconds(15)===d.getTime(), 'retval of setUTCSeconds')
+is(d.getYear(), e.getYear(), 'setUTCSeconds does not change the year')
+is(d.getMonth(), e.getMonth(), 'setUTCSeconds does not change the month')
+is(d.getDate(), e.getDate(), 'setUTCSeconds does not change the date')
+is(d.getHours(), e.getHours(), 'setUTCSeconds does not change the hours')
+is(d.getMinutes(), e.getMinutes(),'setUTCSeconds does not set the minutes')
+is(d.getSeconds(), 15, 'setUTCSeconds changes the seconds')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setUTCSeconds does not change the ms')
+
+// 8 tests: setUTCSeconds with two args
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setUTCSeconds(15,3)===d.getTime(), 'retval of setUTCSeconds w/2 args')
+is(d.getYear(), e.getYear(), 'setUTCSeconds w/2 args does not change year')
+is(d.getDate(), e.getDate(), 'setUTCSeconds w/2 args does not change date')
+is(d.getMonth(), e.getMonth(), 'setUTCSeconds w/2 args changeth not month')
+is(d.getHours(), e.getHours(),
+  'setUTCSeconds w/2 args does not change hours')
+is(d.getMinutes(), e.getMinutes(),'setUTCSeconds w/2 args does not set mins')
+is(d.getSeconds(), 15, 'setUTCSeconds w/2 args sets the sec')
+is(d.getMilliseconds(), 3,
+ 'setUTCSeconds w/2 args changes the ms')
+
+// 1 test for setUTCSeconds without arguments
+ok(is_nan(d.setUTCSeconds()), 'setUTCSeconds without arguments')
+
+// 1 test here
+error = false
+try{Date.prototype. setUTCSeconds.apply([])}
+catch(e){error = e}
+ok(error instanceof TypeError, 'setUTCSeconds death')
 
 
 // ===================================================
-// 15.9.5.35 Date.prototype.setMinutes
+// 15.9.5.33 Date.prototype.setMinutes
 // ===================================================
 
 // 10 tests
@@ -1592,18 +1652,108 @@ is(d.getMilliseconds(), 34,
 // 1 test for setMinutes without arguments
 ok(is_nan(d.setMinutes()), 'setMinutes without arguments')
 
-// 1 test here
+// 2 tests here
 error = false
 try{Date.prototype. setMinutes.apply([])}
 catch(e){error = e}
 ok(error instanceof TypeError, 'setMinutes death')
+// This test is not really normative, but is here since at one point it was
+// saying ‘setHours cannot be called....’
+like(error, '/setMinutes/', 'error message from setMinutes death')
 
 
 // ===================================================
 // 15.9.5.34 Date.prototype.setUTCMinutes
 // ===================================================
 
-// ...
+// 10 tests
+method_boilerplate_tests(Date.prototype,'setUTCMinutes',3)
+
+// 3 test
+d = new Date
+d.setUTCMinutes("1","2","3")
+ok(d.getUTCMinutes() === 1,
+  'getUTCMinutes after setUTCMinutes with strings')
+ok(d.getSeconds() === 2, 'getSeconds after setUTCMinutes with strings')
+ok(d.getMilliseconds() === 3,
+  'getMilliseconds after setUTCMinutes w/strings')
+
+// 8 tests
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setUTCMinutes(15)===d.getTime(), 'retval of setUTCMinutes')
+is(d.getUTCFullYear(), e.getUTCFullYear(),
+  'setUTCMinutes does not change the year')
+is(d.getUTCMonth(), e.getUTCMonth(),
+  'setUTCMinutes does not change the month')
+is(d.getUTCDate(), e.getUTCDate(),
+  'setUTCMinutes does not change the date')
+is(d.getUTCHours(), e.getUTCHours(),
+  'setUTCMinutes does not change the hours')
+is(d.getUTCMinutes(), 15, 'setUTCMinutes sets the minutes')
+is(d.getSeconds(), e.getSeconds(),
+  'setUTCMinutes does not change the seconds')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setUTCMinutes does not change the ms')
+
+// Let’s try a date six months from now (so DST offset will be different)
+// 8 tests more
+d = new Date(+(e = new Date(e.getTime()+180*3600*24000)));
+ok(d.setUTCMinutes(15)===d.getTime(), 'retval of setUTCMinutes (in 6 mos)')
+is(d.getUTCFullYear(), e.getUTCFullYear(),
+  'setUTCMinutes changeth not year (in 6 mths)')
+is(d.getUTCDate(), e.getUTCDate(),
+  'setUTCMinutes changethe not date (in 6 mo.)')
+is(d.getUTCMonth(), e.getUTCMonth(),
+  'setUTCMinutes changes not month (in 6 mo)')
+is(d.getUTCHours(), e.getUTCHours(),
+  'setUTCMinutes changeth not hrs (in 6 mo.)')
+is(d.getUTCMinutes(), 15, 'setUTCMinutes changeth not min (in 6 mths)')
+is(d.getSeconds(),e.getSeconds(),'setUTCMinutes changes no sec (in 6 mos)')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setUTCMinutes does not change the ms (in 6 mths)')
+
+// 8 tests: setUTCMinutes with two args
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setUTCMinutes(15,3)===d.getTime(), 'retval of setUTCMinutes w/2 args')
+is(d.getUTCFullYear(), e.getUTCFullYear(),
+  'setUTCMinutes w/2 args does not change year')
+is(d.getUTCDate(), e.getUTCDate(),
+  'setUTCMinutes w/2 args does not change date')
+is(d.getUTCMonth(), e.getUTCMonth(),
+  'setUTCMinutes w/2 args changeth not month')
+is(d.getUTCHours(), e.getUTCHours(),
+  'setUTCMinutes w/2 args does not change hours')
+is(d.getUTCMinutes(), 15, 'setUTCMinutes w/2 args sets the minutes')
+is(d.getSeconds(), 3, 'setUTCMinutes w/2 args sets the sec')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setUTCMinutes w/2 args does not change the ms')
+
+// 8 tests: setUTCMinutes with 3 args
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setUTCMinutes(15,3,34)===d.getTime(),
+  'retval of setUTCMinutes w/3 args')
+is(d.getUTCFullYear(), e.getUTCFullYear(),
+  'setUTCMinutes w/3 args does not change year')
+is(d.getUTCDate(), e.getUTCDate(),
+  'setUTCMinutes w/3 args does not change date')
+is(d.getUTCMonth(), e.getUTCMonth(),
+  'setUTCMinutes w/3 args changeth not month')
+is(d.getUTCHours(), e.getUTCHours(),
+  'setUTCMinutes w/3 args does not change hours')
+is(d.getUTCMinutes(), 15, 'setUTCMinutes w/3 args sets the minutes')
+is(d.getSeconds(), 3, 'setUTCMinutes w/3 args sets the seconds')
+is(d.getMilliseconds(), 34,
+ 'setUTCMinutes w/3 args sets the the ms')
+
+// 1 test for setUTCMinutes without arguments
+ok(is_nan(d.setUTCMinutes()), 'setUTCMinutes without arguments')
+
+// 1 test here
+error = false
+try{Date.prototype. setUTCMinutes.apply([])}
+catch(e){error = e}
+ok(error instanceof TypeError, 'setUTCMinutes death')
+
 
 // ===================================================
 // 15.9.5.35 Date.prototype.setHours
@@ -1694,7 +1844,107 @@ ok(error instanceof TypeError, 'setHours death')
 // 15.9.5.36a Date.prototype.setUTCHours
 // ===================================================
 
-// ... 
+// 10 tests
+method_boilerplate_tests(Date.prototype,'setUTCHours',4)
+
+// 4 test
+d = new Date
+d.setUTCHours("1","2","3","4")
+ok(d.getUTCHours() === 1, 'getUTCHours after setUTCHours with strings')
+ok(d.getUTCMinutes() === 2, 'getUTCMinutes after setUTCHours with strings')
+ok(d.getSeconds() === 3, 'getSeconds after setUTCHours with strings')
+ok(d.getMilliseconds() === 4,
+  'getMilliseconds after setUTCHours w/strings')
+
+// 8 tests
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setUTCHours(15)===d.getTime(), 'retval of setUTCHours')
+is(d.getUTCHours(), 15, 'setUTCHours set the hours')
+is(d.getUTCFullYear(), e.getUTCFullYear(),
+  'setUTCHours does not change the year')
+is(d.getUTCDate(), e.getUTCDate(), 'setUTCHours does not change the date')
+is(d.getUTCMonth(), e.getUTCMonth(),
+  'setUTCHours does not change the month')
+is(d.getUTCMinutes(), e.getUTCMinutes(),
+  'setUTCHours does not change the minutes')
+is(d.getSeconds(), e.getSeconds(),
+  'setUTCHours does not change the seconds')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setUTCHours does not change the ms')
+
+// Let’s try a date six months from now (so DST offset will be different)
+// 8 tests more
+d = new Date(+(e = new Date(e.getTime()+180*3600*24000)));
+ok(d.setUTCHours(15)===d.getTime(), 'retval of setUTCHours (in 6 mths)')
+is(d.getUTCHours(), 15, 'setUTCHours set the date (6 months hence)')
+is(d.getUTCFullYear(), e.getUTCFullYear(),
+  'setUTCHours does not change year (in 6 mths)')
+is(d.getUTCDate(), e.getUTCDate(),
+  'setUTCHours does not change date (in 6 mo.)')
+is(d.getUTCMonth(), e.getUTCMonth(),
+  'setUTCHours changeth not month (in 6 mths)')
+is(d.getUTCMinutes(), e.getUTCMinutes(),
+  'setUTCHours changeth not min (in 6 mths)')
+is(d.getSeconds(), e.getSeconds(),
+  'setUTCHours changeth not sec (in 6 mths)')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setUTCHours does not change the ms (in 6 mths)')
+
+// 8 tests: setUTCHours with two args
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setUTCHours(15,3)===d.getTime(), 'retval of setUTCHours w/2 args')
+is(d.getUTCHours(), 15, 'setUTCHours w/2 args set the hours')
+is(d.getUTCFullYear(), e.getUTCFullYear(),
+  'setUTCHours w/2 args does not change the year')
+is(d.getUTCDate(), e.getUTCDate(),
+  'setUTCHours w/2 args does not change the date')
+is(d.getUTCMonth(), e.getUTCMonth(),
+  'setUTCHours w/2 args does not change  month')
+is(d.getUTCMinutes(), 3, 'setUTCHours w/2 args sets the minutes')
+is(d.getSeconds(), e.getSeconds(),
+  'setUTCHours w/2 args does not change sec')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setUTCHours w/2 args does not change the ms')
+
+// 8 tests: setUTCHours with 3 args
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setUTCHours(15,3,34)===d.getTime(), 'retval of setUTCHours w/3 args')
+is(d.getUTCHours(), 15, 'setUTCHours w/3 args set the hours')
+is(d.getUTCFullYear(), e.getUTCFullYear(),
+  'setUTCHours w/3 args does not change the year')
+is(d.getUTCDate(), e.getUTCDate(),
+  'setUTCHours w/3 args does not change the date')
+is(d.getUTCMonth(), e.getUTCMonth(),
+  'setUTCHours w/3 args does not change  month')
+is(d.getUTCMinutes(), 3, 'setUTCHours w/3 args sets the minutes')
+is(d.getSeconds(), 34, 'setUTCHours w/3 args sets the seconds')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setUTCHours w/3 args does not change the ms')
+
+// 8 tests: setUTCHours with 4 args
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setUTCHours(15,3,34,695)===d.getTime(),
+  'retval of setUTCHours w/4 args')
+is(d.getUTCHours(), 15, 'setUTCHours w/4 args set the hours')
+is(d.getUTCFullYear(), e.getUTCFullYear(),
+  'setUTCHours w/4 args does not change the year')
+is(d.getUTCDate(), e.getUTCDate(),
+  'setUTCHours w/4 args does not change the date')
+is(d.getUTCMonth(), e.getUTCMonth(),
+  'setUTCHours w/4 args does not change  month')
+is(d.getUTCMinutes(), 3, 'setUTCHours w/4 args sets the minutes')
+is(d.getSeconds(), 34, 'setUTCHours w/4 args sets the seconds')
+is(d.getMilliseconds(), 695, 'setUTCHours w/4 args sets the ms')
+
+// 1 test for setUTCHours without arguments
+ok(is_nan(d.setUTCHours()), 'setUTCHours without arguments') ||diag(d.setUTCHours())
+
+// 1 test here
+error = false
+try{Date.prototype. setUTCHours.apply([])}
+catch(e){error = e}
+ok(error instanceof TypeError, 'setUTCHours death')
+
 
 // ===================================================
 // 15.9.5.36b Date.prototype.setDate
@@ -1744,6 +1994,56 @@ ok(error instanceof TypeError, 'setDate death')
 // ===================================================
 // 15.9.5.37 Date.prototype.setUTCDate
 // ===================================================
+
+// 10 tests
+method_boilerplate_tests(Date.prototype,'setUTCDate',1)
+
+// 2 tests
+d = new Date()
+ok(is_nan(d.setUTCDate()), 'setUTCDate without arguments')
+d.setUTCDate("5")
+is(d.getUTCDate(), 5, 'setUTCDate with string arg')
+
+// 8 tests
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setUTCDate(15)===d.getTime(), 'retval of setUTCDate')
+is(d.getUTCDate(), 15, 'setUTCDate set the date')
+is(d.getUTCFullYear(), e.getUTCFullYear(),
+  'setUTCDate does not change the year')
+is(d.getUTCMonth(), e.getUTCMonth(),
+  'setUTCDate does not change the month')
+is(d.getUTCHours(), e.getUTCHours(),
+  'setUTCDate does not change the hours')
+is(d.getUTCMinutes(), e.getUTCMinutes(),
+  'setUTCDate does not change the minutes')
+is(d.getSeconds(), e.getSeconds(),
+  'setUTCDate does not change the seconds')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setUTCDate does not change the ms')
+
+// Let’s try a date six months from now (so DST offset will be different)
+// 8 tests more
+d = new Date(+(e = new Date(e.getTime()+180*3600*24000)));
+ok(d.setUTCDate(15)===d.getTime(), 'retval of setUTCDate (in 6 mths)')
+is(d.getUTCDate(), 15, 'setUTCDate set the date (6 months hence)')
+is(d.getUTCFullYear(), e.getUTCFullYear(),
+  'setUTCDate does not change  year (in 6 mths)')
+is(d.getUTCMonth(), e.getUTCMonth(), 
+ 'setUTCDate does not change month (in 6 mths)')
+is(d.getUTCHours(), e.getUTCHours(),
+  'setUTCDate does not change hours (in 6 mths)')
+is(d.getUTCMinutes(), e.getUTCMinutes(),
+  'setUTCDate changeth not min (in 6 mths)')
+is(d.getSeconds(), e.getSeconds(),
+  'setUTCDate changeth not sec (in 6 mths)')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setUTCDate does not change the ms (in 6 mths)')
+
+// 1 test here
+error = false
+try{Date.prototype. setUTCDate.apply([])}
+catch(e){error = e}
+ok(error instanceof TypeError, 'setUTCDate death')
 
 
 // ===================================================
@@ -1796,6 +2096,220 @@ error = false
 try{Date.prototype. setMonth.apply([])}
 catch(e){error = e}
 ok(error instanceof TypeError, 'setMonth death')
+
+
+// ===================================================
+// 15.9.5.39 Date.prototype.setUTCMonth
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Date.prototype,'setUTCMonth',2)
+
+// 3 tests
+d = new Date()
+ok(is_nan(d.setUTCMonth()), 'setUTCMonth without arguments')
+d.setUTCMonth("5","12")
+is(d.getUTCMonth(), 5, 'setUTCMonth with string arg')
+is(d.getUTCDate(), 12, 'setUTCMonth with string 2nd arg')
+
+// 96 tests
+for(i = 0; i<=11; ++i)
+ d = new Date(+(e = new Date(2009, i, 15))),
+ ok(d.setUTCMonth(i==11?10:i+1)===d.getTime(),
+   'retval of setUTCMonth('+i+')'),
+ is(d.getUTCFullYear(), e.getUTCFullYear(),
+   'setUTCMonth('+i+') does not change the year'),
+ is(d.getUTCMonth(), i==11 ? 10 : i+1, 'setUTCMonth('+i+') set the month'),
+ is(d.getUTCDate(), e.getUTCDate(), 'setDate('+i+') set the date'),
+ is(d.getUTCHours(), e.getUTCHours(),
+   'setUTCMonth('+i+') does not change hours'),
+ is(d.getUTCMinutes(), e.getUTCMinutes(),
+   'setUTCMonth('+i+') does not change min'),
+ is(d.getSeconds(), e.getSeconds(),
+   'setUTCMonth('+i+') does not change secs'),
+ is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setUTCMonth('+i+') does not change the ms')
+
+// 2 tests
+d = new Date(+(e = new Date(2009, 0, 31))),
+d.setUTCMonth(1),
+is(d.getUTCMonth(), 2,
+  'setUTCMonth() overflowing into the following month')
+is(d.getUTCDate(), 3, 'date set my overflowing setUTCMonth')
+
+// 8 tests: setUTCMonth with two args
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setUTCMonth(5,3)===d.getTime(), 'retval of setUTCMonth w/2 args')
+is(d.getUTCFullYear(), e.getUTCFullYear(),
+  'setUTCMonth w/2 args does not change the year')
+is(d.getUTCMonth(), 5, 'setUTCMonth w/2 args does not change  month')
+is(d.getUTCDate(), 3, 'setUTCMonth w/2 args does not change the date')
+is(d.getUTCHours(), e.getUTCHours(),
+  'setUTCMonth w/2 args does not set the hours')
+is(d.getUTCMinutes(), e.getUTCMinutes(),
+  'setUTCMonth w/2 args sets no minutes')
+is(d.getSeconds(), e.getSeconds(),
+  'setUTCMonth w/2 args does not change sec')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setUTCMonth w/2 args does not change the ms')
+
+// 1 test here
+error = false
+try{Date.prototype. setUTCMonth.apply([])}
+catch(e){error = e}
+ok(error instanceof TypeError, 'setUTCMonth death')
+
+
+// ===================================================
+// 15.9.5.40 Date.prototype.setFullYear
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Date.prototype,'setFullYear',3)
+
+// 4 tests
+d = new Date()
+ok(is_nan(d.setFullYear()), 'setFullYear without arguments')
+d.setFullYear("5","11","13")
+is(d.getFullYear(), 5, 'setFullYear with string arg')
+is(d.getMonth(), 11, 'setFullYear with string 2nd arg')
+is(d.getDate(), 13, 'setFullYear with stringy 3rd arg')
+
+// 8 tests
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setFullYear(11)===d.getTime(),'retval of setFullYear'),
+is(d.getFullYear(), 11, 'setFullYear sets the year'),
+is(d.getMonth(), d.getMonth(), 'setFullYear does not set the month'),
+is(d.getDate(), e.getDate(), 'setDate set the date'),
+is(d.getHours(), e.getHours(), 'setFullYear does not change hours'),
+is(d.getMinutes(), e.getMinutes(),'setFullYear does not change min'),
+is(d.getSeconds(), e.getSeconds(),'setFullYear does not change secs'),
+is(d.getMilliseconds(), e.getMilliseconds(), 'setFullYear leaves ms alone')
+
+// 96 tests for setFullYear with two quarrelsome arguments
+for(i = 0; i<=11; ++i)
+ d = new Date(+(e = new Date(2009, i, 15))),
+ ok(d.setFullYear(645,i==11?10:i+1)===d.getTime(),
+   'retval of setFullYear(y,'+i+')'),
+ is(d.getFullYear(), 645, 'setFullYear(y,'+i+') sets the year'),
+ is(d.getMonth(), i==11 ? 10 : i+1, 'setFullYear(y,'+i+') set the month'),
+ is(d.getDate(), e.getDate(), 'setDate(y,'+i+') set the date'),
+ is(d.getHours(), e.getHours(), 'setFullYear(y,'+i+') does not set hrs'),
+ is(d.getMinutes(), e.getMinutes(),'setFullYear(y,'+i+') setteth not min'),
+ is(d.getSeconds(), e.getSeconds(),'setFullYear(y,'+i+') sets not sec'),
+ is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setFullYear(y,'+i+') does not change the ms')
+
+// 2 tests
+d = new Date(+(e = new Date(2012, 1, 29))),
+d.setFullYear(2013),
+is(d.getMonth(), 2, 'setFullYear() overflowing into the following month')
+is(d.getDate(), 1, 'date set by overflowing setFullYear')
+
+// 8 tests: setFullYear with three args
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setFullYear(324,5,3)===d.getTime(), 'retval of setFullYear w/2 args')
+is(d.getFullYear(), 324, 'setFullYear w/3 args changes the year')
+is(d.getMonth(), 5, 'setFullYear w/3 args does not change  month')
+is(d.getDate(), 3, 'setFullYear w/3 args does not change the date')
+is(d.getHours(), e.getHours(),
+  'setFullYear w/3 args does not set the hours')
+is(d.getMinutes(), e.getMinutes(),
+  'setFullYear w/3 args sets no minutes')
+is(d.getSeconds(), e.getSeconds(),
+  'setFullYear w/3 args does not change sec')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setFullYear w/3 args does not change the ms')
+
+// 1 test here
+error = false
+try{Date.prototype. setFullYear.apply([])}
+catch(e){error = e}
+ok(error instanceof TypeError, 'setFullYear death')
+
+
+// ===================================================
+// 15.9.5.41 Date.prototype.setUTCFullYear
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Date.prototype,'setUTCFullYear',3)
+
+// 4 tests
+d = new Date()
+ok(is_nan(d.setUTCFullYear()), 'setUTCFullYear without arguments')
+d.setUTCFullYear("5","11","13")
+is(d.getUTCFullYear(), 5, 'setUTCFullYear with string arg')
+is(d.getUTCMonth(), 11, 'setUTCFullYear with string 2nd arg')
+is(d.getUTCDate(), 13, 'setUTCFullYear with stringy 3rd arg')
+
+// 8 tests
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setUTCFullYear(11)===d.getTime(),'retval of setUTCFullYear'),
+is(d.getUTCFullYear(), 11, 'setUTCFullYear sets the year'),
+is(d.getUTCMonth(), d.getUTCMonth(),
+  'setUTCFullYear does not set the month'),
+is(d.getUTCDate(), e.getUTCDate(), 'setDate set the date'),
+is(d.getUTCHours(), e.getUTCHours(),
+  'setUTCFullYear does not change hours'),
+is(d.getUTCMinutes(), e.getUTCMinutes(),
+  'setUTCFullYear does not change min'),
+is(d.getSeconds(), e.getSeconds(),'setUTCFullYear does not change secs'),
+is(d.getMilliseconds(), e.getMilliseconds(),
+  'setUTCFullYear leaves ms alone')
+
+// 96 tests for setUTCFullYear with two quarrelsome arguments
+for(i = 0; i<=11; ++i)
+ d = new Date(+(e = new Date(2009, i, 15))),
+ ok(d.setUTCFullYear(645,i==11?10:i+1)===d.getTime(),
+   'retval of setUTCFullYear(y,'+i+')'),
+ is(d.getUTCFullYear(), 645, 'setUTCFullYear(y,'+i+') sets the year'),
+ is(d.getUTCMonth(), i==11 ? 10 : i+1,
+   'setUTCFullYear(y,'+i+') set the month'),
+ is(d.getUTCDate(), e.getUTCDate(), 'setDate(y,'+i+') set the date'),
+ is(d.getUTCHours(), e.getUTCHours(),
+   'setUTCFullYear(y,'+i+') does not set hrs'),
+ is(d.getUTCMinutes(), e.getUTCMinutes(),
+   'setUTCFullYear(y,'+i+') setteth not min'),
+ is(d.getSeconds(), e.getSeconds(),'setUTCFullYear(y,'+i+') sets not sec'),
+ is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setUTCFullYear(y,'+i+') does not change the ms')
+
+// 2 tests
+d = new Date(+(e = new Date(2012, 1, 29))),
+d.setUTCFullYear(2013),
+is(d.getUTCMonth(), 2, 'setUTCFullYear() overflowing into the following month')
+is(d.getUTCDate(), 1, 'date set by overflowing setUTCFullYear')
+
+// 8 tests: setUTCFullYear with three args
+d = new Date(+(e = new Date)); // two identical objects
+ok(d.setUTCFullYear(324,5,3)===d.getTime(), 'retval of setUTCFullYear w/2 args')
+is(d.getUTCFullYear(), 324, 'setUTCFullYear w/3 args changes the year')
+is(d.getUTCMonth(), 5, 'setUTCFullYear w/3 args does not change  month')
+is(d.getUTCDate(), 3, 'setUTCFullYear w/3 args does not change the date')
+is(d.getUTCHours(), e.getUTCHours(),
+  'setUTCFullYear w/3 args does not set the hours')
+is(d.getUTCMinutes(), e.getUTCMinutes(),
+  'setUTCFullYear w/3 args sets no minutes')
+is(d.getSeconds(), e.getSeconds(),
+  'setUTCFullYear w/3 args does not change sec')
+is(d.getMilliseconds(), e.getMilliseconds(),
+ 'setUTCFullYear w/3 args does not change the ms')
+
+// 1 test here
+error = false
+try{Date.prototype. setUTCFullYear.apply([])}
+catch(e){error = e}
+ok(error instanceof TypeError, 'setUTCFullYear death')
+
+
+// ===================================================
+// 15.9.5.41 Date.prototype.toUTCString
+// ===================================================
+
+// 1 test
+ok(Date.prototype.toUTCString === Date.prototype.toGMTString,
+  'toUTCString');
 
 
 // # ~~~ Eye knead two Finnish righting this.

@@ -9,6 +9,7 @@ use ExtUtils::MakeMaker;
 
 my %prq = (
          Carp                        => 1.01, # @CARP_NOT
+	 constant               => 1.03, # multiple
          constant::lexical => 0,
         'Date::Parse' => 0,
          Encode     => 2.08, # ‘decode_utf8 "\xef\xbb", FB_CROAK’

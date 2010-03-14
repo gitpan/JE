@@ -1,6 +1,6 @@
 package JE::Object::Number;
 
-our $VERSION = '0.042';
+our $VERSION = '0.043';
 
 
 use strict;
@@ -274,7 +274,7 @@ sub _new_constructor {
 			name    => 'toFixed',
 			no_proto => 1,
 			argnames => ['fractionDigits'],
-			function_args => ['this'],
+			function_args => ['this','args'],
 			function => sub {
 my $self = shift;
 die JE::Object::Error::TypeError->new(
@@ -304,6 +304,20 @@ abs $num >= 1000000000000000000000
 # ~~~ if/when JE::Number::to_string is rewritten, make this use the same
 #    algorithm
 
+# Deal with numbers ending with 5. perl (in Snow Leopard at least) rounds
+# 30.125 down, whereas ECMAScript says that it should round up. (15.7.4.5:
+# ‘Let  n  be an  integer  for  which  the  exact  mathematical  value  of
+#  n ÷ 10^f – x is as close to zero as possible.  If there are two such n,
+# pick the larger n.’)
+if((my $sprintfed = sprintf "%." . ($places+1) . 'f', $num) =~ /5\z/) {
+ (my $upper = $sprintfed) =~ s/\.?.\z//;
+ my $lower = $upper;
+ ++substr $upper,-1,1;
+ return JE::String->_new(
+  $global, $upper-$num <= $num-$lower ? $upper : $lower
+ );
+}
+
 return JE::String->_new($global, sprintf "%.${places}f", $num);
 
 			},
@@ -317,7 +331,7 @@ return JE::String->_new($global, sprintf "%.${places}f", $num);
 			name    => 'toExponential',
 			no_proto => 1,
 			argnames => ['fractionDigits'],
-			function_args => ['this'],
+			function_args => ['this','args'],
 			function => sub {
 my $self = shift;
 die JE::Object::Error::TypeError->new(
@@ -335,17 +349,31 @@ abs $num == inf && return JE::String->_new($global,
 
 my $places = shift;
 if(defined $places) {
-	$places = ($places = int $places->to_number) == $places && $places;
+	$places
+	 = 0+(($places = int $places->to_number) == $places) && $places;
 }
-else { $places = 0 }
+else { $places = !1 }
 
 $places < 0 and throw JE::Object::Error::RangeError->new($global,
 	"Invalid number of decimal places: $places " .
 	"(negative numbers not supported)"
 );
 
-my $result = sprintf "%.${places}e", $num;
-$result =~ s/(?<=e[+-])0+(?!\z)//;   # convert 0e+00 to 0e+0
+# Deal with half-way rounding. See the note above in toFixed. It applies to
+# toExponential  as  well  (except  that  this  is  section  15.7.4.6).
+if((my $sprintfed = sprintf "%." . ($places+1) . 'e', $num) =~ /5e/) {
+ (my $upper = $sprintfed) =~ s/\.?.(e.*)\z//;
+ my $lower = $upper;
+ ++substr $upper,-1,1;
+ (my $ret = ($upper-$num <= $num-$lower ? $upper : $lower) . $1)
+  =~ s/\.?0*e([+-])0*(?!\z)/e$1/;   # convert 0.0000e+00 to 0e+0
+ return JE::String->_new(
+  $global, $ret
+ );
+}
+
+my $result = sprintf "%"."."x!!length($places)."${places}e", $num;
+$result =~ s/\.?0*e([+-])0*(?!\z)/e$1/;   # convert 0.0000e+00 to 0e+0
 
 return JE::String->_new($global, $result);
 
@@ -400,10 +428,11 @@ if ($num == 0) {
 }
 else {
 	$num = sprintf "%.${prec}g", $num; # round it off
-	my $e = int log(int $num)/log 10;
+	my($e) = sprintf "%.0e", $num, =~ /e(.*)/;
 	if($e < -6 || $e >= $prec) {
-		($num = sprintf "%.${prec}e", $num)	
+		($num = sprintf "%.".($prec-1)."e", $num)	
 		 =~ s/(?<=e[+-])0+(?!\z)//;   # convert 0e+00 to 0e+0
+		$num =~ /\./ or $num =~ s/e/.e/;
 	}
 	else { $num = sprintf "%." . ($prec - 1 - $e) . 'f', $num }
 }

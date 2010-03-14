@@ -1,5 +1,36 @@
 Revision history for JE
 
+0.043   14 March, 2010
+        New features:
+        • New date methods  (Date  is  now  complete):  setUTCSeconds,
+          setUTCMinutes, setUTCHours,  setUTCDate,  setUTCMonth,  set-
+          FullYear and setUTCFullYear
+        • Regular expressions can now  be  called  as  functions  (RT
+          #55405).
+        Bug fixes:
+        • toFixed no longer ignores its arguments.
+        • toFixed and  toExponential now round away from zero a value
+          that is half  way  between  the  two  values  it  could  be
+          rounded to.
+        • toExponential  used always to assume that it was passed a 0
+          as its only argument.
+        • Various fixes for toPrecision:
+          • It no longer dies with non-zero numbers between 0  and  1
+            or negative numbers when passed an argument.
+          • It no longer leaves an extra  trailing  zero  when  using
+            exponential notation.
+          • It  now  always  includes  a  decimal  point  in  exponen-
+            tial notation.
+        • Math.sqrt(-Infinity) now returns NaN, not Infinity.
+        • setMinutes no longer identifies itself as setHours  when it
+          dies  (‘setHours cannot be called on an object of type...’).
+        • I must have been half asleep when I re-read  the  spec  for
+          character classes in July last year.  I’ve now reverted the
+          change to /[]/, so it is once more equivalent to /(?!)/, in
+          accordance with the spec (which 0.022 wasn’t).
+        • Math.atan2 with two infinite arguments now works on Windows.
+        • Math.pow(NaN,0) now works on Windows.
+
 0.042   8 November, 2009
         New feature:  We extend ECMAScript by treating hyphens in reg-
         exp character classes that are  adjacent  to  \d,  \s  or  \w

@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 41;
+use Test::More tests => 38;
 use strict;
 use utf8;
 no warnings 'utf8';
@@ -48,21 +48,13 @@ t26 = /\s[\s]/
 t27 = /\S[\S]/
 t28 = /\w[\w]/
 t29 = /\W[\W]/
+t30 = /[]/
 t31 = /[^]/      
 
 t32 = /[.a]/   // negative and positive char classes together
 t33 = /[a]/    // positive only
 t34 = /[.]/    // negative only
 t35 = /[\D\W]/ // two negatives
-
-// Combination of literal unescaped ] in a char class with char
-// class escapes
-t30 = /[]]/
-t36 = /[]\d]/
-t37 = /[][]/
-t38 = /[]\D]/
-
-
 
 --end--
 
@@ -136,21 +128,17 @@ re_ok t26 => '[\p{Zs}\s\ck][\p{Zs}\s\ck]',              '/\s[\s]/';
 re_ok t27 => '[^\p{Zs}\s\ck][^\p{Zs}\s\ck]',            '/\S[\S]/';
 re_ok t28 => '[A-Za-z0-9_][A-Za-z0-9_]',                '/\w[\w]/';
 re_ok t29 => '[^A-Za-z0-9_][^A-Za-z0-9_]',              '/\W[\W]/';
-re_ok t30 => '[]]',                                     '/[]]/';
+re_ok t30 => '(?!)',                                    '/[]/';
 re_ok t31 => '(?s:.)',                                  '/[^]/';
 re_ok t32 => '(?:[^\cm\cj\x{2028}\x{2029}]|[a])',       '/[.a]/';
 re_ok t33 => '[a]',                                     '/[a]/';
 re_ok t34 => '[^\cm\cj\x{2028}\x{2029}]',               '/[.]/';
 re_ok t35 => '(?:[^0-9]|[^A-Za-z0-9_])',                '/[\D\W]/';
 
-re_ok t36 => '[]0-9]',         '/[]\d]/';
-re_ok t37 => '[][]',           '/[][]/';
-re_ok t38 => '(?:[^0-9]|[]])', '/[]\D]/';
-
 re_ok foo => '\x{dfff}\x{d800}',                        'surrogates';
 
 #--------------------------------------------------------------------#
-# Test 41: Make sure invalid regexp modifiers do not warn
+# Test 38: Make sure invalid regexp modifiers do not warn
 
 $SIG{__WARN__} = sub {
 	warn @_;

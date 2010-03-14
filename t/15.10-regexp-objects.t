@@ -275,6 +275,13 @@ is(/\12()()()()()()()()()()()()/.exec(''), ',,,,,,,,,,,,',
 // 15.10.2.10 CharacterEscape
 // ===================================================
 
+// 5 tests: ControlEscape
+is('	'.match(/\t/), '	', '\\t')
+is('\n'.match(/\n/), '\n', '\\n')
+is(''.match(/\v/), '', '\\v')
+is(''.match(/\f/), '', '\\f')
+is('\r'.match(/\r/), '\r', '\\r')
+
 // 4 tests: \cX
 is('\x00'.match(/\c@/), '\x00', '\\c@')
 is('\x01'.match(/\cA/), '\x01', '\\cA')
@@ -303,9 +310,102 @@ is(' !"#$%&\'()*+,-./;:<=>?@[\\]^_`{|}~¡¢£·'.match(
 
 // (See .9)
 
-// ...
+// ===================================================
+// 15.10.2.12 CharacterClassEscape
+// ===================================================
 
-// character classes (wherever this goes)
+// 3 tests for \d
+is('0123456789'.match(/\d{10}/), '0123456789', '\\d matches 0-9')
+is(peval('join "", "\\0".."/",":".."\\xff"').match(/\d/),
+  'null',
+  '\\d matches no other ascii chars')
+is("๕".match(/\d/),
+  'null',
+  '\\d does not match Unicode digits')
+
+// 3 tests for \D
+is('0123456789'.match(/\D/), null, '\\D does not match matches 0-9')
+s = peval('join "", "\\0".."/",":".."\\xff"')
+is(s.match(RegExp("\\D{" + s.length + "}")), s,
+  '\\D matches all other ascii chars')
+is("๕".match(/\D/),
+   "๕",
+   '\\D matches Unicode digits')
+
+// 2 tests for \s
+is('\t\v\f  \u2002\n\r\u2028\u2029'.match(/\s{10}/),
+   '\t\v\f  \u2002\n\r\u2028\u2029',
+   '\\s matches \\t\\v\\f sp nbsp U+2002 lf cr ls ps')
+is('aoeu-!@#$1234'.match(/\s/),
+  'null',
+  '\\s does not match non-whitespace')
+
+// 2 tests for \S
+is('\t\v\f  \u2002\n\r\u2028\u2029'.match(/\S/), null,
+   '\\S does not match \\t\\v\\f sp nbsp U+2002 lf cr ls ps')
+is('aoeu-!@#$1234'.match(/\S{13}/), 'aoeu-!@#$1234',
+   '\\S matches non-whitespace')
+
+// 3 tests for \w
+is(
+ '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_'.match(
+   /\w{63}/
+  ),
+ '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_',
+ '\\w matches 0-9a-zA-Z_'
+)
+is(
+  peval('join "", "\\0".."/",":".."@","[".."^","`","{".."\\xff"').match(
+   /\w/
+  ),
+ 'null',
+ '\\w matches no other ascii chars'
+)
+is("๕α".match(/\w/),
+  'null',
+  '\\w does not match Unicode digits or letters')
+
+// 3 tests for \W
+is(
+ '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_'.match(
+   /\W/
+  ),
+ 'null',
+ '\\W does not match 0-9a-zA-Z_'
+)
+s = peval('join "", "\\0".."/",":".."@","[".."^","`","{".."\\xff"')
+is(
+  s.match(
+   RegExp('\\W{'+s.length+'}')
+  ),
+  s,
+ '\\W matches all other ascii chars'
+)
+is("๕α".match(/\W{2}/),
+  '๕α',
+  '\\W match Unicode digits and letters')
+
+
+// ===================================================
+// 15.10.2.13 CharacterClass
+// ===================================================
+
+// We are just checking for (lack of) invertedness here. More specific
+// tests are in the sections that follow.
+// 2 tests
+is('cheen'.match(/[chen]+/), 'cheen', 'positive char class')
+is('cheen'.match(/[^chen]/), 'null', 'negative char class')
+
+// ===================================================
+// 15.10.2.14 ClassRanges
+// ===================================================
+
+// 2 tests for empty class ranges
+is(peval('join "", map chr, 0..255').match(/[^]+/)[0].length, 256, '[^]')
+is(peval('join "", "\\0".."\\xff"').match(/[]/), null, '[]')
+
+// ~~~
+
 // 2 tests
 // This is a syntax error according to ECMAScript, but we support it any-
 // way. See RT #51123.
@@ -341,6 +441,19 @@ ok( /[\n-\r]/.test('\v'), '[\\n-\\r] is a range' )
 
 try{is(/a/.exec('a'), 'a', 'exec doesn\'t simply die')}
 catch(e){fail('exec doesn\'t simply die')}
+
+// 2 tests: function-style call (implicit exec)
+is(
+  /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/("11.12.13.14"),
+ "11.12.13.14,11,12,13,14",
+ 'regexp()'
+)
+is(
+  {foo:/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/}.foo("11.12.13.14"), 
+ "11.12.13.14,11,12,13,14",
+ 'object.regexp()'
+)
+
 
 // ...
 
