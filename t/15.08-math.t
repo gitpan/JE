@@ -494,7 +494,7 @@ is(Math.pow(true,2),1, 'pow(bool,x)')
 is(Math.pow(2,null), 1, 'pow(x,null)')
 is(Math.pow(null,2), 0, 'pow(null,x)')
 
-// 38 test
+// 39 test
 is(typeof Math.pow(0,0), 'number', 'Math.pow returns number, not object')
 ok(is_nan(Math.pow()), 'pow()')
 ok(is_nan(Math.pow(3)), 'pow with one argument')
@@ -527,6 +527,7 @@ is(1/Math.pow(-Infinity,-2), Infinity,' pow(-inf,-even)')
 is(1/Math.pow(-Infinity,-2.3), Infinity,' pow(-inf,-float)')
 is(1/Math.pow(0,5), 'Infinity', 'pow(0,pos)')
 is(Math.pow(0,-5), 'Infinity', 'pow(0,neg)')
+is(Math.pow(0,-4), 'Infinity', 'pow(0,-even)')
 try{skip("-0 is not supported",1);
     is(1/Math.pow(-0,5), -Infinity, 'pow(-0,odd)')
 }catch(_){}

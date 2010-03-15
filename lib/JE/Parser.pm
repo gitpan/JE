@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.043';
+our $VERSION = '0.044';
 
 use strict;  # :-(
 use warnings;# :-(

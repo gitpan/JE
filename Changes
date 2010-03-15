@@ -1,5 +1,9 @@
 Revision history for JE
 
+0.044   14 March, 2010
+        Bug fix:  Math.pow(0,-even)  has been fixed to work  on  some
+        Linux systems.
+
 0.043   14 March, 2010
         New features:
         • New date methods  (Date  is  now  complete):  setUTCSeconds,
