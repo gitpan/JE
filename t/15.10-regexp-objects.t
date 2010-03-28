@@ -383,7 +383,7 @@ is(
 )
 is("๕α".match(/\W{2}/),
   '๕α',
-  '\\W match Unicode digits and letters')
+  '\\W matches Unicode digits and letters')
 
 
 // ===================================================
@@ -404,7 +404,12 @@ is('cheen'.match(/[^chen]/), 'null', 'negative char class')
 is(peval('join "", map chr, 0..255').match(/[^]+/)[0].length, 256, '[^]')
 is(peval('join "", "\\0".."\\xff"').match(/[]/), null, '[]')
 
-// ~~~
+// ===================================================
+// 15.10.2.15 NonemptyClassRanges
+// 15.10.2.16 NonemptyClassRangesNoDash
+// 15.10.2.17 ClassAtom
+// 15.10.2.18 ClassAtomNoDash
+// ===================================================
 
 // 2 tests
 // This is a syntax error according to ECMAScript, but we support it any-
@@ -415,6 +420,204 @@ catch(e) { fail(name) }
 // and a bug we almost introduced while adding this feature:
 ok( /[\n-\r]/.test('\v'), '[\\n-\\r] is a range' )
 
+// 9 tests
+is(peval('join "", map chr, 0..255').match(/[d]+/)[0], 'd',
+  'class with single character')
+ok(/[-a]/.test('-'), 'hyphen at the beginning of a class')
+ok(/[a-]/.test('-'), 'hyphen at the end of a class')
+// This test is for completeness’ sake: It exercises the
+// NonemptyClassRangesNoDash :: ClassAtomNoDash NonemptyClassRangesNoDash
+// production in the grammar (that we don’t use anyway :-):
+ok(/[ax-]/.test('-'),
+ 'hyphen at the end of a class (with at least 2 things before it)')
+ok(/[a-c]/.test('b'),
+ 'hyphen after a ClassAtom (but not at the end) is a range')
+// Another ‘completeness’ test:
+// NonemptyClassRangesNoDash :: ClassAtomNoDash - ClassAtom ClassRanges
+ok(/[xa-c]/.test('b'),
+ 'hyphen w/2 things b4 it (but not at the end) is a range')
+name = 'inverted ranges';
+try{ RegExp('[b-a]'); fail(name)}
+catch(e) { ok(e instanceof SyntaxError, name) }
+is("EFefi".match(/[E-F]+/i)[0],'EFef', 'class ranges are unaffected by /i')
+is("SPRIThile[\\]^_`".match(/[E-f]+/i)[0], 'SPRIThile[\\]^_`',
+ '/[A-b]/i where A is capital and b is lc matches A-Z a-z [ \\ ] ^ _')
+
+
+// ===================================================
+// 15.10.2.14 ClassEscape
+// ===================================================
+
+// 7 tests for single-char escapes
+is("\u0000".match(/[\0]/)[0], "\u0000", 'ClassEscape :: DecimalEscape')
+is("\u0008".match(/[\b]/)[0], "\u0008", 'ClassEscape :: b')
+is("\u0009".match(/[\t]/)[0], "\u0009", '[\\t]')
+is("\u000A".match(/[\n]/)[0], "\u000a", '[\\n]')
+is("\u000b".match(/[\v]/)[0], "\u000b", '[\\v]')
+is("\u000c".match(/[\f]/)[0], "\u000c", '[\\f]')
+is("\u000d".match(/[\r]/)[0], "\u000d", '[\\r]')
+
+// 4 tests: [\cX]
+is('\x00'.match(/[\c@]/), '\x00', '[\\c@]')
+is('\x01'.match(/[\cA]/), '\x01', '[\\cA]')
+is(' '.match(/[\c`]/), ' ', '[\\c`]')
+is(String.fromCharCode(26).match(/[\cz]/), String.fromCharCode(26),
+	'[\\c] with lc char')
+
+// 2 tests: [\xHH]
+is('\x00'.match(/[\x00]/), '\x00','[\\x00]')
+is('\xff'.match(/[\xfF]/), '\xff','[\\xfF]')
+
+// 2 tests: \uHHHH
+is('\x00'.match(/[\u0000]/), '\x00','[\\u0000]')
+is('\uffff'.match(/[\ufffF]/), '\uffff','[\\ufffF]')
+
+// 1 test: IdentityEscape
+is(' !"#$%&\'()*+,-./;:<=>?@[\\]^_`{|}~¡¢£·'.match(
+ /[\ \!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\;\:\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~\¡\¢\£\·]+/
+), ' !"#$%&\'()*+,-./;:<=>?@[\\]^_`{|}~¡¢£·','IdentityEscapes')
+
+// 3 tests for [\d]
+is('0123456789'.match(/[\d]{10}/), '0123456789', '[\\d] matches 0-9')
+is(peval('join "", "\\0".."/",":".."\\xff"').match(/[\d]/),
+  'null',
+  '[\\d] matches no other ascii chars')
+is("๕".match(/[\d]/),
+  'null',
+  '[\\d] does not match Unicode digits')
+
+// 3 tests for [\D]
+is('0123456789'.match(/[\D]/), null, '[\\D] does not match matches 0-9')
+s = peval('join "", "\\0".."/",":".."\\xff"')
+is(s.match(RegExp("[\\D]{" + s.length + "}")), s,
+  '[\\D] matches all other ascii chars')
+is("๕".match(/[\D]/),
+   "๕",
+   '[\\D] matches Unicode digits')
+
+// 2 tests for [\s]
+is('\t\v\f  \u2002\n\r\u2028\u2029'.match(/[\s]{10}/),
+   '\t\v\f  \u2002\n\r\u2028\u2029',
+   '[\\s] matches \\t\\v\\f sp nbsp U+2002 lf cr ls ps')
+is('aoeu-!@#$1234'.match(/\s/),
+  'null',
+  '[\\s] does not match non-whitespace')
+
+// 2 tests for [\S]
+is('\t\v\f  \u2002\n\r\u2028\u2029'.match(/[\S]/), null,
+   '[\\S] does not match \\t\\v\\f sp nbsp U+2002 lf cr ls ps')
+is('aoeu-!@#$1234'.match(/[\S]{13}/), 'aoeu-!@#$1234',
+   '[\\S] matches non-whitespace')
+
+// 3 tests for [\w]
+is(
+ '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_'.match(
+   /[\w]{63}/
+  ),
+ '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_',
+ '[\\w] matches 0-9a-zA-Z_'
+)
+is(
+  peval('join "", "\\0".."/",":".."@","[".."^","`","{".."\\xff"').match(
+   /[\w]/
+  ),
+ 'null',
+ '[\\w] matches no other ascii chars'
+)
+is("๕α".match(/[\w]/),
+  'null',
+  '[\\w] does not match Unicode digits or letters')
+
+// 3 tests for [\W]
+is(
+ '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_'.match(
+   /[\W]/
+  ),
+ 'null',
+ '[\\W] does not match 0-9a-zA-Z_'
+)
+s = peval('join "", "\\0".."/",":".."@","[".."^","`","{".."\\xff"')
+is(
+  s.match(
+   RegExp('[\\W]{'+s.length+'}')
+  ),
+  s,
+ '[\\W] matches all other ascii chars'
+)
+is("๕α".match(/[\W]{2}/),
+  '๕α',
+  '[\\W] matches Unicode digits and letters')
+
+
+// ===================================================
+// 15.10.3 RegExp()
+// ===================================================
+
+// 2 test
+r = /scrat/
+ok(RegExp(r) === r, 'RegExp(re) returns a regexp unchanged')
+ok(RegExp('r').constructor == RegExp,
+  'RegExp with anything else calls new RegExp')
+
+
+// ===================================================
+// 15.10.4.1 new RegExp
+// ===================================================
+
+// 8 tests for RegExp(re)
+r2 = new RegExp(r = /a/)
+ok(r !== r2, 'new RegExp(re) copies the re')
+is(r, r2, 'the new re stringifies the same way')
+is(r2.global, false, 'the global flag is copied (false)')
+is(r2.ignoreCase, false, 'the /i flag is copied (false)')
+is(r2.multiline, false, 'the /m flag is copied (false)')
+r2 = new RegExp(/a/gim)
+is(r2.global, true, 'the global flag is copied (true)')
+is(r2.ignoreCase, true, 'the /i flag is copied (true)')
+is(r2.multiline, true, 'the /m flag is copied (true)')
+
+// ~~~ more tests ....
+
+// ===================================================
+// 15.10.5 RegExp
+// ===================================================
+
+// 10 tests (boilerplate stuff for constructors)
+is(typeof RegExp, 'function', 'typeof RegExp');
+is(Object.prototype.toString.apply(RegExp), '[object Function]',
+	'class of RegExp')
+ok(RegExp.constructor === Function, 'RegExp\'s prototype')
+ok(RegExp.length === 2, 'RegExp.length')
+ok(!RegExp.propertyIsEnumerable('length'),
+	'RegExp.length is not enumerable')
+ok(!delete RegExp.length, 'RegExp.length cannot be deleted')
+is((RegExp.length++, RegExp.length), 2, 'RegExp.length is read-only')
+ok(!RegExp.propertyIsEnumerable('prototype'),
+	'RegExp.prototype is not enumerable')
+ok(!delete RegExp.prototype, 'RegExp.prototype cannot be deleted')
+ok((RegExp.prototype = 24, RegExp.prototype) !== 24,
+	'RegExp.prototype is read-only')
+
+
+// ===================================================
+// 15.10.6 RegExp.prototype
+// ===================================================
+
+// 3 tests
+is(Object.prototype.toString.apply(RegExp.prototype), '[object Object]',
+	'class of RegExp.prototype')
+ok(RegExp.prototype.valueOf === Object.prototype.valueOf, 'valueOf')
+peval('is shift->prototype, shift, "RegExp.prototype\'s prototype"',
+	RegExp.prototype, Object.prototype)
+
+// ===================================================
+// 15.10.6.1 RegExp.prototype.constructor
+// ===================================================
+
+// 2 tests
+ok(RegExp.prototype.constructor === RegExp, 'RegExp.prototype.constructor')
+ok(!RegExp.prototype.propertyIsEnumerable('constructor'),
+	'RegExp.prototype.constructor is not enumerable')
 
 // ===================================================
 // 15.10.6.2 exec

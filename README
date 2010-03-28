@@ -1,4 +1,4 @@
-JE, version 0.044
+JE, version 0.045
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -26,7 +26,14 @@ the API could be improved or reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-Math.pow(0,-even)  has been fixed  to  work  on  some  Linux  systems.
+Bug fix:  RegExp(re)  used to clone  the  regular  expression  object
+passed to it, instead of simply returning it.
+Test fixes:
+• Some badly-written date tests were  failing  consistently  in  some
+  time zones.
+• A couple of toPrecision tests are now skipped, as they are too unre-
+  liable and system-dependent.
+
 
 TO DO
 

@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.044';
+our $VERSION = '0.045';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.044 (alpha release)
+Version 0.045 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -2157,7 +2157,7 @@ To report bugs, please e-mail the author.
 
 C<bind_class> has a security hole: An object method’s corresponding
 Function object can be applied to any Perl object or class from within JS.
-(E.g., if you have allow a Foo object's C<wibbleton> method to be called
+(E.g., if you have allowed a Foo object's C<wibbleton> method to be called
 from JS,
 then a Bar object's method of the same name can be, too.)
 
@@ -2196,13 +2196,6 @@ penalty, so I don't want to fix it. :-(
 =item *
 
 C<hasOwnProperty> does not work properly with arrays and arguments objects.
-
-=item *
-
-NaN and Infinity may or may not work properly on Windows. I've received
-failure reports from someone using ActivePerl. But someone else (presumably
-using Strawberry) said it worked flawlessly. If someone can find out for
-me, I may be able to remove this from the list.
 
 =item *
 
@@ -2312,7 +2305,8 @@ broken (and has been since 0.022).
 =item *
 
 JE is not necessarily IEEE 754-compliant. It depends on the OS. For this
-reason the Number.MIN_VALUE and Number.MAX_VALUE properties do not exist.
+reason the Number.MIN_VALUE and Number.MAX_VALUE properties do not exist,
+and sometimes rounding (via C<toPrecision>, etc.) goes the wrong way.
 
 =item *
 
@@ -2327,6 +2321,12 @@ A Perl subroutine called from JavaScript can sneak past a C<finally> block and a
       ');
   }
   print $j->{x}, "\n";
+
+=item *
+
+NaN and Infinity do not work properly on some Windows compilers. I know
+that ActivePerl 5.8.6 doesn't work. (I do not know about later versions.)
+Strawberry Perl works fine, though, which is what most people are using.
 
 =back
 

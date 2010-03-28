@@ -1221,19 +1221,17 @@ ok(error instanceof TypeError, 'getDay death')
 // 10 tests
 method_boilerplate_tests(Date.prototype,'getUTCDay',0)
 
-offset = new Date(new Date().getYear(), 0, 1).getTimezoneOffset() * 60000;
-
 // 9 tests
 ok(is_nan(new Date(NaN).getUTCDay()), 'getUTCDay (NaN)')
-ok(new Date(1200225600000+offset).getUTCDay() === 0, 'getUTCDay (Sunday)')
-ok(new Date(1200312000000+offset).getUTCDay() === 1, 'getUTCDay (Monday)')
-ok(new Date(1200398400000+offset).getUTCDay() === 2, 'getUTCDay (Tuesday)')
-ok(new Date(1200484800000+offset).getUTCDay() === 3,
+ok(new Date(1200225600000).getUTCDay() === 0, 'getUTCDay (Sunday)')
+ok(new Date(1200312000000).getUTCDay() === 1, 'getUTCDay (Monday)')
+ok(new Date(1200398400000).getUTCDay() === 2, 'getUTCDay (Tuesday)')
+ok(new Date(1200484800000).getUTCDay() === 3,
 	'getUTCDay (Wednesday)')
-ok(new Date(1200571200000+offset).getUTCDay() === 4,
+ok(new Date(1200571200000).getUTCDay() === 4,
 	'getUTCDay (Thursday)')
-ok(new Date(1200657600000+offset).getUTCDay() === 5, 'getUTCDay (Friday)')
-ok(new Date(1200744000000+offset).getUTCDay() === 6,
+ok(new Date(1200657600000).getUTCDay() === 5, 'getUTCDay (Friday)')
+ok(new Date(1200744000000).getUTCDay() === 6,
 	'getUTCDay (Saturday)')
 
 error = false
@@ -2131,11 +2129,11 @@ for(i = 0; i<=11; ++i)
  'setUTCMonth('+i+') does not change the ms')
 
 // 2 tests
-d = new Date(+(e = new Date(2009, 0, 31))),
+d = new Date(+(e = new Date(Date.UTC(2009, 0, 31)))),
 d.setUTCMonth(1),
 is(d.getUTCMonth(), 2,
   'setUTCMonth() overflowing into the following month')
-is(d.getUTCDate(), 3, 'date set my overflowing setUTCMonth')
+is(d.getUTCDate(), 3, 'date set by overflowing setUTCMonth')
 
 // 8 tests: setUTCMonth with two args
 d = new Date(+(e = new Date)); // two identical objects
@@ -2276,7 +2274,7 @@ for(i = 0; i<=11; ++i)
  'setUTCFullYear(y,'+i+') does not change the ms')
 
 // 2 tests
-d = new Date(+(e = new Date(2012, 1, 29))),
+d = new Date(+(e = new Date(Date.UTC(2012, 1, 29)))),
 d.setUTCFullYear(2013),
 is(d.getUTCMonth(), 2, 'setUTCFullYear() overflowing into the following month')
 is(d.getUTCDate(), 1, 'date set by overflowing setUTCFullYear')
@@ -2304,16 +2302,9 @@ ok(error instanceof TypeError, 'setUTCFullYear death')
 
 
 // ===================================================
-// 15.9.5.41 Date.prototype.toUTCString
+// 15.9.5.42 Date.prototype.toUTCString
 // ===================================================
 
 // 1 test
 ok(Date.prototype.toUTCString === Date.prototype.toGMTString,
   'toUTCString');
-
-
-// # ~~~ Eye knead two Finnish righting this.
-
-diag("To do: finish writing this test script");
-// We ought to supplement the tests for all the set(UTC)Milliseconds func-
-// tions with tests for type conversion and lack of arguments

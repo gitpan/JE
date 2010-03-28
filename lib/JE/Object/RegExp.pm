@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.044';
+our $VERSION = '0.045';
 
 
 use strict;
@@ -753,7 +753,7 @@ sub new_constructor {
 		scope            => $global,
 		argnames         => [qw/pattern flags/],
 		function         => sub {
-			my ($re, $flags) = @_;
+			my (undef, $re, $flags) = @_;
 			if ($re->class eq 'RegExp' and !defined $flags
 			    || $flags->id eq 'undef') {
 				return $re

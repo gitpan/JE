@@ -1,5 +1,14 @@
 Revision history for JE
 
+0.045   28 March, 2010
+        Bug fix:  RegExp(re)  used to clone  the  regular  expression
+        object passed to it, instead of simply returning it.
+        Test fixes:
+        • Some badly-written date tests were failing consistently  in
+          some time zones.
+        • A couple of toPrecision  tests are now skipped, as they are
+          too unreliable and system-dependent.
+
 0.044   14 March, 2010
         Bug fix:  Math.pow(0,-even)  has been fixed to work  on  some
         Linux systems.
