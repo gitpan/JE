@@ -1,5 +1,37 @@
 Revision history for JE
 
+0.046   16 May, 2010
+        Incompatible change:  The long-deprecated JE::Object::new_con-
+        structor method has been deleted.
+        New features:  The RegExp  constructor now has the  lastMatch
+        ($&), lastParen ($+), leftContext ($`), rightContext ($') and
+        $1 to $9 properties.
+        Bug fixes:
+        • RegExp.prototype.exec  now reads  lastIndex  correctly when
+          global  is true:  It used to treat negative  numbers  as  0,
+          Infinity as  the  string  length  minus  one,  and  numbers
+          greater than the string length as the string length  itself.
+          Objects as the value of lastIndex  would produce unpredicta-
+          ble results,  usually just a failed match (because a memory
+          address was used as the index).
+        • The Error  constructor’s  length  property and those of its
+          subclasses are now 1, not 0.
+        • The Error  constructor no longer adds a message property to
+          an error object if no message was provided. This means that
+          a string like  ‘Unknown error’  is inherited from the proto-
+          type. The message used to be an empty string.
+        • Error  subclasses now have their  internal  class  property
+          (used by Object.prototype.toString)  set to  Error,  rather
+          than  RangeError,  etc.  (I must have  misread  the  spec.)
+        • The overload methods of  JE::LValue  objects  (returned  by
+          code like  $je->eval("a.b"))  no longer produce warnings if
+          the caller has warnings disabled. (E.g.,
+            no warnings; if($je->eval('a.b') eq $squit){...}
+          no longer warns if $squit is undef.)
+        • Suppress  ‘use of goto  ...  is deprecated’  warnings  that
+          appear in perl 5.12.
+        • Updated to work with perl  5.13.1’s  improved  $@  handling.
+
 0.045   28 March, 2010
         Bug fix:  RegExp(re)  used to clone  the  regular  expression
         object passed to it, instead of simply returning it.

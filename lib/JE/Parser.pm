@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 use strict;  # :-(
 use warnings;# :-(
@@ -108,20 +108,23 @@ sub desurrogify($);
 sub surrogify($);
 
 
-# die is called with a simple scalar when the string contains what  is
+# die is called with a scalar ref when the  string  contains  what  is
 # expected. This will be converted to a longer message afterwards, which
 # will read something like "Expected %s but found %s"  (probably the most
-# common error message, which is why there is a shorthand).  The 'expected'
-# function  takes  care  of  dying  without  the  'at ..., line ...'  being
-# appended, even if there is no line break at the end. die is called with a 
-# reference to a string if  the  string  is  the  complete  error  message.
+# common error message, which is why there is a shorthand). Using an array
+# ref is the easiest way to stop the 'at ..., line ...' from being appended
+# when there is no line break at the end already.  die  is  called  with  a
+# double reference to a  string  if  the  string  is  the  complete  error
+# message.
+# ~~~ We may need a function for this second usage, in case we change the
+#     \\ yet again.
 
 # @ret != push @ret, ...  is a funny way of pushing and then checking to
 # see whether anything was pushed.
 
 
 sub expected($) { # public
-	$@ = shift; local $@ = ''; die  # No, you can't really do this!
+	die \shift
 }
 
 
@@ -181,7 +184,7 @@ sub str() { # public
 	#    Cameron)
 	# Number 1 should be faster, but it crashes under perl 5.8.8 on
 	# Windows, and perhaps on other platforms, too. So we use #2 for
-	# 5.8.x regardless on platform to be on the safe side.
+	# 5.8.x regardless of platform to be on the safe side.
 
 	use constant'lexical old_perl => $] < 5.01; # Use a constant so the
 	my $yarn;                                   # if-block disappears
@@ -279,7 +282,7 @@ sub unescape_ident($) {
 	$ident =~ /^[\p{ID_Start}\$_]
 	            [\p{ID_Continue}\$_]*
 	          \z/x
-	  or die \"'$ident' is not a valid identifier";
+	  or die \\"'$ident' is not a valid identifier";
 	$ident;
 }
 
@@ -1506,6 +1509,7 @@ sub _parse($$$;$$) { # Returns just the parse tree, not a JE::Code object.
                      # parse tree in list context, or just the parse tree
                      # in scalar context.
 	my ($rule, $src, $my_global, $file, $line) = @_;
+	local our($_source, $_file, $_line) =($src,$file,$line);
 
 	# Note: We *hafta* stringify the $src, because it could be an
 	# object  with  overloading  (e.g.,  JE::String)  and  we
@@ -1576,6 +1580,9 @@ sub _parse($$$;$$) { # Returns just the parse tree, not a JE::Code object.
 
 	my $tree;
 	local $_vars = [];
+	$rule eq 'program' and !$_parser
+	 and ($ENV{'YES_I_WANT_JE_TO_OPTIMISE'}||'') eq 2
+	 and do { require 'JE/parsetoperl.pl', $rule = \&ptp_program };
 	for($src) {
 		pos = 0;
 		eval {
@@ -1588,28 +1595,28 @@ sub _parse($$$;$$) { # Returns just the parse tree, not a JE::Code object.
 			defined blessed $@ and
 				$@->isa('JE::Object::Error')
 				? last : die;
-			ref $@ eq 'SCALAR' or die;
-			$@ = JE::Object::Error::SyntaxError->new(
+			ref($@) =~ /^(?:SCALAR|REF)\z/ or die;
+			$@
+			 = ref ${$@} eq 'SCALAR'
+			   ? JE::Object::Error::SyntaxError->new(
 				$my_global,
 				add_line_number(
-				    ${$@},	
+				    $${$@},	
 				   {file=>$file,line=>$line,source=>\$src},
 				     pos)
-			);
-		}
-		elsif($@ =~ /\n\z/) { die }
-		elsif($@) {
-			$@ = JE::Object::Error::SyntaxError->new(
+			     )
+			   : JE::Object::Error::SyntaxError->new(
 				$my_global,
 			# ~~~ This should perhaps show more context
 				add_line_number
-				    "Expected $@ but found '".
+				    "Expected ${$@} but found '".
 				    substr($_, pos, 10) . "'",
 				   {file=>$file,line=>$line,source=>\$src},
 				     pos
-			);
+			     );
 			return;
 		}
+		elsif($@) { die }
 	}
 #use Data::Dumper;
 #print Dumper $tree;
@@ -1770,7 +1777,7 @@ C<($)>.
 (To be written)
 
   expected 'aaaa'; # will be changed to 'Expected aaaa but found....'
-  die \"You can't put a doodad after a frombiggle!"; # complete message
+  die \\"You can't put a doodad after a frombiggle!"; # complete message
   die 'aoenstuhoeanthu'; # big no-no (the error is propagated)
 
 =head1 EXAMPLES

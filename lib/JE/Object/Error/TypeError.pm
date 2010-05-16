@@ -1,6 +1,6 @@
 package JE::Object::Error::TypeError;
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 
 use strict;
@@ -38,37 +38,7 @@ See L<JE::Types> and L<JE::Object::Error>.
 
 =cut
 
-sub class { 'TypeError' }
-
-sub new_constructor {
-	shift->JE::Object::new_constructor(shift,
-		sub {
-			__PACKAGE__->new(@_);
-		},
-		sub {
-			my $proto = shift;
-			my $global = $$proto->{global};
-			bless $proto, __PACKAGE__;
-			$global->prototype_for('TypeError',$proto);
-			$proto->prototype(
-			   $global->prototype_for('Error')
-			|| $global->prop('Error')->prop('prototype')
-			);
-			$proto->prop({
-				name  => 'name',
-				value => JE::String->_new($global,
-					'TypeError'),
-				dontenum => 1,
-			});
-			$proto->prop({
-				name  => 'message',
-				value => JE::String->_new($global,
-					'Type error'),
-				dontenum => 1,
-			});
-		},
-	);
-}
+sub name { 'TypeError' }
 
 
 return "a true value";

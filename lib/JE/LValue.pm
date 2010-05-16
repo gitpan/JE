@@ -1,6 +1,6 @@
 package JE::LValue;
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -35,11 +35,15 @@ nomethod => sub {
 		return $self;
 	}
 	elsif($ovl_infix =~ $sym_regexp) {
-		$val = eval( $reversed ? "\$other $symbol \$self"
+		my $bits = (caller 0)[9];
+		$val = eval 'BEGIN{${ARNING_BITS} = $bits}'
+		         . ( $reversed ? "\$other $symbol \$self"
 		                       : "\$self $symbol \$other" );
 	}
 	elsif($ovl_prefix =~ $sym_regexp) {
-		$val = eval "$symbol \$self";
+		my $bits = (caller 0)[9];
+		$val
+		 = eval "BEGIN{\${ARNING_BITS} = \$bits}$symbol \$self";
 	}
 	elsif($symbol eq 'neg') {
 		return -$self;

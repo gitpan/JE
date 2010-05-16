@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 
 use strict;
@@ -464,6 +464,11 @@ sub _new_constructor {
 				if (defined $bar && $bar->can('class') &&
 				    $bar->class eq 'Function') {
 					my $replace = sub {
+					    $global
+					     ->prototype_for('RegExp')
+					     ->prop('constructor')
+					     ->capture_re_vars($str);
+					
 					    $_[0]->call(
 					      JE::String->_new($global,
 					        substr $str, $-[0],
@@ -524,10 +529,15 @@ sub _new_constructor {
 						. "Match[$2]";
 					/gex;
 
+					my $orig_str = $str;
 					no warnings 'uninitialized';
-					$g ? s/$foo/qq'"$bar"'/gee
-					   : s/$foo/qq'"$bar"'/ee
-					for $str;
+					$g ? $str =~ s/$foo/qq'"$bar"'/gee
+					   : $str =~ s/$foo/qq'"$bar"'/ee
+					and
+					 $global
+					  ->prototype_for('RegExp')
+					  ->prop('constructor')
+					  ->capture_re_vars($orig_str);
 				}
 					
 				JE::String->_new($global, $str);
@@ -551,8 +561,17 @@ sub {
 	$re = defined $re ?(eval{$re->class}||'')eq 'RegExp' ? $re->value :
 		JE::Object::RegExp->new($global, $re)->value : qr//;
 
-	return JE::Number->new($global, $str->to_string->value16 =~ $re ?
-		$-[0] :-1 );
+	return JE::Number->new(
+	 $global,
+	 ($str = $str->to_string->value16) =~ $re
+	  ? scalar(
+	     $global->prototype_for('RegExp')
+	      ->prop('constructor')
+	      ->capture_re_vars($str),
+	     $-[0]
+	    )
+	  :-1
+	);
 }
 		}),
 		dontenum => 1,

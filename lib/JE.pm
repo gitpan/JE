@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.045 (alpha release)
+Version 0.046 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -397,7 +397,7 @@ sub new {
 		name => 'Error',
 		autoload =>
 			'require JE::Object::Error;
-			 JE::Object::Error->new_constructor($global)',
+			 JE::Object::Error::_new_constructor($global)',
 		dontenum => 1,
 	});
 	# No EvalError
@@ -405,35 +405,35 @@ sub new {
 		name => 'RangeError',
 		autoload => 'require JE::Object::Error::RangeError;
 		             JE::Object::Error::RangeError
-		              ->new_constructor($global)',
+		              ->_new_subclass_constructor($global)',
 		dontenum => 1,
 	});
 	$self->prop({
 		name => 'ReferenceError',
 		autoload => 'require JE::Object::Error::ReferenceError;
 		             JE::Object::Error::ReferenceError
-		              ->new_constructor($global)',
+		              ->_new_subclass_constructor($global)',
 		dontenum => 1,
 	});
 	$self->prop({
 		name => 'SyntaxError',
 		autoload => 'require JE::Object::Error::SyntaxError;
 		             JE::Object::Error::SyntaxError
-		              ->new_constructor($global)',
+		              ->_new_subclass_constructor($global)',
 		dontenum => 1,
 	});
 	$self->prop({
 		name => 'TypeError',
 		autoload => 'require JE::Object::Error::TypeError;
 		             JE::Object::Error::TypeError
-		              ->new_constructor($global)',
+		              ->_new_subclass_constructor($global)',
 		dontenum => 1,
 	});
 	$self->prop({
 		name => 'URIError',
 		autoload => 'require JE::Object::Error::URIError;
 		             JE::Object::Error::URIError
-		              ->new_constructor($global)',
+		              ->_new_subclass_constructor($global)',
 		dontenum => 1,
 	});
 

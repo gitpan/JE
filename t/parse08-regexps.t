@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 38;
+use Test::More tests => 40;
 use strict;
 use utf8;
 no warnings 'utf8';
@@ -148,3 +148,14 @@ $SIG{__WARN__} = sub {
 
 is $j->eval(q| /uue/oeoentuUCGD |), undef,
 	'invalid regexp modifiers do not warn';
+
+#--------------------------------------------------------------------#
+# Tests 39-40: Make sure invalid regexp modifiers do not warn
+
+$j->new_function(ok => \&ok);
+$j->eval(<<'---');
+try{eval('/)/');fail('eval("/)/")')}
+catch(e){ok(e instanceof SyntaxError, 'eval("/)/")')}
+try{eval('/) /');fail('eval("/) /")')}
+catch(e){ok(e instanceof SyntaxError, 'eval("/) /")')}
+---

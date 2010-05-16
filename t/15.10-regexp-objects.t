@@ -1,12 +1,93 @@
 #!perl -T
 do './t/jstest.pl' or die __DATA__
 
+// See also the regexp tests in non-ecma.t.
+
 function joyne (sep,ary) { // Unlike the built-in, this does not convert
 	var ret = '';      // undefined to an empty string.
 	if(!(ary instanceof Array))return ary;
 	for(var i = 0; i<ary.length;++i)ret +=(i?sep:'')+ary[i]
 	return ret
 }
+
+// ====================================================================
+// The extra-ECMA properties of the RegExp constructor (those beginning
+// with $ and, where applicable, their alphabetical counterparts)
+// We have to put these at the top of the file to test the initial values.
+// 31 tests (not including the first few tests that have their own counts)
+// ====================================================================
+
+vars = [ // there are 17 of these
+ "$'",'$`','$&','$+','$1','$2','$3','$4','$5','$6','$7','$8','$9',
+ 'lastMatch','lastParen','leftContext','rightContext'
+];
+
+// check for undeletability and initial values
+// 34 tests
+for(var i in vars)
+ is(delete RegExp[vars[i]], false, vars[i] + ' is undeletable'),
+ ok(RegExp[vars[i]] === '', vars[i] + ' is the empty string initially');
+
+/(.)/.test("foo"); is(RegExp.$1, "f", '$1 after test');
+is(
+  RegExp.$1.length, 1,
+ 'length of RegExp.$1 (and $1 is not booby-trapped)' // (At first I was
+);                              // using Perl scalars internally instead of
+            // JE::Strings, causing problems in cases like this.)
+
+/(.)/.exec("oo"); is(RegExp.$1, "o", '$1 after exec')
+"abcdefg".search(/(.)/); is(RegExp.$1, "a", '$1 after search')
+
+// replace
+"abcdefg".replace(/(.)/g,"");
+is(RegExp.$1, "g", '$1 after global str replace')
+"abcdefg".replace(/(.)/,"");
+is(RegExp.$1, "a", '$1 after single str replace')
+var stuff = []
+"abcdefg".replace(/(.)/g,function(){ stuff.push(RegExp.$1) });
+is(stuff, 'a,b,c,d,e,f,g','$1 during global function replace')
+stuff = []
+"abcdefg".replace(/(.)/,function() { stuff.push(RegExp.$1) });
+is(stuff, "a", '$1 after single replace with function')
+name = 'only successful replacements must update the vars' // (at one point
+// during developement, this caused ‘substr outside of string’ errors)
+try{
+  RegExp['$`'] = 'abcdef';
+ "-7".replace(/\t/g,'%09');
+ is(RegExp['$`'], 'abcdef', name)
+}catch(ueo) { fail(name) }
+
+"abcdefg".match(/(.)/); is(RegExp.$1, "a", '$1 after match')
+"abcdefg".match(/(d)(.)/);
+is(RegExp.lastMatch, 'de', 'RegExp.lastMatch');
+is(RegExp['$&'], 'de', 'RegExp["$&"]');
+is(RegExp.lastParen, 'e', 'RegExp.lastParen');
+is(RegExp['$+'], 'e', 'RegExp["$+"]');
+is(RegExp.leftContext, 'abc', 'leftContext');
+is(RegExp['$`'], 'abc', '$`');
+is(RegExp.rightContext, 'fg', 'rightContext');
+is(RegExp['$\''], 'fg', '$\'');
+is(RegExp.$2, 'e', '$2');
+
+// Aliasing
+vars
+ = {
+    lastMatch: '$&', lastParen: '$+', leftContext: '$`', rightContext: "$'"
+   }
+for(
+ var i
+  in
+ vars
+)
+ RegExp[i] = 'jile',
+ is(RegExp[vars[i]], 'jile', vars[i] + ' is aliased to ' + i),
+ RegExp[vars[i]] = 'squew',
+ is(RegExp[i], 'squew', i + ' is aliased to ' + vars[i]),
+ isnt(
+  peval("($::other_je ||= new JE)->{RegExp}{'" + i + "'}"), RegExp[i],
+  i + ' is not shared between envs'
+ );
+
 
 // ===================================================
 // 15.10.1 Pattern compilation
@@ -564,7 +645,7 @@ ok(RegExp('r').constructor == RegExp,
 // 15.10.4.1 new RegExp
 // ===================================================
 
-// 8 tests for RegExp(re)
+// 10 tests for new RegExp(re)
 r2 = new RegExp(r = /a/)
 ok(r !== r2, 'new RegExp(re) copies the re')
 is(r, r2, 'the new re stringifies the same way')
@@ -575,8 +656,72 @@ r2 = new RegExp(/a/gim)
 is(r2.global, true, 'the global flag is copied (true)')
 is(r2.ignoreCase, true, 'the /i flag is copied (true)')
 is(r2.multiline, true, 'the /m flag is copied (true)')
+is(r2=new RegExp(r,undefined), r, 'explicit undefined 2nd arg ... ')
+ok(r2 !== r, ' ... copies the re')
 
-// ~~~ more tests ....
+// 1 test for new RegExp(re,something)
+name = "new RegExp(re,something) dies with a TypeError"
+try { new RegExp(/a/,3); fail(name) }
+catch(e) { ok (e instanceof TypeError, name) }
+
+// 12 tests for new RegExp(something, ...)
+r = new RegExp('a')
+is(r.global + '' + r.ignoreCase + r.multiline, 'falsefalsefalse',
+  'flags set by new RegExp when 2nd arg is omitted')
+is('a'.match(r), 'a', 'RegExp created from a string')
+r = new RegExp(12.0,'gim')
+is(r.global + '' + r.ignoreCase + r.multiline, 'truetruetrue',
+  'flags set by new RegExp when 2nd arg is gim')
+is('12'.match(r), '12', 'RegExp created from a number')
+r = new RegExp(true,'mig')
+is(r.global + '' + r.ignoreCase + r.multiline, 'truetruetrue',
+  'flags set by new RegExp when 2nd arg is mig')
+is('true'.match(r), 'true', 'RegExp created from a bouillon')
+r = new RegExp({},'i')
+is(r.global + '' + r.ignoreCase + r.multiline, 'falsetruefalse',
+  'flags set by new RegExp when 2nd arg am i')
+is('T'.match(r), 'T', 'RegExp created from a nobject')
+is('NULL'.match(new RegExp(null,'i')), 'NULL', 're created from null')
+is('NULL'.match(new RegExp(void 0)), '', 're created from undef')
+is('NULL'.match(new RegExp), '', 'new RegExp with no args')
+r = new RegExp({},new String("mg"))
+is(r.global + '' + r.ignoreCase + r.multiline, 'truefalsetrue',
+  'flags set when second arg to new RegExp is an object')
+
+// 5 tests for syntax errors
+name = "new RegExp(something, non-ident) dies with a SyntaxError"
+try { diag(new RegExp('','$')); fail(name) }
+catch(e) { ok (e instanceof SyntaxError, name)||diag(e) }
+name = "new RegExp(something, invalid flags) dies with a SyntaxError"
+try { diag(new RegExp('','é')); fail(name) }
+catch(e) { ok (e instanceof SyntaxError, name)||diag(e) }
+// By Pattern with a capital P I am referring to the Pattern production in
+// ECMAScript.
+name = "new RegExp(invalid Pattern) dies with a SyntaxError"
+try { diag(new RegExp(')))')); fail(name) }
+catch(e) { ok (e instanceof SyntaxError, name)||diag(e) }
+// These following examples match the Pattern production, but are still
+// syntax errors.
+name = "new RegExp(pattern with {3,2}) dies with a SyntaxError"
+try { diag(new RegExp('a{3,2}')); fail(name) }
+catch(e) { ok (e instanceof SyntaxError, name)||diag(e) }
+name = "new RegExp(pattern with [b-a]) dies with a SyntaxError"
+try { diag(new RegExp('[b-a]')); fail(name) }
+catch(e) { ok (e instanceof SyntaxError, name)||diag(e) }
+
+// 1 test for setting source
+ok (new RegExp('a').source === 'a', 'source of new RegExp')
+
+// 2 tests for setting lastIndex
+ok (new RegExp('a').lastIndex === 0, 'lastIndex is initially 0')
+ok (new RegExp('a','g').lastIndex === 0, 'lastIndex is 0 with /g, too')
+
+// 2 tests: internal props
+ok(peval('shift->prototype', new RegExp) === RegExp.prototype,
+  '[[Prototype]] of new RegExp')
+is({}.toString.call(new RegExp), '[object RegExp]',
+  '[[Class]] of new RegExp');
+
 
 // ===================================================
 // 15.10.5 RegExp
@@ -623,6 +768,9 @@ ok(!RegExp.prototype.propertyIsEnumerable('constructor'),
 // 15.10.6.2 exec
 // ===================================================
 
+// 10 tests
+method_boilerplate_tests(RegExp.prototype,'exec',1)
+
 // 4 tests for misc this values
 0,function(){
 	var f = RegExp.prototype.exec;
@@ -645,6 +793,62 @@ ok(!RegExp.prototype.propertyIsEnumerable('constructor'),
 try{is(/a/.exec('a'), 'a', 'exec doesn\'t simply die')}
 catch(e){fail('exec doesn\'t simply die')}
 
+// 6 tests: various types for the arg
+is(/..o/i.exec({}), 't O', 'exec with object arg')
+is(/T/i.exec(true), 't', 'exec with boolean arg')
+is(/[89]/i.exec(78), '8', 'exec with numeric arg')
+is(/U/i.exec(null), 'u', 'exec with null arg')
+is(/U./i.exec(void 0), 'un', 'exec with undefined arg')
+is(/U./i.exec(), 'un', 'exec with no arg')
+
+// 19 tests: exec and lastIndex
+r = /a./
+r.lastIndex=2
+is(r.exec("the abacus"), 'ab', 'exec ignores lastIndex without /g')
+rg = /a./g
+rg.lastIndex=6
+is(rg.exec("the abacus"), "ac", 'exec respects lastIndex with /g')
+is(typeof rg.lastIndex + ': ' + rg.lastIndex, 'number: 8',
+  'exec sets lastIndex')
+rg.lastIndex=1.9
+is(rg.exec('aah'), 'ah', 'exec with fractional lastIndex')
+rg.lastIndex=57
+is(rg.exec('abc'), null, 'exec with large lastIndex')
+is(rg.lastIndex, 0,'exec with large lastIndex resets index to 0')
+r.lastIndex=57
+r.exec('the')
+is(r.lastIndex, 0,'exec failure resets lastIndex even without /g')
+rg.lastIndex=-5
+is(rg.exec('abc'), null, 'exec with negative lastIndex')
+is(rg.lastIndex, 0,'exec with negative lastIndex resets index to 0')
+rg.lastIndex=NaN
+is(rg.exec('abc'), 'ab', 'exec with NaN lastIndex')
+;(rg2=/./g).lastIndex=Infinity
+is(rg2.exec('abc'), null, 'exec with infinite lastIndex')
+;(rg2=/(?:)/g).lastIndex=4
+is(rg2.exec('abc'), null, 'exec with large lastIndex and null pattern')
+r.lastIndex="57"
+is(r.exec("abc"), "ab", 'exec ignores lastIndex without /g')
+is(typeof r.lastIndex + ': ' + r.lastIndex, "string: 57",
+  'successful exec without /g leaves lastIndex untouched');
+rg.lastIndex="1"; is(rg.exec('abac'), 'ac', 'exec with string lastIndex')
+rg.lastIndex=true; is(rg.exec('abac'), 'ac', 'exec with bool lastIndex')
+rg.lastIndex=null; is(rg.exec('abac'), 'ab', 'exec with null lastIndex')
+rg.lastIndex={}; is(rg.exec('abac'), 'ab', 'exec w/ objective lastIndex')
+rg.lastIndex=void 0; is(rg.exec('abac'), 'ab', 'exec with undef lastIndex')
+
+// 9 tests for the return value
+r = /(u)(.)(.)/.exec(new String("squow"))
+ok(r.constructor === Array, 'exec retval is an array')
+is(r.length, 4, 'exec retval is one more than the number of captures')
+ok(r.input === 'squow', 'exec retval .input is a plain string')
+ok(r.index === 2, 'index property of exec retval')
+is(r[0], 'uow', 'first elem of exec retval')
+is(r[1], 'u', 'Subsequent elements of the return value of')
+is(r[2], 'o', 'exec contain the  captured')
+is(r[3], 'w', 'substrings.')
+ok(!(4 in r), 'only as many positive int props as there are captures')
+
 // 2 tests: function-style call (implicit exec)
 is(
   /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/("11.12.13.14"),
@@ -657,13 +861,20 @@ is(
  'object.regexp()'
 )
 
+// 1 test
+error = false
+try{RegExp.prototype.exec.apply([])}
+catch(e){error = e}
+ok(error instanceof TypeError, 'exec death')
 
-// ...
 
 // ===================================================
 // 15.10.6.3 test
 // 2 tests
 // ===================================================
+
+// 10 tests
+method_boilerplate_tests(RegExp.prototype,'test',1)
 
 // 4 tests for misc this values
 0,function(){
@@ -685,11 +896,19 @@ is(
 ok(/(.)(.)(.)+/.test("abcd") === true, 'test returning true')
 ok(/./.test("\n") === false, 'test returning false');
 
-//...
+// 1 test
+error = false
+try{RegExp.prototype.test.apply([])}
+catch(e){error = e}
+ok(error instanceof TypeError, 'test death')
+
 
 // ===================================================
 // 15.10.6.4 toString
 // ===================================================
+
+// 10 tests
+method_boilerplate_tests(RegExp.prototype,'toString',0)
 
 // 4 tests for misc this values
 0,function(){
@@ -723,15 +942,30 @@ ok(/./.test("\n") === false, 'test returning false');
 			re_strs[i]+'.toString()');
 }())
 
-// ...
+// 1 test
+error = false
+try{RegExp.prototype.toString.apply([])}
+catch(e){error = e}
+ok(error instanceof TypeError, 'toString death')
 
 
-// ~~~ Where do these go?
-// 2 tests
-try{eval('/)/');fail('eval("/)/")')}
-catch(e){ok(e instanceof SyntaxError, 'eval("/)/")')}
-try{eval('/) /');fail('eval("/) /")')}
-catch(e){ok(e instanceof SyntaxError, 'eval("/) /")')}
+// ===================================================
+// 15.10.7 Properties of individual regexps
+// ===================================================
+
+r = / /;
+
+// 15 tests
+is(delete r.lastIndex, false, 'lastIndex is undeletable')
+r.lastIndex = o = {}
+ok(r.lastIndex == o, 'lastIndex is writable')
+ok(!r.propertyIsEnumerable('lastIndex'), 'lastIndex is not enumerable')
+for(k in {source:0, global:0, ignoreCase:0, multiline:0}) {
+ is(delete r[k], false, k + ' is undeletable')
+ what_it_was = r[k]
+ is((r[k] = 'delp', r[k]), what_it_was, k + ' is read-only')
+ ok(!r.propertyIsEnumerable('k'), k + ' is not enumerable')
+}
 
 
 // ===================================================
@@ -900,5 +1134,3 @@ is('cbazyx'.replace(PerlRegExp('b(.)'),
     function($and,$1){return $1}), 'cazyx',
 	'String.prototype.replace with qr/()/ and a function')
 */
-
-diag('TO DO: Finish writing this test script');

@@ -1,8 +1,10 @@
 #!perl  -T
 
-use Test::More tests => 143;
+use Test::More tests => 146;
 use Scalar::Util 'refaddr';
 use strict;
+
+{# Scope for the warnings so we can switch back to -w mode for tests below.
 use warnings; no warnings 'utf8';
 
 
@@ -284,7 +286,7 @@ is $je->prop('x'),         2, 'result of $lv_no_base->set';
 
 
 #--------------------------------------------------------------------#
-# Tests 138-42: can
+# Tests 138-43: can
 
 {
 	no warnings 'once';
@@ -312,4 +314,29 @@ is $je->prop('x'),         2, 'result of $lv_no_base->set';
 }
 
 
+#--------------------------------------------------------------------#
+# Test 144-6: warnings
 
+{
+ my $w;
+ local $SIG{__WARN__} = sub { warn $_[0]; ++$w };
+ no warnings 'uninitialized';
+ () = $lv eq undef;
+ is $w, undef, 'The overload handler respects the caller’s warnings';
+}
+
+} # end the warnings scope started near the top of the file
+
+{
+ local $^W;
+ my $w;
+ local $SIG{__WARN__} = sub { warn $_[0]; ++$w };
+ () = our $lv eq undef;
+ is $w, undef, 'The overload handler respects !$^W';
+ 
+ $^W = 1;
+ local $SIG{__WARN__} = sub {++$w };
+ undef $w;
+ () = $lv eq undef;
+ is $w, 1, 'The overload handler respects $^W';
+}

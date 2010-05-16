@@ -1,6 +1,6 @@
 package JE::Object::Error::SyntaxError;
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 
 use strict;
@@ -38,38 +38,7 @@ See L<JE::Types> and L<JE::Object::Error>.
 
 =cut
 
-sub class { 'SyntaxError' }
-
-sub new_constructor {
-	shift->JE::Object::new_constructor(shift,
-		sub {
-			__PACKAGE__->new(@_);
-		},
-		sub {
-			my $proto = shift;
-			(my $global = $$proto->{global})->prototype_for(
-				SyntaxError => $proto
-			);
-			bless $proto, __PACKAGE__;
-			$proto->prototype(
-			   $global->prototype_for('Error')
-			|| $global->prop('Error')->prop('prototype')
-			);
-			$proto->prop({
-				name  => 'name',
-				value => JE::String->_new($global,
-					'SyntaxError'),
-				dontenum => 1,
-			});
-			$proto->prop({
-				name  => 'message',
-				value => JE::String->_new($global,
-					'Syntax error'),
-				dontenum => 1,
-			});
-		},
-	);
-}
+sub name { SyntaxError => }
 
 
 return "a true value";

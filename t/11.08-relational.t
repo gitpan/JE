@@ -369,8 +369,7 @@ function tte /* throws TypeError */ (code,testname){
 	var error = false
 	try { eval(code) }
 	catch(up) {
-		Object.prototype.toString.apply(up) ==
-		'[object TypeError]' && error++
+		up instanceof TypeError && error++
 	}
 	ok(error, testname)
 }

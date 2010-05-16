@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -58,7 +58,9 @@ sub parse {
 	# that copying it  would  have.  (Some  JS  script  files  are
 	# rather large.)
 
-	$r->optimise if $ENV{'YES_I_WANT_JE_TO_OPTIMISE'};
+	$r->optimise
+	 if   $ENV{'YES_I_WANT_JE_TO_OPTIMISE'}
+	  and $ENV{'YES_I_WANT_JE_TO_OPTIMISE'} ne 2;
 
 	$r;
 }
@@ -282,7 +284,7 @@ sub DDS_freeze {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 use subs qw'_eval_term';
 use List::Util 'first';
@@ -315,6 +317,7 @@ sub eval {  # evaluate statement
 		if ($$stm[-1][1] =~ /^(?:do|while|for|switch)\z/) {
 			$stm = $$stm[-1];
 			$type = $$stm[1];
+			no warnings 'deprecated';
 			goto LOOPS; # skip unnecessary if statements
 		}
 
@@ -690,7 +693,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 # B::Deparse showed me how to get these values.
 use constant nan => sin 9**9**9;
@@ -1383,7 +1386,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1395,7 +1398,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 sub list {
 	my $self = shift;

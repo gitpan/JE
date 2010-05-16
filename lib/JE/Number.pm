@@ -1,6 +1,6 @@
 package JE::Number;
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 use strict;
 use warnings; no warnings 'utf8';

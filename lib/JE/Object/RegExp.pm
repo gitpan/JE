@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 
 use strict;
@@ -687,19 +687,20 @@ sub call {
 				}
 
 				my(@ary,$indx);
+				my $global = $$$self{global};
 
 				my $g = $self->prop('global')->value;
 				if ($g) {
-					pos $str =
-					   $self->prop('lastIndex')->value;
-					$str =~ /$$$self{value}/g or do {
-					  $self->prop(lastIndex =>
-					    JE::Number->new(
-					     my $global = $$$self{global},
-					     0
-					    ));
-					  return $global->null;
-					};
+					my $pos = 
+					   $self->prop('lastIndex')
+					    ->to_number->value;
+					$pos < 0 || $pos > length $str
+					 ||
+					(
+					 pos $str = $pos, 
+					 $str !~ /$$$self{value}/g
+					)
+					 and goto phail;
 
 					@ary = @Match;
 					$ary[0] = substr($str, $-[0],
@@ -708,28 +709,28 @@ sub call {
 
 					$self->prop(lastIndex =>
 						JE::Number->new(
-							$$$self{global},
+							$global,
 							pos $str
-						));							}
+						));
+					$global->prototype_for('RegExp')
+					 ->prop('constructor')
+					 ->capture_re_vars($str);
+				}
 				else {
-					$str =~ /$$$self{value}/ or do {
-					  $self->prop(lastIndex =>
-					    JE::Number->new(
-					     my $global = $$$self{global},
-					     0
-					    ));
-					  return $global->null;
-					};
+					$str =~ /$$$self{value}/
+					 or goto phail;
 
 					@ary = @Match;
 					$ary[0] = substr($str, $-[0],
 						$+[0] - $-[0]);
 					$indx = $-[0];
-
+					$global->prototype_for('RegExp')
+					 ->prop('constructor')
+					 ->capture_re_vars($str);
 				}
 			
 				my $ary = JE::Object::Array->new(
-					my $global = $$$self{global}, 
+					$global, 
 					\@ary
 				);
 				$ary->prop(index =>
@@ -740,15 +741,42 @@ sub call {
 						$global, $str
 					));
 				
-				$ary;
+				return $ary;
+
+				phail:
+				$self->prop(lastIndex =>
+					    JE::Number->new(
+					     $global,
+					     0
+					    ));
+				return $global->null;
 }
 
 sub apply { splice @'_, 1, 1; goto &call }
 
-
+@JE::Object::Function::RegExpConstructor::ISA = 'JE::Object::Function';
+sub JE::Object::Function::RegExpConstructor::capture_re_vars { 
+   my $self = shift;
+   my $global = $$$self{global};
+   $self->prop(
+    'lastMatch',
+     JE::String->new($global, substr $_[0], $-[0], $+[0]-$-[0])
+   );
+   {
+    no warnings 'uninitialized';
+    $self->prop('lastParen', new JE::String $global, "$+")
+   }
+   $self->prop(
+    'leftContext',
+     new JE'String $global, substr $_[0], 0, $-[0]
+   );
+   $self->prop('rightContext', new JE'String $global, substr $_[0], $+[0]);
+   no warnings 'uninitialized';
+   $self->prop("\$$_", new JE'String $global, "$Match[$_]") for 1..9;
+}
 sub new_constructor {
 	my($package,$global) = @_;
-	my $f = JE::Object::Function->new({
+	my $f = JE::Object::Function::RegExpConstructor->new({
 		name            => 'RegExp',
 		scope            => $global,
 		argnames         => [qw/pattern flags/],
@@ -775,6 +803,38 @@ sub new_constructor {
 		readonly => 1,
 	});
 	$global->prototype_for('RegExp', $proto);
+
+	$f->prop({
+	 name => '$&',
+	 dontdel => 1,
+	 fetch => sub { shift->prop('lastMatch') },
+	 store => sub { shift->prop('lastMatch', shift) },
+	});
+	$f->prop({
+	 name => '$`',
+	 dontdel => 1,
+	 fetch => sub { shift->prop('leftContext') },
+	 store => sub { shift->prop('leftContext', shift) },
+	});
+	$f->prop({
+	 name => '$\'',
+	 dontdel => 1,
+	 fetch => sub { shift->prop('rightContext') },
+	 store => sub { shift->prop('rightContext', shift) },
+	});
+	$f->prop({
+	 name => '$+',
+	 dontdel => 1,
+	 fetch => sub { shift->prop('lastParen') },
+	 store => sub { shift->prop('lastParen', shift) },
+	});
+	my $empty = JE::String->new($global,"");
+	for(
+	 qw(lastParen lastMatch leftContext rightContext),
+	 map "\$$_", 1..9
+	) {
+		$f->prop({ name => $_, dontdel => 1, value => $empty});
+	}
 	
 	$proto->prop({
 		name  => 'exec',

@@ -1,6 +1,6 @@
 package JE::Object::Error;
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 
 use strict;
@@ -46,43 +46,51 @@ message. 'Error' will be replaced with the class name (the result of
 calling
 C<< ->class >>) for subclasses. 
 
-The C<new_constructor> method (see JE::Object for details) does not work
-in subclasses. If you create a C<new_constructor> method in your own
-subclass of JE::Object::Error, call
-C<< $class->JE::Object::new_constructor >> instead of using C<SUPER>.
-
 =cut
 
 sub new {
 	my($class, $global, $val) = @_;
+	my($js_class) = $class->name;
 	my $self = $class->SUPER::new($global, { 
-		prototype => $global->prototype_for(class $class) ||
-			$global->prop(class $class)->prop('prototype')
+		prototype => $global->prototype_for($js_class) ||
+			$global->prop($js_class)->prop('prototype')
 	});
 
 	$self->prop({
 		dontenum => 1,
 		name => 'message',
 		value => JE::String->_new($global, $val),
-	});
+	}) if defined $val and ref $val ne 'JE::Undefined';
 	$self;
 }
 
 sub value { $_[0]->method('toString')->value }
 
 sub class { 'Error' }
+*name = *class;
 
-sub new_constructor {
-	shift->SUPER::new_constructor(shift,
-		sub {
+sub _new_constructor {
+	my $global = shift;
+	my $con = sub {
 			__PACKAGE__->new(@_);
-		},
-		sub {
-			my $proto = shift;
-			my $global = $$proto->{global};
-			$global->prototype_for('Error',$proto);
-			bless $proto, __PACKAGE__;
-			$proto->prop({
+	};
+	my $args = ['scope','args'];
+	my $f = JE'Object'Function->new({
+		name             => 'Error',
+		scope            => $global,
+		argnames         => ['message'],
+		function         => $con,
+		function_args    => $args,
+		constructor      => $con,
+		constructor_args => $args,
+	});
+
+	my $proto = bless $f->prop({
+	 name => 'prototype', dontenum => 1, readonly => 1
+	});
+	
+	$global->prototype_for('Error',$proto);
+	$proto->prop({
 				name  => 'toString',
 				value => JE::Object::Function->new({
 					scope  => $global,
@@ -93,7 +101,9 @@ sub new_constructor {
 						my $self = shift;
 						JE::String->_new(
 							$$$self{global},
-							$self->class .
+							$self->prop(
+							 'name'
+							) .
 							': ' .
 							$self->prop(
 								'message'							)
@@ -101,20 +111,62 @@ sub new_constructor {
 					}
 				}),
 				dontenum => 1,
-			});
-			$proto->prop({
+	});
+	$proto->prop({
 				name  => 'name',
 				value => JE::String->_new($global, 'Error'),
 				dontenum => 1,
-			});
-			$proto->prop({
+	});
+	$proto->prop({
 				name  => 'message',
 				value => JE::String->_new($global,
-					'Unknown Error'),
+					'Unknown error'),
 				dontenum => 1,
-			});
-		},
+	});
+
+	weaken $global;
+	$f
+}
+
+sub _new_subclass_constructor {
+	my($package,$global) = @_;
+
+	my $f = JE::Object::Function->new({
+		name             => my $name = $package->name,
+		scope            => $global,
+		argnames         => ['message'],
+		function         =>(sub { $package->new(@_) },
+		function_args    => ['scope','args'],
+		constructor      => #  "
+		constructor_args => #  "
+		                   )[ 0..3,0,4,2 ],
+	});
+
+	my $proto = $f->prop({
+		name    => 'prototype',
+		dontenum => 1,
+		readonly => 1,
+	});
+	$global->prototype_for($name=>$proto);
+	bless $proto, $package;
+	$proto->prototype(
+			   $global->prototype_for('Error')
+			|| $global->prop('Error')->prop('prototype')
 	);
+	$proto->prop({
+				name  => 'name',
+				value => JE::String->_new($global, $name),
+				dontenum => 1,
+	});
+	(my $msg = $name) =~ s/(?!^)([A-Z])(?![A-Z])/ \l$1/g;
+	$proto->prop({
+				name  => 'message',
+				value => JE::String->_new($global, $msg),
+				dontenum => 1,
+	});
+
+	weaken $global;
+	$f;
 }
 
 
@@ -136,7 +188,7 @@ return "a true value";
 
 =item L<JE::Object::Error::URIError>
 
-=item Other classes to be added...
+=item L<JE::Object::Error::ReferenceError>
 
 =cut
 

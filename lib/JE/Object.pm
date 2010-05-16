@@ -4,7 +4,7 @@ package JE::Object;
 sub evall { my $global = shift; my $r = eval 'local *_;' . shift;
             $@ and die; $r }
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 use strict;
 use warnings;
@@ -573,130 +573,6 @@ sub to_number {
 sub to_object { $_[0] }
 
 sub global { ${+shift}->{global} }
-
-
-=begin to-delete
-
-=item I<Class>->new_constructor( $global, \&function, \&prototype_init );
-
-B<WARNING:> I am going to delete this method
-since its interface is very convoluted and it is insufficient for too many
-cases. Just consider it a private method that you don't know about.
-
-You should not call this method--or read its description--unless you are 
-subclassing JE::Object. 
-
-This class method creates and returns a constructor function 
-(JE::Object::Function object), which when its C<construct> method is
-invoked, call C<new> in the 
-package through which
-C<new_constructor> is invoked, using the same arguments, but with the 
-package name prepended to the argument list (as though
-C<<< I<< <package name> >>->new >>> had been called.
-
-C<\&function>, if present, will be the subroutine called when the
-constructor function is called as a regular function (i.e., without
-C<new> in JavaScript; using the C<call> method from Perl). If this is
-omitted, the function will simply return undefined.
-
-C<\&prototype_init> (prototype initialiser), if present, will be called by
-the C<new_constructor> with a prototype object as its only argument. It is
-expected to add the default properties to the prototype (except for the
-C<constructor> property, which will be there already), and to bless the
-it into the appropriate Perl class, if necessary (it will be a
-JE::Object by default).
-
-For both coderefs, the scope will be passed as the first argument.
-
-Here is an example of how you might set up the
-constructor function and add methods to the prototype:
-
-  package MyObject;
-
-  require JE::Object;
-  our @ISA = 'JE::Object';
-
-  sub new_constructor {
-      shift->SUPER::new_constructor(shift,
-          sub {
-              __PACKAGE__->new(@_);
-          },
-          sub {
-              my $proto = shift;
-              my $global = $$proto->{global};
-              $proto->prop({
-                  name  => 'toString',
-                  value => JE::Object::Function->new({
-                      scope  => $global,
-                      name   => 'toString',
-                      length => 1,
-                      function_args => ['this'],
-                      function => sub {
-                          # ...
-                      }
-                  }),
-                  dontenum => 1,
-              });
-              # ...
-              # put other properties here
-          },
-      );
-  }
-
-And then you can add it to a global object like this:
-
-  $j->prop({
-          name => 'MyObject',
-          value => MyObject->new_constructor,
-          readonly => 1,
-          dontenum => 1,
-          dontdel  => 1,
-  });
-
-
-You can, of course, 
-create your
-own constructor function with C<new JE::Object::Function> if 
-C<new_constructor> does not 
-do what you want.
-
-B<To do:> Make this exportable, for classes that don't feel like inheriting
-from JE::Object (maybe this is not necessary, since one can say
-S<< C<<< __PACKAGE__->JE::Object::new_constructor >>> >>).
-
-=end to-delete
-
-=cut
-
-sub new_constructor {
-	my($package,$global,$function,$init_proto) = @_;
-
-	my $f = JE::Object::Function->new({
-		name            => $package->class,
-		scope            => $global,
-		function         => $function,
-		function_args    => ['scope','args'],
-		constructor      => sub {
-			no strict 'refs';
-			$package->new(@_);
-		},
-		constructor_args => ['scope','args'],
-	});
-
-	my $proto = $f->prop({
-		name    => 'prototype',
-		dontenum => 1,
-		readonly => 1,
-	});
-
-	$init_proto and &$init_proto($proto);
-
-	$f;
-}
-
-
-
-
 
 =back
 
