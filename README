@@ -1,4 +1,4 @@
-JE, version 0.046
+JE, version 0.047
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -26,26 +26,9 @@ the API could be improved or reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-(See the Changes file for the long version.)
-
-Incompatible change:  The long-deprecated JE::Object::new_constructor 
-method has been deleted.
-New features:  The  RegExp  constructor now has  the  lastMatch  ($&),
-lastParen ($+),  leftContext  ($`),  rightContext  ($')  and $1 to $9
-properties.
 Bug fixes:
-• RegExp.prototype.exec  now reads  lastIndex  correctly  for  global
-  patterns.
-• The Error constructor’s length property and those of its subclasses
-  are now 1, not 0.
-• Error objects without a message now inherit it from  the  prototype.
-• Error  subclasses now have their internal  class  property  set  to
-  Error, rather than RangeError, etc.
-• The overload methods of  JE::LValue  objects no longer produce warn-
-  ings if the caller has warnings disabled.
-• Suppress  ‘use of goto ... is deprecated’  warnings that appear  in
-  perl 5.12.
-• Updated to work with perl 5.13.1’s improved $@ handling.
+• "\0" is no longer parsed as the empty string.
+• Octal escapes beginning with 4-7 are now recognised.
 
 
 TO DO

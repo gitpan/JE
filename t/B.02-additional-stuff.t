@@ -2,6 +2,28 @@
 do './t/jstest.pl' or die __DATA__
 
 // ===================================================
+// B.1.2: octal escapes
+// 16 tests
+// ===================================================
+
+is("\0", String.fromCharCode(0), '"\\0"')
+is("\1", String.fromCharCode(1), '"\\1"')
+is("\2", String.fromCharCode(2), '"\\2"')
+is("\3", String.fromCharCode(3), '"\\3"')
+is("\4", String.fromCharCode(4), '"\\4"')
+is("\5", String.fromCharCode(5), '"\\5"')
+is("\6", String.fromCharCode(6), '"\\6"')
+is("\7", String.fromCharCode(7), '"\\7"')
+is("\8", "8",                     '"\\8"')
+is("\00", String.fromCharCode(0), '"\\00"')
+is("\37", String.fromCharCode(31), '"\\37"')
+is("\40", String.fromCharCode(32), '"\\40"')
+is("\401", ' 1',                    '"\\401"')
+is("\771", '?1',                      '"\\771"')
+is("\0001", String.fromCharCode(0) +'1', '"\\0001"')
+is("\3771", 'ÿ1'                         , '"\\3771"')
+
+// ===================================================
 // B.2.1: escape
 // 7 tests
 // ===================================================

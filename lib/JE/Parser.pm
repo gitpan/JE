@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.046';
+our $VERSION = '0.047';
 
 use strict;  # :-(
 use warnings;# :-(
@@ -235,16 +235,16 @@ sub str() { # public
 		 |
 		(v)
 		 |
-		([0-3][0-7]{0,2}) # actually slightly looser than what
-		 |                # ECMAScript v3 has in its addendum
-		(.)
+		([0-3][0-7]{0,2}|[4-7][0-7]?) # actually slightly looser
+		 |                    # than what ECMAScript v3 has in its
+		(.)           # addendum (it forbids \0 when followed by 8)
 	)/
 		$1 ? chr(hex $1) :
 		$2 ? chr(hex $2) :
                 $3 ? "" :               # escaped line feed disappears
 		$4 ? eval "qq-\\$4-" :
 		$5 ? "\cK" :
-		$6 ? chr oct $6 :
+		defined $6 ? chr oct $6 :
 		$7
 	/sgex;
 	"s$yarn";

@@ -1,5 +1,10 @@
 Revision history for JE
 
+0.047   6 June, 2010
+        Bug fixes:
+        • "\0" is no longer parsed as the empty string.
+        • Octal escapes beginning with 4-7 are now recognised.
+
 0.046   16 May, 2010
         Incompatible change:  The long-deprecated JE::Object::new_con-
         structor method has been deleted.

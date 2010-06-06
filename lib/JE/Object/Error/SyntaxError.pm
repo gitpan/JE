@@ -1,6 +1,6 @@
 package JE::Object::Error::SyntaxError;
 
-our $VERSION = '0.046';
+our $VERSION = '0.047';
 
 
 use strict;
