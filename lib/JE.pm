@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.047';
+our $VERSION = '0.048';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.047 (alpha release)
+Version 0.048 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -573,6 +573,9 @@ sub new {
 				my($scope,$str,$radix) = @_;
 				
 				defined $str or $str = '';
+				ref $str eq 'JE::Number' and return $str;
+				ref $str eq 'JE::Object::Number'
+				 and return $str->to_number;
 				return JE::Number->new($self, $str =~
 					/^$s
 					  (
@@ -2305,7 +2308,8 @@ broken (and has been since 0.022).
 =item *
 
 JE is not necessarily IEEE 754-compliant. It depends on the OS. For this
-reason the Number.MIN_VALUE and Number.MAX_VALUE properties do not exist,
+reason the Number.MIN_VALUE and Number.MAX_VALUE properties may not have
+the same values as ECMAScript,
 and sometimes rounding (via C<toPrecision>, etc.) goes the wrong way.
 
 =item *
@@ -2399,7 +2403,9 @@ Tie::RefHash::Weak, for perl versions earlier than 5.9.4
 The TimeDate distribution (more precisely, Time::Zone and 
 Date::Parse)
 
-Encode 2.08 or highter
+Encode 2.08 or higher
+
+Data::Float
 
 B<Note:> JE will probably end up with Unicode::Collate in
 the list of dependencies.

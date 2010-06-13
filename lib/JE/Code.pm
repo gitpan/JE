@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.047';
+our $VERSION = '0.048';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -284,7 +284,7 @@ sub DDS_freeze {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.047';
+our $VERSION = '0.048';
 
 use subs qw'_eval_term';
 use List::Util 'first';
@@ -432,7 +432,12 @@ sub eval {  # evaluate statement
 				$left_side = $left_side->[2][0];
 				# now contains the identifier
 			}
-			my @keys = (my $obj = $$stm[4]->eval)->keys;
+			my $obj = $$stm[4]->eval;
+			$obj = $obj->get if ref $obj eq 'JE::LValue';
+			ref($obj) =~ /^JE::(?:Undefined|Null)\z/
+			 # ~~~ Do we need undef $_label here?
+			 and undef $_label, return;
+			my @keys = $obj->keys;
 			CONT: for(@keys) {
 				if($_label and
 				   !first {$_ eq $_label} @labels) {
@@ -693,7 +698,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.047';
+our $VERSION = '0.048';
 
 # B::Deparse showed me how to get these values.
 use constant nan => sin 9**9**9;
@@ -1226,6 +1231,8 @@ sub eval {  # evalate (sub)expression
 					if ref $result eq 'JE::LValue'; 
 			}
 			else {
+				$result = $result->get
+					if ref $result eq 'JE::LValue'; 
 				$result = &{"in$op"}(
 					$result, _eval_term ${$copy[1]}
 				);
@@ -1386,7 +1393,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.047';
+our $VERSION = '0.048';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1398,7 +1405,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.047';
+our $VERSION = '0.048';
 
 sub list {
 	my $self = shift;

@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.047';
+our $VERSION = '0.048';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -346,7 +346,7 @@ sub _new_constructor {
 			name   => 'shift',
 			argnames => [qw/start end/],
 			no_proto => 1,
-			function_args => ['this'],
+			function_args => ['this','args'],
 			function => \&_slice,
 		}),
 		dontenum => 1,
@@ -411,7 +411,7 @@ sub _toString {
 	JE::String->_new(
 		$$guts{global},
 		join ',', map
-			defined $_ && defined $_->value
+			defined $_ && ref !~ /^JE::(?:Undefined|Null)\z/
 			? $_->to_string->value : '',
 			@{ $$guts{array} }
 	);

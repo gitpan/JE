@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 105;
+use Test::More tests => 108;
 use strict;
 use utf8;
 
@@ -17,6 +17,7 @@ my $j = new JE;
 isa_ok $j->new_function( ok  => \&ok   ), 'JE::Object::Function';
 isa_ok $j->new_function( diag => \&diag ), 'JE::Object::Function';
 isa_ok $j->new_function( skip  => \&skip ), 'JE::Object::Function';
+$j->new_function( is  => \&is );
 
 
 # JS tests
@@ -73,12 +74,17 @@ try{
 	ok(-9e-300 * 9e-300 ===  0,        'negative underflow with *')
 }catch(y){}
 
+// ---------------------------------------------------
+/* Test 37 */
+expr = 1
+is(expr * (expr = 2), 2, 'lvalue * expr modifying the lvalue');
+
 
 // ===================================================
 // 11.5.2 /
 // ===================================================
 
-/* Tests 37-46: /'s type conversion */
+/* Tests 38-47: /'s type conversion */
 
 ok(isNaN(void 0 / 2),       'undefined / number')
 ok(null   / 3 ===  0,       'null / number')
@@ -93,7 +99,7 @@ ok(isNaN(2 / {}),           'number / object')
 
 
 // ---------------------------------------------------
-/* Tests 47-77: number / number */
+/* Tests 48-78: number / number */
 
 // The tests that use '=== -0' are equivalent to '=== 0' in JS. If I ever
 // get round to implementing -0, I need to come up with a way to test for
@@ -139,12 +145,17 @@ try{
 	ok(-9e-300 / 9e+300 ===  0,        'negative underflow with /')
 }catch(y){}
 
+// ---------------------------------------------------
+/* Test 79 */
+expr = 4
+is(expr / (expr = 2), 2, 'lvalue / expr modifying the lvalue');
+
 
 // ===================================================
 // 11.5.3 %
 // ===================================================
 
-/* Tests 78-87: %'s type conversion */
+/* Tests 70-89: %'s type conversion */
 
 ok(isNaN(void 0 % 2), 'undefined % number')
 ok(null   % 3 === 0,  'null % number')
@@ -159,7 +170,7 @@ ok(isNaN(2 % {}),     'number % object')
 
 
 // ---------------------------------------------------
-/* Tests 88-105: number % number */
+/* Tests 90-107: number % number */
 
 ok(isNaN(NaN  % 322),               'NaN % anything')
 ok(isNaN(2389 % NaN),               'anything % NaN')
@@ -180,5 +191,9 @@ ok(-3.54 %  Infinity === -3.54,     '-finite % inf')
 ok( 0    %  3.54     ===  0,        '0 % +')
 ok(-0    % -3.54     === -0,        '0 % -')
 
+// ---------------------------------------------------
+/* Test 108 */
+expr = 4
+is(expr % (expr = 3), 1, 'lvalue % expr modifying the lvalue');
 
 --end--

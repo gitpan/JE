@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 214;
+use Test::More tests => 218;
 use strict;
 use utf8;
 
@@ -81,12 +81,15 @@ ok(new Number(34.2) == {} === false, "number object == object")
 ok(new Number(34.2) == new Number(34.2) === false, "number object == number object")
 ok(NaN == NaN === false, 'nan == nan')
 
+/* Test 56 */
+expr = 1
+is(expr == (expr = 2), false, 'lvalue == expr modifying the lvalue');
 
 // ===================================================
 // 11.9.2 !=
 // ===================================================
 
-/* Tests 56-106 */
+/* Tests 57-107 */
 
 ok(void 0 != void 0 === false, "undefined != undefined")
 ok(void 0 != null === false, "undefined != null")
@@ -141,12 +144,16 @@ ok(new Number(34.2) != {} === true, "number object != object")
 ok(new Number(34.2) != new Number(34.2) === true, "number object != number object")
 ok(NaN != NaN === true, 'nan != nan')
 
+/* Test 108 */
+expr = 1
+is(expr != (expr = 2), true, 'lvalue != expr modifying the lvalue');
+
 
 // ===================================================
 // 11.9.4 ===
 // ===================================================
 
-/* Tests 107-60 */
+/* Tests 109-62 */
 
 is(void 0 === void 0,  true, "undefined === undefined")
 is(void 0 === null,  false, "undefined === null")
@@ -203,12 +210,16 @@ is(new Number(34.2) === 73,  false, "number object === number")
 is(new Number(34.2) === {},  false, "number object === object")
 is(new Number(34.2) === new Number(34.2),  false, "number object === number object")
 
+/* Test 163 */
+expr = 1
+is(expr === (expr = 2), false, 'lvalue === expr modifying the lvalue');
+
 
 // ===================================================
 // 11.9.5 !==
 // ===================================================
 
-/* Tests 161-214 */
+/* Tests 164-217 */
 
 is(void 0 !== void 0, false, "undefined !== undefined")
 is(void 0 !== null, true, "undefined !== null")
@@ -264,6 +275,10 @@ is(new Number(24.2) !== "3", true, "number object !== string")
 is(new Number(34.2) !== 73, true, "number object !== number")
 is(new Number(34.2) !== {}, true, "number object !== object")
 is(new Number(34.2) !== new Number(34.2), true, "number object !== number object")
+
+/* Test 218 */
+expr = 1
+is(expr !== (expr = 2), true, 'lvalue !== expr modifying the lvalue');
 
 
 --end--

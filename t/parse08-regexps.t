@@ -51,9 +51,9 @@ t29 = /\W[\W]/
 t30 = /[]/
 t31 = /[^]/      
 
-t32 = /[.a]/   // negative and positive char classes together
+t32 = /[\Sa]/  // negative and positive char classes together
 t33 = /[a]/    // positive only
-t34 = /[.]/    // negative only
+t34 = /[\S]/   // negative only
 t35 = /[\D\W]/ // two negatives
 
 --end--
@@ -116,7 +116,7 @@ re_ok t16 => '(?:(?<=[A-Za-z0-9_])(?![A-Za-z0-9_])|'
               . '(?<![A-Za-z0-9_])(?=[A-Za-z0-9_]))[\b]','/\b[\b]/';
 re_ok t17 => '(?:(?<=[A-Za-z0-9_])(?=[A-Za-z0-9_])|'
               . '(?<![A-Za-z0-9_])(?![A-Za-z0-9_]))',    '/\B/';
-re_ok t18 => '[^\cm\cj\x{2028}\x{2029}]' x 2,            '/.[.]/';
+re_ok t18 => '[^\cm\cj\x{2028}\x{2029}][.]',             '/.[.]/';
 re_ok t19 => '\cK[\cK]',                                 '/\v[\v]/';
 re_ok t20 => '\cj[\cj]',                                 '/\n[\n]/';
 re_ok t21 => '\cm[\cm]',                                 '/\r[\r]/';
@@ -130,9 +130,9 @@ re_ok t28 => '[A-Za-z0-9_][A-Za-z0-9_]',                '/\w[\w]/';
 re_ok t29 => '[^A-Za-z0-9_][^A-Za-z0-9_]',              '/\W[\W]/';
 re_ok t30 => '(?!)',                                    '/[]/';
 re_ok t31 => '(?s:.)',                                  '/[^]/';
-re_ok t32 => '(?:[^\cm\cj\x{2028}\x{2029}]|[a])',       '/[.a]/';
+re_ok t32 => '(?:[^\p{Zs}\s\ck]|[a])',                  '/[\Sa]/';
 re_ok t33 => '[a]',                                     '/[a]/';
-re_ok t34 => '[^\cm\cj\x{2028}\x{2029}]',               '/[.]/';
+re_ok t34 => '[^\p{Zs}\s\ck]',                          '/[.]/';
 re_ok t35 => '(?:[^0-9]|[^A-Za-z0-9_])',                '/[\D\W]/';
 
 re_ok foo => '\x{dfff}\x{d800}',                        'surrogates';

@@ -4,7 +4,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 2670;
+use Test::More tests => 2673;
 use strict;
 use utf8;
 
@@ -930,13 +930,16 @@ for(var i in n2n) {
 	ok((item[0] & item[1]) === item[2], item[0] + ' & ' + item[1])
 }
 
-// my place!
+/* Test 893 */
+expr = 1
+is(expr & (expr = 2), 0, 'lvalue & expr modifying the lvalue');
+
 
 // ===================================================
 // ^
 // ===================================================
 
-/* Tests 893-940: type conversion (48 tests) */
+/* Tests 894-941: type conversion (48 tests) */
 
 ok(( void 0  ^  void 0           ) === 0,     "undefined ^ undefined")
 ok(( void 0  ^  null             ) === 0,     "undefined ^ null")
@@ -988,7 +991,7 @@ ok(( new Number(34.2) ^  {}      ) === 34,    "number object ^ object")
 ok(( new Number(34.2) ^  new Number(34.2) ) === 0,
 	"number object ^ number object")
 
-/* Tests 941-1781: numebr ^ number */
+/* Tests 942-1782: numebr ^ number */
 
 n2n = [
 	[NaN, NaN, 0],
@@ -1839,11 +1842,16 @@ for(var i in n2n) {
 	ok((item[0] ^ item[1]) === item[2], item[0] + ' ^ ' + item[1])
 }
 
+/* Test 1783 */
+expr = 1
+is(expr ^ (expr = 2), 3, 'lvalue ^ expr modifying the lvalue');
+
+
 // ===================================================
 // |
 // ===================================================
 
-/* Tests 1782-1829: type conversion (48 tests) */
+/* Tests 1784-1831: type conversion (48 tests) */
 
 ok(( void 0  |  void 0           ) === 0,     "undefined | undefined")
 ok(( void 0  |  null             ) === 0,     "undefined | null")
@@ -1896,7 +1904,7 @@ ok(( new Number(34.2) |  new Number(34.2) ) === 34,
 	"number object | number object")
 
 
-/* Tests 1330-2170 */
+/* Tests 1832-2672 */
 
 n2n = [
 	[NaN, NaN, 0],
@@ -2747,5 +2755,8 @@ for(var i in n2n) {
 	ok((item[0] | item[1]) === item[2], item[0] + ' | ' + item[1])
 }
 
+/* Test 2673 */
+expr = 1
+is(expr | (expr = 2), 3, 'lvalue | expr modifying the lvalue');
 
 --end--

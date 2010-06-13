@@ -72,6 +72,7 @@ t/15.08-math.t
 t/15.09-dates.t
 t/15.10-regexp-objects.t
 t/15.11-error-objects.t
+t/B.01-octals.t
 t/B.02-additional-stuff.t
 t/bind_class.t
 t/je-boolean.t

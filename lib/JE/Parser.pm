@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.047';
+our $VERSION = '0.048';
 
 use strict;  # :-(
 use warnings;# :-(
@@ -254,6 +254,8 @@ sub  num() { # public
 	/\G (?:
 	  0[Xx] ([A-Fa-f0-9]+)
 	    |
+	  0 ([01234567]+)
+	    |
 	  (?=[0-9]|\.[0-9])
 	  (
 	    (?:0|[1-9][0-9]*)?
@@ -262,7 +264,7 @@ sub  num() { # public
 	  )
 	) /xcg
 	or return;
-	return defined $1 ? hex $1 : $2;
+	return defined $1 ? hex $1 : defined $2 ? oct $2 : $3;
 }
 
 our $ident = qr(

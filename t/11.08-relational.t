@@ -1,32 +1,12 @@
 #!perl -T
-
-BEGIN { require './t/test.pl' }
-
-use Test::More tests => 281;
-use strict;
-use utf8;
-
-# Test 1: See if the module loads
-BEGIN { use_ok('JE') };
-
-
-my $j = new JE;
-
-
-# Tests 2-3: Bind the ok and diag functions
-isa_ok( $j->new_function( ok  => \&ok   ), 'JE::Object::Function' );
-isa_ok( $j->new_function( diag => \&diag ), 'JE::Object::Function' );
-
-
-# JS tests
-defined $j->eval( <<'--end--' ) or die;
+do './t/jstest.pl' or die __DATA__
 
 // ===================================================
 // 11.8.1 <
 // ===================================================
 
-/* Tests 4-52: see that whether string or numeric comparison is used is
-               determined correctly */
+// 49 tests: see that whether string or numeric comparison is used is
+//           determined correctly
 
 ok(void 0 < void 0 === false, "undefined < undefined")
 ok(void 0 < null === false, "undefined < null")
@@ -80,7 +60,7 @@ ok(new Number(34.2) < new Number(34.2) === false, "number object < number object
 
 
 // ---------------------------------------------------
-/* Tests 53-63: number < number */
+// 11 tests: number < number
 
 ok(NaN < 1234 === false, 'NaN < anything')
 ok(4312 < NaN === false, 'anything + NaN')
@@ -96,7 +76,7 @@ ok(4 < 3            === false, '4 < 3')
 
 
 // ---------------------------------------------------
-/* Tests 64-9: stwing < stwing */
+// 6 tests: stwing < stwing
 
 ok('beans' < 'beans' === false, 'x < x (string)')
 ok('yarnbard' < 'yarn' === false, 'x < y when y is a prefix of x')
@@ -105,13 +85,18 @@ ok('a' < 'b' === true, '"a" < "b"')
 ok('aaab' < 'aaac' === true, "'aaab' < 'aaac'")
 ok('\u00f0' < '\udf00' === true, "'\\u00f0' < '\\udf00'")
 
+// ---------------------------------------------------
+// 1 test
+expr = 1
+is(expr < (expr = 2), true, 'lvalue < expr modifying the lvalue');
+
 
 // ===================================================
 // 11.8.2 >
 // ===================================================
 
-/* Tests 70-118: Make sure that the choice between stringwise and numeric
-                comparison is made correctly */
+// 49 tests: Make sure that the choice between stringwise and numeric
+//           comparison is made correctly
 
 ok(void 0 > void 0 === false, "undefined > undefined")
 ok(void 0 > null === false, "undefined > null")
@@ -165,7 +150,7 @@ ok(new Number(34.2) > new Number(34.2) === false, "number object > number object
 
 
 // ---------------------------------------------------
-/* Tests 119-29: number > number */
+// 11 tests: number > number
 
 ok(NaN > 1234 === false, 'NaN > anything')
 ok(4312 > NaN === false, 'anything + NaN')
@@ -181,7 +166,7 @@ ok(4 > 3            === true, '4 > 3')
 
 
 // ---------------------------------------------------
-/* Tests 130-5: yarn > yarn */
+// 6 tests: yarn > yarn
 
 ok('beans' > 'beans' === false, 'x > x (string)')
 ok('yarnbard' > 'yarn' === true, 'x > y when y is a prefix of x')
@@ -190,12 +175,17 @@ ok('a' > 'b' === false, '"a" > "b"')
 ok('aaab' > 'aaac' === false, "'aaab' > 'aaac'")
 ok('\u00f0' > '\udf00' === false, "'\\u00f0' > '\\udf00'")
 
+// ---------------------------------------------------
+// 1 test
+expr = 1
+is(expr > (expr = 0), true, 'lvalue > expr modifying the lvalue');
+
 
 // ===================================================
 // 11.8.3 <=
 // ===================================================
 
-/* Tests 136-84: (all types) <= (all types) */
+// 49 tests: (all types) <= (all types) */
 
 ok(void 0 <= void 0 === false, "undefined <= undefined")
 ok(void 0 <= null === false, "undefined <= null")
@@ -249,7 +239,7 @@ ok(new Number(34.2) <= new Number(34.2) === true, "number object <= number objec
 
 
 // ---------------------------------------------------
-/* Tests 185-95: number <= number */
+// 11 tests: number <= number
 
 ok(NaN <= 1234 === false, 'NaN <= anything')
 ok(4312 <= NaN === false, 'anything + NaN')
@@ -265,7 +255,7 @@ ok(4 <= 3            === false, '4 <= 3')
 
 
 // ---------------------------------------------------
-/* Tests 196-201: stwing <= stwing */
+// 6 tests: stwing <= stwing
 
 ok('beans' <= 'beans' === true, 'x <= x (string)')
 ok('yarnbard' <= 'yarn' === false, 'x <= y when y is a prefix of x')
@@ -274,12 +264,17 @@ ok('a' <= 'b' === true, '"a" <= "b"')
 ok('aaab' <= 'aaac' === true, "'aaab' <= 'aaac'")
 ok('\u00f0' <= '\udf00' === true, "'\\u00f0' <= '\\udf00'")
 
+// ---------------------------------------------------
+// 1 test
+expr = 1
+is(expr <= (expr = 0), false, 'lvalue <= expr modifying the lvalue');
+
 
 // ===================================================
 // 11.8.4 >=
 // ===================================================
 
-/* Tests 202-50: type conversion */
+// 49 tests: type conversion
 
 ok(void 0 >= void 0 === false, "undefined >= undefined")
 ok(void 0 >= null === false, "undefined >= null")
@@ -333,7 +328,7 @@ ok(new Number(34.2) >= new Number(34.2) === true, "number object >= number objec
 
 
 // ---------------------------------------------------
-/* Tests 251-61: number >= number */
+// 11 tests: number >= number
 
 ok(NaN >= 1234 === false, 'NaN >= anything')
 ok(4312 >= NaN === false, 'anything + NaN')
@@ -349,7 +344,7 @@ ok(4 >= 3            === true, '4 >= 3')
 
 
 // ---------------------------------------------------
-/* Tests 262-7: yarn >= yarn */
+// 6 tests: yarn >= yarn
 
 ok('beans' >= 'beans' === true, 'x >= x (string)')
 ok('yarnbard' >= 'yarn' === true, 'x >= y when y is a prefix of x')
@@ -358,12 +353,16 @@ ok('a' >= 'b' === false, '"a" >= "b"')
 ok('aaab' >= 'aaac' === false, "'aaab' >= 'aaac'")
 ok('\u00f0' >= '\udf00' === false, "'\\u00f0' >= '\\udf00'")
 
+// ---------------------------------------------------
+// 1 test
+expr = 1
+is(expr >= (expr = 2), false, 'lvalue >= expr modifying the lvalue');
+
 
 // ===================================================
 // 11.8.6 instanceof (and 15.3.5.3 [[HasInstance]])
+// 11 tests
 // ===================================================
-
-/* Tests 268-77 */
 
 function tte /* throws TypeError */ (code,testname){
 	var error = false
@@ -392,16 +391,25 @@ ok ( new TypeError instanceof Error === true,
 ok ( new TypeError instanceof Array === false,
 	'instanceof when a isnta b')
 
+expr = []
+is(
+  expr instanceof (expr = Array), true,
+ 'lvalue instanceof expr modifying the lvalue'
+);
+
 
 // ===================================================
 // 11.8.7 in
+// 5 tests
 // ===================================================
-
-/* Tests 278-81 */
 
 tte('"oetnuh" in ""', 'a in b whe b is not an object')
 ok('eval' in this === true, '"in" when the property exists')
 ok('evil' in this === false, '"in" when the property does not exist')
 ok('\ud800' in [] === false, '"in" when the property contains a surrogate')
 
---end--
+expr = 'length'
+is(
+  expr in (expr = Object('snat')), true,
+ '<lvalue> in <expr modifying the lvalue>'
+);

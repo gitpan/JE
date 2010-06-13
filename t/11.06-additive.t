@@ -2,7 +2,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 103;
+use Test::More tests => 105;
 use strict;
 use utf8;
 
@@ -17,6 +17,7 @@ my $j = new JE;
 isa_ok $j->new_function( ok  => \&ok   ), 'JE::Object::Function';
 isa_ok $j->new_function( diag => \&diag ), 'JE::Object::Function';
 isa_ok $j->new_function( skip  => \&skip ), 'JE::Object::Function';
+$j->new_function(is=>\&is);
 
 
 # JS tests
@@ -117,12 +118,18 @@ try{
 	ok(-9e+307 + -9e+307 === -Infinity, 'negative overflow with +')
 }catch(y){}
 
+// ---------------------------------------------------
+/* Test 74 */
+
+expr = 1
+is(expr + (expr = 2), 3, 'lvalue + expr modifying the lvalue');
+
 
 // ===================================================
 // 11.6.2 -
 // ===================================================
 
-/* Tests 74-83: -'s type conversion */
+/* Tests 75-84: -'s type conversion */
 
 ok(is_nan(void 0 - 2), 'undefined - number')
 ok(null   - 3 === -3,  'null - number')
@@ -137,7 +144,7 @@ ok(is_nan(2 - {}),     'number - object')
 
 
 // ---------------------------------------------------
-/* Tests 84-103: number - number (11.6.3) */
+/* Tests 85-104: number - number (11.6.3) */
 
 ok(is_nan( NaN      - 322),             'NaN - anything')
 ok(is_nan( 2389     - NaN),             'anything - NaN')
@@ -168,5 +175,10 @@ try{
 	ok(-9e+307 -  9e+307 === -Infinity, 'negative overflow with -')
 }catch(y){}
 
+// ---------------------------------------------------
+/* Test 105 */
+
+expr = 1
+is(expr - (expr = 2), -1, 'lvalue - expr modifying the lvalue');
 
 --end--

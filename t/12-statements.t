@@ -1,7 +1,7 @@
 #!perl -T
 do './t/jstest.pl' or die __DATA__
 
-plan('tests', 181)
+plan('tests', 183)
 
 function is_eval(x,y,name) {
 	is(/*we want the eval to have its own namespace*/
@@ -382,7 +382,7 @@ ok(x, 'for(var ;;)-throw')
 // 12.6.4 for-in (not duh-mess-tick)
 // ===================================================
 
-/* 92-107: for-in without var */
+/* 92-108: for-in without var */
 
 var o = {a:'b',c:'d'};
 var m = ''
@@ -454,8 +454,13 @@ try { x=0;  for(x in o) { throw 'somith,eg'; x++} }
 catch(e){ x = x.match(/^[ac]$/) }
 ok(x, 'for-in-throw')
 
+error = false
+try { for(x in null); for(x in undefined); }
+catch(e){error = e}
+is(error, false, 'for(x in null) and for(x in undefined) do not die')
 
-/* 108-23: for-var-in */
+
+/* 109-25: for-var-in */
 
 var o = {a:'b',c:'d'};
 var m = ''
@@ -526,6 +531,11 @@ try { x=0;  for(var x in o) { throw 'somith,eg'; x++} }
 catch(e){ x = x.match(/^[ac]$/) }
 ok(x, 'for-var-in-throw')
 
+error = false
+try { for(var x in null); for(var x in undefined); }
+catch(e){error = e}
+is(error,false, 'for(var x in null) and for(var x in undefined) die not')
+
 
 // ===================================================
 // 12.7-8 continue and break
@@ -538,7 +548,7 @@ ok(x, 'for-var-in-throw')
 // 12.9 return
 // ===================================================
 
-/* 124-6 */
+/* 126-8 */
 
 is(function(){return}(), undefined, 'return')
 is(function(){return 'something'}(), 'something', 'return something')
@@ -552,7 +562,7 @@ ok(error,'return nonexistent_var dies appropriately')
 // 12.10 with
 // ===================================================
 
-/* 127-31 */
+/* 129-33 */
 
 error=false;
 try{with(a_var_that_thinks_it_doesnt_exist_and_is_not_mistaken);}
@@ -577,7 +587,7 @@ is(your, undefined, 'the scope chain is restored after with-throw')
 // 12.11 switch
 // ===================================================
 
-/* 132-50 */
+/* 134-52 */
 
 error=false
 try{switch(ucpcpcn){}}
@@ -661,7 +671,7 @@ ok(error,'"case non_existent_var" dies')
 // 12.12 labelled statements
 // ===================================================
 
-/* 151-3 */
+/* 153-5 */
 
 is_eval("3;label:;", 3, 'labelled statements are able to return nothing')
 is_eval("while(1)label:{3;break}", 3,
@@ -675,7 +685,7 @@ is_eval("label:{3; break label; 4}", 3,
 // 12.13 thr=ow
 // ===================================================
 
-/* 154-5 */
+/* 156-7 */
 
 error=false
 try{throw 'something'}catch(it){error=it}
@@ -688,7 +698,7 @@ ok(error instanceof ReferenceError, 'throw nonexistent var')
 // 12.14 try
 // ===================================================
 
-/* 156-81 */
+/* 158-83 */
 
 is_eval('try{"to"}catch(it){now}', 'to', 'try-catch without exception')
 is_eval('try{to}catch(it){"now"}', 'now', 'exceptional try-catch')

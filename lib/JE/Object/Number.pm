@@ -1,6 +1,6 @@
 package JE::Object::Number;
 
-our $VERSION = '0.047';
+our $VERSION = '0.048';
 
 
 use strict;
@@ -109,24 +109,30 @@ sub _new_constructor {
 		constructor_args => ['scope','args'],
 	});
 
-# ~~~ I DON'T KNOW ENOUGH ABOUT NUMBERS!!! :-(
 # The max according to ECMA-262 ≈ 1.7976931348623157e+308.
-# The max I can get in Perl is 1.797693134862314659999e+308
-#	$f->prop({
-#		name  => 'MAX_VALUE',
-#		value  => JE::Number->new($global, ???????);
-#		dontenum => 1,
-#		dontdel   => 1,
-#		readonly  => 1,
-#	});
+# The max I can get in Perl with a literal is 1.797693134862314659999e+308.
+# Data::Float to the rescue!
+	$f->prop({
+		name  => 'MAX_VALUE',
+		autoload  => '
+		  use Data::Float();
+		  JE::Number->new($global, Data::Float::max_finite)
+		',
+		dontenum => 1,
+		dontdel   => 1,
+		readonly  => 1,
+	});
 
-#	$f->prop({
-#		name  => 'MIN_VALUE',
-#		value  => JE::Number->new($global, ???????);
-#		dontenum => 1,
-#		dontdel   => 1,
-#		readonly  => 1,
-#	});
+	$f->prop({
+		name  => 'MIN_VALUE',
+		autoload  => '
+		  use Data::Float();
+		  JE::Number->new($global, Data::Float::min_finite)
+		',
+		dontenum => 1,
+		dontdel   => 1,
+		readonly  => 1,
+	});
 
 	$f->prop({
 		name  => 'NaN',
@@ -168,7 +174,7 @@ sub _new_constructor {
 			name    => 'toString',
 			argnames => ['radix'],
 			no_proto => 1,
-			function_args => ['this'],
+			function_args => ['this','args'],
 			function => sub {
 				my $self = shift;
 				die JE::Object::Error::TypeError->new(
@@ -189,15 +195,15 @@ sub _new_constructor {
 				$radix =~ /\./ and return $self->to_string;
 
 				if ($radix == 2) {
-					return JE::Number->new($global,
+					return JE::String->new($global,
 					    sprintf '%b', $self->value);
 				}
 				elsif($radix == 8) {
-					return JE::Number->new($global,
+					return JE::String->new($global,
 					    sprintf '%o', $self->value);
 				}
 				elsif($radix == 16) {
-					return JE::Number->new($global,
+					return JE::String->new($global,
 					    sprintf '%x', $self->value);
 				}
 
@@ -209,7 +215,7 @@ sub _new_constructor {
 					$num /= $radix;
 				}
 
-				return JE::Number->new($global, $num);
+				return JE::String->new($global, $result);
 			},
 		}),
 		dontenum => 1,

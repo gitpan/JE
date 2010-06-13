@@ -1,4 +1,4 @@
-JE, version 0.047
+JE, version 0.048
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -17,7 +17,7 @@ Here are its main weakness:
     - It leaks memory (to be fixed).
 
 This is still an alpha release, but it fully implements ECMAScript v3,
-except for a few seldom-used features like  -0  and  Number.MAX_VALUE.
+except for a few seldom-used features like -0.
 
 If  you have the time and the interest,  please experiment  with  this
 module (or maybe even lend a hand :-). If you have any ideas as to how
@@ -26,9 +26,24 @@ the API could be improved or reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
+See the Changes file for the long version.
+
+Incompatible change: for-in loops now treat undefined/null on the rhs
+as {}, instead of dying.
+New features:
+• Octal numeric literals
+• Proper  nummification  of  JE::Undefined  in  Perl  land  (as  nan)
+• Number.MIN_VALUE and .MAX_VALUE  have been added.  Their values are
+  determined by Data::Float.
 Bug fixes:
-• "\0" is no longer parsed as the empty string.
-• Octal escapes beginning with 4-7 are now recognised.
+• Converting an array to a string no longer causes an error when  the
+  array contains a function.
+• Array.prototype.slice used to ignore its arguments.
+• Number.prototype.toString used to ignore its arguments.
+• Left-associative infix operators  (except for ‘||’,  ‘&&’ and  ‘,’)
+  were executing the RHS before converting the  LHS  into  an  rvalue,
+  breaking code like ‘while(expr != (expr = ...))’.
+• A dot in a character class (/[.]/) is now a literal, not a metachar.
 
 
 TO DO
@@ -69,6 +84,7 @@ This module requires perl 5.8.3 or higher and the following modules:
 • The TimeDate distribution (more precisely, Time::Zone, Date::Format
   and Date::Parse)
 • Encode 2.08 or later
+• Date::Float
 
 For perl versions earlier than 5.9.4 it also requires
 Tie::RefHash::Weak.

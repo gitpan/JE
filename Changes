@@ -1,5 +1,30 @@
 Revision history for JE
 
+0.048   13 June, 2010
+        Incompatible change: for-in loops now treat undefined/null on
+        the rhs as {}, instead of dying.  This brings JE into conform-
+        ity with JScript, Nitro, SpiderMonkey, Opera and ECMAScript 5.
+        (So it is no  longer  in  conformity  with  ECMAScript 3  and
+        ExtendScript in this regard.)
+        New features:
+        • Octal numeric literals
+        • Proper nummification of JE::Undefined in Perl land (as nan)
+        • Number.MIN_VALUE and .MAX_VALUE have been added.  Their val-
+          ues are determined by Data::Float.
+        Bug fixes:
+        • Converting an array to a string no longer causes  an  error
+          when the array contains a function.
+        • Array.prototype.slice  used to ignore its arguments and sim-
+          ply return a copy of the array.
+        • Number.prototype.toString used to ignore its arguments.
+        • Left-associative infix operators (except for ‘||’, ‘&&’ and
+         ‘,’)  were executing the RHS before converting the LHS  into
+          an rvalue breaking code like  ‘while(expr != (expr = ...))’.
+        • A dot in a character class  (/[.]/)  is now a literal , not
+          a metachar.
+        Optimisation:  parseFloat  now  cheats  if  its  argument  is
+        already a number. It just returns it.
+
 0.047   6 June, 2010
         Bug fixes:
         • "\0" is no longer parsed as the empty string.

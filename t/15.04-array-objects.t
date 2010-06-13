@@ -142,10 +142,19 @@ ok(Array.prototype.constructor === Array,
 // 10 tests
 method_boilerplate_tests(Array.prototype,'toString',0)
 
-// 3 tests specific to toString
+// 4 tests specific to toString
 is([1,null,true,false,void 0,{},"kjd"].toString(),
 	'1,,true,false,,[object Object],kjd',
 	'toString')
+name = 'toString stringifies functions inside the array'
+try {
+ is(
+   [Array].toString(), Array.toString(),
+   name
+ )
+}
+catch(e) { fail(name); diag(e) }
+
 
 try { Array.prototype.toString.apply(3) }
 catch(it) { ok(it.message.substring(0,22) == 'Object is not an Array',
@@ -356,6 +365,35 @@ is(a.length, 4,'array length after reverse real array w/no args');
 
 
 //...
+
+// ===================================================
+// 15.4.4.10: slice
+// ===================================================
+
+// 10 tests
+method_boilerplate_tests(Array.prototype,'slice',2)
+
+// 1 test for now
+is(["one","two","three"].slice(1), "two,three", 'slice');
+
+// ~~~ more tests
+/*
+different types for the length value; different numbers, too
+different types for the first arg (start), including no args
+first arg rounding
+positive/negative start
+start greater than length
+negative start, the abs value of which > length
+different types for the this value
+undefined/omitted end
+different types for the end value
+end value rounding
+negative end value
+negative end, the abs value of which > length
+end value greater than lengtnh
+nonexistent properties less than length
+*/
+
 
 // ===================================================
 // 15.4.4.11: sort

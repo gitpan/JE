@@ -501,7 +501,7 @@ catch(e) { fail(name) }
 // and a bug we almost introduced while adding this feature:
 ok( /[\n-\r]/.test('\v'), '[\\n-\\r] is a range' )
 
-// 9 tests
+// 10 tests
 is(peval('join "", map chr, 0..255').match(/[d]+/)[0], 'd',
   'class with single character')
 ok(/[-a]/.test('-'), 'hyphen at the beginning of a class')
@@ -523,6 +523,7 @@ catch(e) { ok(e instanceof SyntaxError, name) }
 is("EFefi".match(/[E-F]+/i)[0],'EFef', 'class ranges are unaffected by /i')
 is("SPRIThile[\\]^_`".match(/[E-f]+/i)[0], 'SPRIThile[\\]^_`',
  '/[A-b]/i where A is capital and b is lc matches A-Z a-z [ \\ ] ^ _')
+ok(!/[.]/.test("s"), '[.] does not match "s"')
 
 
 // ===================================================

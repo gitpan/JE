@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.047';
+our $VERSION = '0.048';
 
 
 use strict;
@@ -434,7 +434,7 @@ sub new {
 				    |
 				  (-?)(\\[dsw])(-?)
 				    |
-				  (\.|\\[DSW])
+				  (\\[DSW])
 				    |
 				  \\u([A-Fa-f0-9]{4})
 				    |

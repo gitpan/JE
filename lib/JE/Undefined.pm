@@ -1,6 +1,6 @@
 package JE::Undefined;
 
-our $VERSION = '0.047';
+our $VERSION = '0.048';
 
 use strict;
 use warnings;
@@ -8,7 +8,8 @@ use warnings;
 use overload fallback => 1,
 	'""' => 'typeof',
 #	 cmp =>  sub { "$_[0]" cmp $_[1] },
-	bool =>  sub { undef };
+	bool => \&value,
+	'0+' =>  sub { sin 9**9**9 };
 
 # ~~~ How should this numify?
 
