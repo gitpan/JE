@@ -1,4 +1,4 @@
-JE, version 0.048
+JE, version 0.049
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -26,24 +26,10 @@ the API could be improved or reworked, please e-mail me.
 
 CHANGES IN THIS RELEASE
 
-See the Changes file for the long version.
-
-Incompatible change: for-in loops now treat undefined/null on the rhs
-as {}, instead of dying.
-New features:
-• Octal numeric literals
-• Proper  nummification  of  JE::Undefined  in  Perl  land  (as  nan)
-• Number.MIN_VALUE and .MAX_VALUE  have been added.  Their values are
-  determined by Data::Float.
-Bug fixes:
-• Converting an array to a string no longer causes an error when  the
-  array contains a function.
-• Array.prototype.slice used to ignore its arguments.
-• Number.prototype.toString used to ignore its arguments.
-• Left-associative infix operators  (except for ‘||’,  ‘&&’ and  ‘,’)
-  were executing the RHS before converting the  LHS  into  an  rvalue,
-  breaking code like ‘while(expr != (expr = ...))’.
-• A dot in a character class (/[.]/) is now a literal, not a metachar.
+Bug fix: String.prototype.indexOf no longer dies if the starting posi-
+tion is greater than the length of the  string  and  perl  was  built
+with  -DDEBUGGING.  Thanks  to  Jurgen  Weigert  for  reporting  this
+(RT #58371).
 
 
 TO DO

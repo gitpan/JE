@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.048';
+our $VERSION = '0.049';
 
 
 use strict;
@@ -315,9 +315,13 @@ sub _new_constructor {
 								->value
 							: 0;
 				JE::Number->new($global,
-					!length $find
-					  && $start > length $str
-					? length $str
+					# In -DDEBUGGING builds of perl (as
+					# of 5.13.2), a $start greater than
+					# the length causes a panick, so we
+					# avoid passing that to index(), as
+					# of version 0.049.
+					$start > length $str
+					? length $find ? -1 : length $str
 					: index $str, $find, $start
 				);
 			},

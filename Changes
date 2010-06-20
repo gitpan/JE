@@ -1,5 +1,11 @@
 Revision history for JE
 
+0.049   20 June, 2010
+        Bug fix: String.prototype.indexOf no longer dies if the start-
+        ing position is greater than the length  of  the  string  and
+        perl was built with -DDEBUGGING. Thanks to Jurgen Weigert for
+        reporting this (RT #58371).
+
 0.048   13 June, 2010
         Incompatible change: for-in loops now treat undefined/null on
         the rhs as {}, instead of dying.  This brings JE into conform-
