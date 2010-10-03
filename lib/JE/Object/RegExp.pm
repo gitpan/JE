@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.049';
+our $VERSION = '0.050';
 
 
 use strict;
@@ -356,8 +356,9 @@ sub new {
 	# enclosing group,  but that causes the  same  \1  problem  men-
 	# tioned above.
 
-	no constant 1.03 (); # multiple
-	use constant::lexical {
+	use constant 1.03 # multiple
+	{ # Make any changes to these constants are also made at the end
+	  # of the subroutine
 		# array indices within each item on the @stack:
 		posi => 0, # position within $new_re where the current
 		           # group’s contents start, or before the opening
@@ -632,7 +633,10 @@ sub new {
 
 	$self;
 }
-
+BEGIN {
+ no strict;
+ delete @{__PACKAGE__.'::'}{qw[posi type xmod capn reg cap itrb brch cond]}
+}
 
 
 

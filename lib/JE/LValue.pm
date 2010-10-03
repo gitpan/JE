@@ -1,6 +1,6 @@
 package JE::LValue;
 
-our $VERSION = '0.049';
+our $VERSION = '0.050';
 
 use strict;
 use warnings; no warnings 'utf8';

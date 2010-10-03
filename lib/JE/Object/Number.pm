@@ -1,6 +1,6 @@
 package JE::Object::Number;
 
-our $VERSION = '0.049';
+our $VERSION = '0.050';
 
 
 use strict;
@@ -110,13 +110,17 @@ sub _new_constructor {
 	});
 
 # The max according to ECMA-262 ≈ 1.7976931348623157e+308.
-# The max I can get in Perl with a literal is 1.797693134862314659999e+308.
-# Data::Float to the rescue!
+# The max I can get in Perl with a literal is 1.797693134862314659999e+308,
+# probably as a result of perl bug #41202. Using ECMA’s maximum does not
+# make sense in our case, anyway, as we are using perl’s (i.e., the sys-
+# tem’s) floating point.
+# So I am using routines borrowed from Data::Float to get what are the
+# actual minimum and maximum values that we can handle.
 	$f->prop({
 		name  => 'MAX_VALUE',
 		autoload  => '
-		  use Data::Float();
-		  JE::Number->new($global, Data::Float::max_finite)
+		  require "JE/Object/Number/maxvalue.pl";
+		  $JE::Object::Number::max_finite
 		',
 		dontenum => 1,
 		dontdel   => 1,
@@ -126,8 +130,8 @@ sub _new_constructor {
 	$f->prop({
 		name  => 'MIN_VALUE',
 		autoload  => '
-		  use Data::Float();
-		  JE::Number->new($global, Data::Float::min_finite)
+		  require "JE/Object/Number/maxvalue.pl";
+		  $JE::Object::Number::min_finite
 		',
 		dontenum => 1,
 		dontdel   => 1,

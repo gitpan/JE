@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.049';
+our $VERSION = '0.050';
 
 use strict;  # :-(
 use warnings;# :-(
@@ -186,7 +186,7 @@ sub str() { # public
 	# Windows, and perhaps on other platforms, too. So we use #2 for
 	# 5.8.x regardless of platform to be on the safe side.
 
-	use constant'lexical old_perl => $] < 5.01; # Use a constant so the
+	use constant old_perl => $] < 5.01;        # Use a constant so the
 	my $yarn;                                   # if-block disappears
 	if(old_perl) {                              # at compile-time.
 		# Use a simpler pattern (but more code) to break strings up
@@ -221,6 +221,8 @@ sub str() { # public
 		        "([^"\\]*(?:\\.[^"\\]*)*)"  )/xcgs or return;
 		$yarn = $+;
 	}
+# Get rid of that constant, as it’s no longer needed.
+BEGIN { no strict; delete ${__PACKAGE__.'::'}{old_perl}; }
 
         # transform special chars
 	no re 'taint'; # I need eval "qq-..." to work

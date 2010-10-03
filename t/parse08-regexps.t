@@ -71,9 +71,9 @@ is($@, '', 'execute code with surrogates in regexp literals');
 #--------------------------------------------------------------------#
 # Tests 5-40: Check to see whether regexps were parse and compiled properly
 
-my $B = qr/^\(\?-\w+:\(\?/;  # begin re
+my $B = qr/^\(\?(?:\^|-\w+):\(\?/;  # begin re
 my $E = qr/\)\)/;            # end re
-my $C = qr/\(\?-\w+:\(\?\{\E[^}]+}\)\)/; # embedded code
+my $C = qr/\(\?(?:\^|-\w+):\(\?\{\E[^}]+}\)\)/; # embedded code
 
 # Each regexp is embedded within (?-xism:(?<flags>: ... ))
 # $B matches everything up to <flags>. 'xism' may be expanded in future

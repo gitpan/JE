@@ -3,8 +3,7 @@ package JE::Code;
 use strict;
 use warnings; no warnings qw 'utf8 parenthesis';
 
-no constant 1.03 ();
-use constant::lexical do {
+use constant 1.03 our $_const = do {
 	my $x = 0;
 	+{ map +($_ => $x++),
 		'cx_stm',  # statement
@@ -30,6 +29,7 @@ use constant::lexical do {
 		'ret_bool',
 	 }
 };
+BEGIN { no strict; delete @{__PACKAGE__."::"}{_const => keys %$_const} }
 
 =begin notes
 

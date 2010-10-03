@@ -1,8 +1,5 @@
 BEGIN {
 	require 5.008003; # substr + UTF8
-	$] == 5.009005 and require 5.01;
-	# I’m getting tired of failure reports that are due to the buggi-
-	# ness of 5.9.5.
 }
 
 use ExtUtils::MakeMaker;
@@ -10,14 +7,11 @@ use ExtUtils::MakeMaker;
 my %prq = (
          Carp                        => 1.01, # @CARP_NOT
 	 constant               => 1.03, # multiple
-         constant::lexical => 0,
-         Data'Float     => 0,
         'Date::Parse' => 0,
          Encode     => 2.08, # ‘decode_utf8 "\xef\xbb", FB_CROAK’
          Exporter   => 5.57,
         'List::Util' => 0,
-#         Memoize      => 0,
-         re           => 0, # version???
+         re       => .02, # eval
          POSIX => 0,
 #        'Scalar::Util' => 1.1, # looks_like_number
          strict => 0,

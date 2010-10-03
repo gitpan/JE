@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.049';
+our $VERSION = '0.050';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.049 (alpha release)
+Version 0.050 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -2405,8 +2405,6 @@ Date::Parse)
 
 Encode 2.08 or higher
 
-Data::Float
-
 B<Note:> JE will probably end up with Unicode::Collate in
 the list of dependencies.
 
@@ -2418,7 +2416,12 @@ Copyright (C) 2007-10 Father Chrysostomos <sprout [at] cpan
 This program is free software; you may redistribute it and/or modify
 it under the same terms as perl.
 
+Some of the code was derived from L<Data::Float>, which is copyrighted (C)
+2006, 2007, 2008 by Andrew Main (Zefram).
+
 =head1 ACKNOWLEDGEMENTS
+
+Some of the
 
 Thanks to Kevin Cameron S<< [ kevinE<nbsp>E<nbsp>cameron net ] >> for his
 contributions,

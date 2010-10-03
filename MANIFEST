@@ -18,6 +18,7 @@ lib/JE/Object/Error/URIError.pm
 lib/JE/Object/Error.pm
 lib/JE/Object/Function.pm
 lib/JE/Object/Math.pm
+lib/JE/Object/Number/maxvalue.pl
 lib/JE/Object/Number.pm
 lib/JE/Object/Proxy.pm
 lib/JE/Object/RegExp.pm

@@ -1,4 +1,4 @@
-JE, version 0.049
+JE, version 0.050
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -24,8 +24,16 @@ module (or maybe even lend a hand :-). If you have any ideas as to how
 the API could be improved or reworked, please e-mail me.
 
 
-CHANGES IN THIS RELEASE
+RECENT CHANGES
 
+0.050
+-----
+• Fix  t/parse08-regexps.t  to work with the  new  (?^...)  syntax in
+  perl 5.13.5.
+• constant::lexical is no longer required.
+
+0.049
+-----
 Bug fix: String.prototype.indexOf no longer dies if the starting posi-
 tion is greater than the length of the  string  and  perl  was  built
 with  -DDEBUGGING.  Thanks  to  Jurgen  Weigert  for  reporting  this
@@ -70,7 +78,6 @@ This module requires perl 5.8.3 or higher and the following modules:
 • The TimeDate distribution (more precisely, Time::Zone, Date::Format
   and Date::Parse)
 • Encode 2.08 or later
-• Date::Float
 
 For perl versions earlier than 5.9.4 it also requires
 Tie::RefHash::Weak.
