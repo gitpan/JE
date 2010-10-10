@@ -1,5 +1,10 @@
 Revision history for JE
 
+0.051   10 October, 2010
+        Bug fix:  On DragonFly BSD,  exp(Infinity) and exp(-Infinity)
+        now correctly return Infinity and 0, respectively, instead of
+        NaN (I hope).
+
 0.050   3 October, 2010
         • Fix t/parse08-regexps.t to work with the new (?^...) syntax
           in perl 5.13.5.

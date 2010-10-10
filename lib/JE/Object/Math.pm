@@ -1,6 +1,6 @@
 package JE::Object::Math;
 
-our $VERSION = '0.050';
+our $VERSION = '0.051';
 
 
 use strict;
@@ -263,7 +263,9 @@ sub new {
 			function => sub {
 				JE::Number->new($global,
 					defined $_[0]
-					? exp($_[0]->to_number->value)
+					? $_[0] + 1 == $_[0] # inf
+					   ? $_[0] < 0 ? 0 : 'inf'
+					   : exp($_[0]->to_number->value)
 					: 'nan');
 			},
 		}),
