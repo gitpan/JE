@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.051';
+our $VERSION = '0.052';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.051 (alpha release)
+Version 0.052 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -2176,25 +2176,6 @@ delegates methods to the global object, does not yet implement
 the C<can> method, so if you call $scope->can('to_string')
 you will get a false return value, even though scope objects I<can>
 C<to_string>.
-
-=item *
-
-JE::LValue's C<can> method returns the method that JE::LValue::AUTOLOAD 
-calls when methods are delegated. But that means that if you call C<can>'s
-return value, it's not the same as invoking a method, because a
-different object is passed:
-
- $lv = $je->eval('this.document');
- $lv->set({});
-
- $lv->to_string; # passes a JE::Object to JE::Object's to_string method
- $lv->can('to_string')->($lv);
-	# passes the JE::LValue to JE::Object's to_string method
-
-If this is a problem for anyone, I have a fix for it (returning a closure),
-but I think it would have a 
-performance
-penalty, so I don't want to fix it. :-(
 
 =item *
 

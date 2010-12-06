@@ -291,16 +291,16 @@ is $je->prop('x'),         2, 'result of $lv_no_base->set';
 {
 	no warnings 'once';
 	local *base_class::prop = sub { bless [], 'prop_class' };
-	local *prop_class::this = sub { };
-	local *prop_class::that = sub { };
+	local *prop_class::this = sub { ref(shift) . 'this' };
+	local *prop_class::that = sub { ref(shift) . 'that' };
 	local *prop_class::base = sub { }; # a method with the same name
 	                                   # as a JE::LValue method
 
 	my $lv = new JE::LValue bless([], 'base_class'), '';
 
 	# Test prop_class's methods
-	is $lv->can('this'), \&prop_class::this, 'can this';
-	is $lv->can('that'), \&prop_class::that, 'can that';
+	is $lv->can('this')->($lv), 'prop_classthis', 'can this';
+	is $lv->can('that')->($lv), 'prop_classthat', 'can that';
 
 	# JE::LValue's methods
 	is $lv->can('base'), \&JE::LValue::base, 'can base';

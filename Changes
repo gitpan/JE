@@ -1,5 +1,12 @@
 Revision history for JE
 
+0.052   5 December, 2010
+        Bug fix:  The return value of JE::LValue->can can now be used
+        and will delegate properly to the referent.
+        Test fix:  t/parse08-regexps.t  has been fixed to  work  with
+        the new (?^u:...)  stringification of internally-UTF8 regular
+        expressions in perl 5.13.8.
+
 0.051   10 October, 2010
         Bug fix:  On DragonFly BSD,  exp(Infinity) and exp(-Infinity)
         now correctly return Infinity and 0, respectively, instead of

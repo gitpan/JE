@@ -1,6 +1,6 @@
 package JE::LValue;
 
-our $VERSION = '0.051';
+our $VERSION = '0.052';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -144,7 +144,11 @@ sub can { # I think this returns a *canned* lvalue, as opposed to a fresh
 	
 	!ref $_[0] || $_[1] eq 'DESTROY' and goto &UNIVERSAL::can;
 
-	&UNIVERSAL::can || shift->get->can(@_);
+	&UNIVERSAL::can || do {
+	                        my $sub = (my $obj = shift->get)->can(@_)
+	                         or return undef;
+	                        sub { splice @'_, 0, 1, $obj; goto &$sub }
+	                      };
 }
 
 
