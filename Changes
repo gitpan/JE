@@ -1,5 +1,13 @@
 Revision history for JE
 
+0.053   12 December, 2010
+        Bug fixes:
+        • The regular expression module was relying on a bug in  perl
+          that is fixed in 5.13.8.
+        • The  match  and  search  methods of  strings  now  work  if
+          no regular expressions have  been  used  yet.  (A  ‘require’
+          was missing.)
+
 0.052   5 December, 2010
         Bug fix:  The return value of JE::LValue->can can now be used
         and will delegate properly to the referent.

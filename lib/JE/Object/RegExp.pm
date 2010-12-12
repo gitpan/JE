@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.052';
+our $VERSION = '0.053';
 
 
 use strict;
@@ -603,7 +603,7 @@ sub new {
 
 #warn $new_re;
 	$qr = eval {
-		use re 'eval'; no warnings 'regexp';
+		use re 'eval'; no warnings 'regexp'; no strict;
 
 		# The warnings pragma doesn’t make it into the re-eval, so
 		# we have to localise  $^W,  in case the  string  contains

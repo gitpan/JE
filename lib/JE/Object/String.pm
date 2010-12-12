@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.052';
+our $VERSION = '0.053';
 
 
 use strict;
@@ -395,9 +395,12 @@ sub _new_constructor {
 
 				!defined $re_obj || 
 				    (eval{$re_obj->class}||'') ne 'RegExp'
-				 and $re_obj =	
+				 and do {
+				      require JE::Object::RegExp;
+				      $re_obj =	
 					JE::Object::RegExp->new($global, 
 						$re_obj);
+				     };
 		
 				my $re = $re_obj->value;
 
@@ -563,7 +566,10 @@ sub {
 	my($str, $re) = @_;
 
 	$re = defined $re ?(eval{$re->class}||'')eq 'RegExp' ? $re->value :
-		JE::Object::RegExp->new($global, $re)->value : qr//;
+		do {
+		  require JE::Object::RegExp;
+		  JE::Object::RegExp->new($global, $re)->value
+		} : qr//;
 
 	return JE::Number->new(
 	 $global,

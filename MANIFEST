@@ -67,6 +67,8 @@ t/15.02-objects.t
 t/15.03-function-objects.t
 t/15.04-array-objects.t
 t/15.05-string-objects.t
+t/15.05-match.t
+t/15.05-search.t
 t/15.06-boolean-objects.t
 t/15.07-number-objects.t
 t/15.08-math.t
