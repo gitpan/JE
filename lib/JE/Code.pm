@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.053';
+our $VERSION = '0.54';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -284,7 +284,7 @@ sub DDS_freeze {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.053';
+our $VERSION = '0.54';
 
 use subs qw'_eval_term';
 use List::Util 'first';
@@ -698,7 +698,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.053';
+our $VERSION = '0.54';
 
 # B::Deparse showed me how to get these values.
 use constant nan => sin 9**9**9;
@@ -1198,10 +1198,13 @@ sub eval {  # evalate (sub)expression
 			T and tainted $taint and $val->can('taint')
 				and $val = taint $val $taint;
 			eval { (pop @terms)->set($val) };
-			$@ and die new JE::Object::Error::ReferenceError
-				$global, add_line_number "Cannot assign to a non-lvalue";
+			if (my $err = $@) {
+				die $err if UNIVERSAL::isa($err, 'JE::Object::Error');
+				die new JE::Object::Error::ReferenceError
+					$global, add_line_number "Cannot assign to a non-lvalue";
+			}
 			# ~~~ This needs to check whether it was an error
-			#     other than 'Can't locate objec mtehod "set"
+			#     other than 'Can't locate object method "set"
 			#     since store handlers can thrown other errors.
 			
 		}
@@ -1393,7 +1396,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.053';
+our $VERSION = '0.54';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1405,7 +1408,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.053';
+our $VERSION = '0.54';
 
 sub list {
 	my $self = shift;

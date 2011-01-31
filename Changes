@@ -1,5 +1,10 @@
 Revision history for JE
 
+0.054   30 January, 2011
+        Bug fix: JE::Object::Errors thrown from within store handlers
+        now propagate instead of turning into ‘Cannot assign to a non-
+        lvalue’ message.  (Thanks to Chia-liang Kao for fixing this.)
+
 0.053   12 December, 2010
         Bug fixes:
         • The regular expression module was relying on a bug in  perl

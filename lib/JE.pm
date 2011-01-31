@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.053';
+our $VERSION = '0.54';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.053 (alpha release)
+Version 0.54 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -2391,7 +2391,7 @@ the list of dependencies.
 
 =head1 AUTHOR, COPYRIGHT & LICENSE
 
-Copyright (C) 2007-10 Father Chrysostomos <sprout [at] cpan
+Copyright (C) 2007-11 Father Chrysostomos <sprout [at] cpan
 [dot] org>
 
 This program is free software; you may redistribute it and/or modify
@@ -2404,20 +2404,16 @@ Some of the code was derived from L<Data::Float>, which is copyrighted (C)
 
 Some of the
 
-Thanks to Kevin Cameron S<< [ kevinE<nbsp>E<nbsp>cameron net ] >> for his
+Thanks to Kevin Cameron and Chia-liang Kao for their
 contributions,
 
-to Max Maischein S<< [ webmasterE<nbsp>E<nbsp>corion net ] >> for 
+to Max Maischein for 
 letting
 me use
 his tests,
 
-to Andy Armstrong S<< [ andyE<nbsp>E<nbsp>hexten net ] >>, Yair Lenga
-S<< [ yair lengaE<nbsp>E<nbsp>gmail com ] >>, Alex Robinson
-S<< [ alexE<nbsp>E<nbsp>solidgoldpig com ] >>, Christian Forster
-S<< [ boronkE<nbsp>E<nbsp>boronk de ] >>, Imre Rad
-S<< [ radimreE<nbsp>E<nbsp>freemail hu ] >> and Craig Mackenna
-S<< [ craigE<nbsp>E<nbsp>animalhead com ] >>
+to Andy Armstrong, Yair Lenga, Alex Robinson, Christian Forster, Imre Rad
+and Craig Mackenna
 for their suggestions,
 
 and to the CPAN Testers for their helpful reports.

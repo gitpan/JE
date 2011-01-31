@@ -1,4 +1,4 @@
-JE, version 0.053
+JE, version 0.54
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -26,6 +26,12 @@ the API could be improved or reworked, please e-mail me.
 
 RECENT CHANGES
 
+0.054
+-----
+JE::Object::Errors  thrown from within store  handlers  now  propagate
+instead of turning into  ‘Cannot  assign  to  a  non-lvalue’  messages.
+(Thanks to Chia-liang Kao for fixing this!)
+
 0.053
 -----
 • The regular expression module was relying on a bug in perl that  is
@@ -40,11 +46,6 @@ delegate properly to the referent.
 Test fix:  t/parse08-regexps.t  has been fixed to work with  the  new
 (?^u:...)  stringification of internally-UTF8 regular expressions  in
 perl 5.13.8.
-
-0.051
------
-Bug fix:  On DragonFly BSD,  exp(Infinity) and exp(-Infinity) now cor-
-rectly return Infinity and 0,  respectively,  instead of NaN (I hope).
 
 
 TO DO
@@ -111,25 +112,19 @@ Or try using man (it's faster, in my experience):
 
 ACKNOWLEDGEMENTS
 
-Thanks to Kevin Cameron [ kevin  cameron com ] for his  contributions,
+Thanks to Kevin Cameron and Chia-liang Kao  for  their  contributions,
 
-to Max Maischein [ webmaster  corion net ] for  letting  me  use  his
-tests,
+to Max Maischein for letting me use his tests,
 
-to Andy Armstrong    [ andy        hexten net       ],
-   Yair Lenga        [ yair lenga  gmail com        ],
-   Alex Robinson     [ alex        solidgoldpig com ],
-   Christian Forster [ boronk      boronk de        ],
-   Imre Rad          [ radimre     freemail hu      ] and
-   Craig MacKenna    [ craig       animalhead com   ]
-for their suggestions,
+to Andy Armstrong, Yair Lenga, Alex Robinson, Christian Forster, Imre
+Rad and Craig MacKenna for their suggestions,
 
 and to the CPAN Testers for their helpful reports.
 
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2007-10 Father Chrysostomos
+Copyright (C) 2007-11 Father Chrysostomos
 
 This program is free software; you may redistribute it and/or modify
 it under the same terms as perl.
