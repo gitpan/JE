@@ -1,6 +1,6 @@
 package JE::Object::Error::ReferenceError;
 
-our $VERSION = '0.54';
+our $VERSION = '0.055';
 
 
 use strict;

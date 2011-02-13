@@ -7,7 +7,7 @@
 
 BEGIN { require './t/test.pl' }
 
-use Test::More tests => 9;
+use Test::More tests => 10;
 use strict;
 use utf8;
 
@@ -59,3 +59,12 @@ is $@, '[object HTML::DOM::Exception]',
           decodeURIComponent;
 }
 
+#--------------------------------------------------------------------#
+# Test 10: Throwing new Errors while *@ is localised
+# This is actually a perl bug, which we now work around in version 0.055.
+
+{
+ local *@;
+ new JE  ->eval('throw new Error');
+} # <-- It used to crash when exiting this scope.
+ok(1, "throw new Error works when *@ is localised");

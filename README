@@ -1,4 +1,4 @@
-JE, version 0.54
+JE, version 0.055
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -26,6 +26,20 @@ the API could be improved or reworked, please e-mail me.
 
 RECENT CHANGES
 
+Unfortunately,  I made the mistake of making the previous release  ver-
+sion 0.54 instead of 0.054. I have reset the version on CPAN, so 0.055
+is the current version,  but if anyone has already  upgrade  to  0.054,
+future upgrades will not work from  the  CPAN  shell  without  ‘force’.
+Hopefully two weeks was short enough an interval.  If this causes prob-
+lems for anyone, please let me know and I will increase the version to
+.541 or something similar.
+
+0.055
+-----
+Some pod fixes from Damyan Ivanov (RT #64015). (Thank you.)
+One bug fix: ‘throw new Error’ and ‘$@ = bless[],'JE::Scope'’ will no
+longer cause a crash when *@ has been localised.
+
 0.054
 -----
 JE::Object::Errors  thrown from within store  handlers  now  propagate
@@ -38,14 +52,6 @@ instead of turning into  ‘Cannot  assign  to  a  non-lvalue’  messages.
   fixed in 5.13.8.
 • The  match  and  search  methods of strings now work if no  regular
   expressions have been used yet. (A ‘require’ was missing.)
-
-0.052
------
-Bug fix: The return value of JE::LValue->can can now be used and will
-delegate properly to the referent.
-Test fix:  t/parse08-regexps.t  has been fixed to work with  the  new
-(?^u:...)  stringification of internally-UTF8 regular expressions  in
-perl 5.13.8.
 
 
 TO DO
@@ -112,9 +118,8 @@ Or try using man (it's faster, in my experience):
 
 ACKNOWLEDGEMENTS
 
-Thanks to Kevin Cameron and Chia-liang Kao  for  their  contributions,
-
-to Max Maischein for letting me use his tests,
+Thanks to Max Maischein, Kevin Cameron, Chia-liang Kao and Damyan Iva-
+nov for their contributions,
 
 to Andy Armstrong, Yair Lenga, Alex Robinson, Christian Forster, Imre
 Rad and Craig MacKenna for their suggestions,

@@ -1,5 +1,10 @@
 Revision history for JE
 
+0.055   13 January, 2011
+        Some pod fixes from Damyan Ivanov  (RT #64015).  (Thank you.)
+        One bug fix:  ‘throw new Error’ and ‘$@ = bless[],'JE::Scope'’
+        will no longer cause a  crash  when  *@  has  been  localised.
+
 0.054   30 January, 2011
         Bug fix: JE::Object::Errors thrown from within store handlers
         now propagate instead of turning into ‘Cannot assign to a non-

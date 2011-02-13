@@ -1,6 +1,6 @@
 package JE::Scope;
 
-our $VERSION = '0.54';
+our $VERSION = '0.055';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -58,11 +58,10 @@ sub new_var {
 sub AUTOLOAD { # This delegates the method to the global object
 	my($method) = $AUTOLOAD =~ /([^:]+)\z/;
 
-	 # deal with DESTROY, etc. # ~~~ Am I doing the right
-	                           #     thing?
+	 # deal with various ALLCAPS names
 	if($method =~ /^[A-Z]+\z/) {
 		substr($method,0,0) = 'SUPER::';
-		local $@;
+		local *@;
 		return eval { shift->$method(@_) };
 	}
 
@@ -70,6 +69,8 @@ sub AUTOLOAD { # This delegates the method to the global object
 	                         #     to remove AUTOLOAD from
 	                         #     the call stack.
 }
+
+sub DESTROY {}
 
 1;
 
@@ -122,6 +123,8 @@ The variable object is the first object in the scope chain
 stack) that is a call object, or C<< $scope->[0] >> if no call object is 
 found.
 
+=back
+
 =head1 CONSTRUCTOR
 
 None. Just bless an array reference. You should not need to do
@@ -130,11 +133,15 @@ classes.
 
 =head1 SEE ALSO
 
+=over
+
 =item L<JE>
 
 =item L<JE::LValue>
 
 =item L<JE::Object::Function>
+
+=back
 
 =cut
 

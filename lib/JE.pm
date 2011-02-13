@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.54';
+our $VERSION = '0.055';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.54 (alpha release)
+Version 0.055 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -1000,6 +1000,8 @@ sub false { $${+shift}{f} }
 
 (This method can create a potential security hole. Please see L</BUGS>,
 below.)
+
+=back
 
 =head2 Synopsis
 
@@ -2030,7 +2032,7 @@ sub bind_class {
 	return # nothing
 }
 
-
+=over
 
 =item $j->new_parser
 
@@ -2120,6 +2122,8 @@ Array.prototype.toLocaleString uses ',' as the separator.
 The spec. states that, whenever it (the spec.), say to throw a
 SyntaxError, an implementation may provide other behaviour instead. Here
 are some instances of this:
+
+=over
 
 =item *
 
@@ -2404,13 +2408,9 @@ Some of the code was derived from L<Data::Float>, which is copyrighted (C)
 
 Some of the
 
-Thanks to Kevin Cameron and Chia-liang Kao for their
+Thanks to Max Maischein, Kevin Cameron, Chia-liang Kao and Damyan Ivanov
+for their
 contributions,
-
-to Max Maischein for 
-letting
-me use
-his tests,
 
 to Andy Armstrong, Yair Lenga, Alex Robinson, Christian Forster, Imre Rad
 and Craig Mackenna
