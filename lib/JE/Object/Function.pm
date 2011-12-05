@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.055';
+our $VERSION = '0.056';
 
 
 use strict;
@@ -485,6 +485,7 @@ sub apply { # ~~~ we need to upgrade the args passed to apply, but still
 		return $ret;
 	}
 	else {
+if (!defined $global) { use Carp; Carp::cluck() }
 		return $global->undefined;
 	}
 }
@@ -697,7 +698,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.055';
+our $VERSION = '0.056';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -784,7 +785,7 @@ sub prototype{}
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.055';
+our $VERSION = '0.056';
 
 our @ISA = 'JE::Object';
 

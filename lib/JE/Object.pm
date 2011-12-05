@@ -4,7 +4,7 @@ package JE::Object;
 sub evall { my $global = shift; my $r = eval 'local *_;' . shift;
             $@ and die; $r }
 
-our $VERSION = '0.055';
+our $VERSION = '0.056';
 
 use strict;
 use warnings;
@@ -158,10 +158,19 @@ sub new {
 		return $global->upgrade($value);
 	}
 
+	my $self =
 	bless \{ prototype => $p,
 	         global    => $global,
 	         props     => \%hash,
 	         keys      => [keys %hash]  }, $class;
+
+	$JE::Destroyer && JE::Destroyer'register($self);
+
+	$self;
+}
+
+sub destroy { # not DESTROY; called by JE::Destroyer
+ undef ${$_[0]};
 }
 
 

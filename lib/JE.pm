@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.055';
+our $VERSION = '0.056';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.055 (alpha release)
+Version 0.056 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -96,11 +96,6 @@ Easy to install (no C compiler necessary*)
 
 =item -
 
-Compatible with L<Data::Dump::Streamer>, so the runtime environment
-can be serialised
-
-=item -
-
 The parser can be extended/customised to support extra (or
 fewer) language features (not yet complete)
 
@@ -111,8 +106,11 @@ have overloaded operators)
 
 =back
 
-JE's greatest weakness is that it's slow (well, what did you expect?). It
-also uses and leaks lots of memory, but that will be fixed.
+JE's greatest weakness is that it's slow (well, what did you expect?).  It
+also uses and leaks lots of memory.  (There is an experimental
+L<JE::Destroyer (q.v.)|JE::Destroyer> module that solves this if you load
+it first and then call C<JE::Destroyer::destroy($j)> on the JE object when
+you have finished with it.)
 
 * If you are using perl 5.9.3 or lower, then L<Tie::RefHash::Weak> is
 required. Recent versions of it require L<Variable::Magic>, an XS module
@@ -333,6 +331,10 @@ sub new {
 	    {name=>'length',dontenum=>1,value=>new JE::Number $self,1}
 	);
 	$func_proto->prop({name=>'length', value=>0, dontenum=>1});
+
+	if($JE::Destroyer) {
+		JE::Destroyer'register($_) for $obj_constr, $func_constr;
+	}
 
 	# Before we add anything else, we need to make sure that our global
 	# true/false/undefined/null values are available.
@@ -2313,9 +2315,9 @@ A Perl subroutine called from JavaScript can sneak past a C<finally> block and a
 
 =item *
 
-NaN and Infinity do not work properly on some Windows compilers. I know
-that ActivePerl 5.8.6 doesn't work. (I do not know about later versions.)
-Strawberry Perl works fine, though, which is what most people are using.
+NaN and Infinity do not work properly on some Windows compilers.  32-bit
+ActivePerl seems not to work, but I have been told 64-bit is OK.
+Strawberry Perl works fine, which is what most people are using.
 
 =back
 
@@ -2424,6 +2426,8 @@ The other JE man pages, especially the following (the rest are listed on
 the L<JE::Types> page):
 
 =over 4
+
+=item L<JE::Destroyer>
 
 =item L<JE::Types>
 

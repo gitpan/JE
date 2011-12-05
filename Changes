@@ -1,5 +1,11 @@
 Revision history for JE
 
+0.056   4 December, 2011
+        New feature:  An experimental JE::Destroyer class, which,  if
+        loaded before any JE  objects are created,  will track all of
+        them, allowing JE::Destroyer::destroy($je) to destroy all cir-
+        cular references.
+
 0.055   13 January, 2011
         Some pod fixes from Damyan Ivanov  (RT #64015).  (Thank you.)
         One bug fix:  ‘throw new Error’ and ‘$@ = bless[],'JE::Scope'’
