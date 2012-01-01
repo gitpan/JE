@@ -1,4 +1,4 @@
-JE, version 0.056
+JE, version 0.057
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -34,6 +34,14 @@ Hopefully two weeks was short enough an interval.  If this causes prob-
 lems for anyone, please let me know and I will increase the version to
 .541 or something similar.
 
+0.057
+-----
+Bug fix:  The JE::Destroyer  class introduced in the previous release
+was still leaking  quite  a  few  objects.  Hopefully  this  has  now
+been fixed.
+New feature:  The  JE::Object::Function  constructor now allows  Perl
+functions to request the global object in their  lists  of  arguments.
+
 0.056
 -----
 New feature:  An experimental JE::Destroyer class,  which,  if loaded
@@ -45,12 +53,6 @@ JE::Destroyer::destroy($je) to destroy all circular references.
 Some pod fixes from Damyan Ivanov (RT #64015). (Thank you.)
 One bug fix: ‘throw new Error’ and ‘$@ = bless[],'JE::Scope'’ will no
 longer cause a crash when *@ has been localised.
-
-0.054
------
-JE::Object::Errors  thrown from within store  handlers  now  propagate
-instead of turning into  ‘Cannot  assign  to  a  non-lvalue’  messages.
-(Thanks to Chia-liang Kao for fixing this!)
 
 
 TO DO

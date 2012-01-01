@@ -1,6 +1,6 @@
 package JE::Destroyer;
 
-our $VERSION = '0.056';
+our $VERSION = '0.057';
 
 use strict;
 use warnings;
@@ -30,6 +30,7 @@ $JE::Destroyer = 1;
 
 sub register {
     my $global = $_[0]->global;
+    if (ref ($global) eq 'JE::Scope') { use Carp; Carp::cluck; warn "-"x70, "\n" }
     my $globaddr = refaddr $global;
     if ($globaddr == refaddr $_[0]) { return }
     ($js_envs{unsafe_helem ? $globaddr : $global} ||= &fieldhash({}))
@@ -40,7 +41,7 @@ sub register {
 
 sub destroy {
  exists $js_envs{$_[0]} or return;
- # We can’t just iterate over the values, bceause $$_->destroy might
+ # We can’t just iterate over the values, because $$_->destroy might
  # actually free some of the things we are iterating over. So put them in
  # an array first.
  my @objs = values %{ $js_envs{$_[0]} };

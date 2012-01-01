@@ -4,7 +4,7 @@ package JE::Object;
 sub evall { my $global = shift; my $r = eval 'local *_;' . shift;
             $@ and die; $r }
 
-our $VERSION = '0.056';
+our $VERSION = '0.057';
 
 use strict;
 use warnings;
@@ -73,20 +73,21 @@ JE::Object - Base class for all JavaScript objects
 
 =head1 DESCRIPTION
 
-This module implements JavaScript objects for JE. It serves as a base class
+This module implements JavaScript objects for JE.  It serves as a base
+class
 for all other JavaScript objects.
 
 A JavaScript object is an associative array, the elements of which are
-its properties. A method is a property that happens to be an instance
+its properties.  A method is a property that happens to be an instance
 of the
 C<Function> class (C<JE::Object::Function>).
 
-JE::Object objects can be used in Perl as a number, string or boolean. The 
-result will be the same as in JavaScript. The C<%{}> (hashref) operator is 
+JE::Object objects can be used in Perl as a number, string or boolean.  The 
+result will be the same as in JavaScript.  The C<%{}> (hashref) operator is 
 also overloaded and returns a hash that can be used to modify the object.
 See L<"USING AN OBJECT AS A HASH">.
 
-See also L<JE::Types> for descriptions of most of the methods. Only what
+See also L<JE::Types> for descriptions of most of the methods.  Only what
 is specific to JE::Object is explained here.
 
 =head1 METHODS
@@ -101,7 +102,8 @@ is specific to JE::Object is explained here.
 
 This class method constructs and returns a new JavaScript object, unless 
 C<$value> is
-already a JS object, in which case it just returns it. The behaviour is the
+already a JS object, in which case it just returns it.  The behaviour is
+the
 same as the C<Object> constructor in JavaScript.
 
 The C<%options> are as follows:
@@ -178,8 +180,8 @@ sub destroy { # not DESTROY; called by JE::Destroyer
 
 =item $obj->new_function(sub { ... })
 
-This creates and returns a new function object. If $name is given,
-it will become a property of the object. The function is enumerable, like
+This creates and returns a new function object.  If $name is given,
+it will become a property of the object.  The function is enumerable, like
 C<alert> I<et al.> in web browsers.
 
 For more ways to create functions, see L<JE::Object::Function>.
@@ -210,7 +212,7 @@ sub new_function {
 
 This is the same as C<new_function>, except that the subroutine's first
 argument will be the object with which the function is called, and that the 
-property created will not be enumerable. This allows one to add methods to
+property created will not be enumerable.  This allows one to add methods to
 C<Object.prototype>, for instance, without making every for-in loop list
 that method.
 
@@ -261,43 +263,43 @@ If C<value> is given, the value of the property will be set, regardless of
 the attributes.
 
 C<fetch> and C<store>, if specified, must be subroutines for
-fetching/setting the value of the property. The 'fetch' subroutine will be
+fetching/setting the value of the property.  The 'fetch' subroutine will be
 called with ($object, $storage_space) as the arguments, where
 C<$storage_space> is a hash key inside the object that the two subroutines
-can use for storing the value (they can ignore it if they like). The
+can use for storing the value (they can ignore it if they like).  The
 'store' subroutine will be call with
 ($object, $new_value, $storage_space) as
-the arguments. Values assigned to the storage space from within these 
+the arguments.  Values assigned to the storage space from within these 
 routines are I<not>
 upgraded, neither is the return value of C<fetch>. C<fetch> and C<store> do 
 not necessarily have to go
-together. If you only specify C<fetch>, then the value will be set as
+together.  If you only specify C<fetch>, then the value will be set as
 usual, but C<fetch> will be able to mangle the value when it is retrieved.
 Likewise, if you only specify C<store>, the value will be retrieved the
 usual way, so you can use this for validating or normalising the assigned
 value, for
-instance. B<Note:> Currently, a simple scalar or unblessed coderef in the
+instance.  B<Note:> Currently, a simple scalar or unblessed coderef in the
 storage space will cause autoloading, but that is subject to change.
 
-C<autoload> can be a string or a coderef. It will be called/evalled the
+C<autoload> can be a string or a coderef.  It will be called/evalled the
 first time the property is accessed (accessing it with a hash ref as
 described here does not count). If it is a string, it will be
 evaluated in the calling package (see warning below), in a scope that has a 
 variable named
 C<$global> that refers to the global object. The result will become the
-property's value. The value returned is not currently upgraded. The behaviour when a simple scalar or unblessed reference is returned is
-undefined. C<autoload> will be
-ignored completely if C<value> or C<fetch> is also given. B<Warning:> The
+property's value.  The value returned is not currently upgraded.  The behaviour when a simple scalar or unblessed reference is returned is
+undefined.  C<autoload> will be
+ignored completely if C<value> or C<fetch> is also given.  B<Warning:> The
 'calling package' may not be what you think it is if a subclass overrides
-C<prop>. It may be the subclass in such cases. To be on the safe side,
-always begin the string of code with an explicit C<package> statement. (If
+C<prop>.  It may be the subclass in such cases.  To be on the safe side,
+always begin the string of code with an explicit C<package> statement.  (If
 anyone knows of a clean solution to this, please let the author know.)
 
 This hash ref calling convention does not work on Array
 objects when the property name is C<length> or an array index (a 
 non-negative integer 
 below
-4294967295). It does not work on String objects if the
+4294967295).  It does not work on String objects if the
 property name is C<length>.
 
 =cut
@@ -454,13 +456,14 @@ sub keys {
 
 =item $obj->delete($property_name, $even_if_it's_undeletable)
 
-Deletes the property named $name, if it is deletable. If the property did 
+Deletes the property named $name, if it is deletable.  If the property did 
 not exist or it was deletable, then
-true is returned. If the property exists and could not be deleted, false
+true is returned.  If the property exists and could not be deleted, false
 is returned.
 
 If the second argument is given and is true, the property will be deleted
-even if it is marked is undeletable. A subclass may override this, however.
+even if it is marked is undeletable.  A subclass may override this,
+however.
 For instance, Array and String objects always have a 'length' property
 which cannot be deleted.
 
@@ -517,8 +520,8 @@ sub class { 'Object' }
 
 =item $obj->value
 
-This returns a hash ref of the object's enumerable properties. This is a 
-copy of the object's properties. Modifying it does not modify the object
+This returns a hash ref of the object's enumerable properties.  This is a 
+copy of the object's properties.  Modifying it does not modify the object
 itself.
 
 =cut
@@ -788,8 +791,8 @@ sub DDS_freeze { my $self = shift; delete $$$self{tie}; $self }
 
 Note first of all that C<\%$obj> is I<not> the same as C<< $obj->value >>.
 The C<value> method creates a new hash containing just the enumerable
-properties of the object and its prototypes. It's just a plain hash--no
-ties, no magic. C<%$obj>, on the other hand, is another creature...
+properties of the object and its prototypes.  It's just a plain hash--no
+ties, no magic.  C<%$obj>, on the other hand, is another creature...
 
 C<%$obj> returns a magic hash which only lists enumerable properties
 when you write C<keys %$obj>, but still provides access to the rest.
@@ -802,14 +805,14 @@ throws an error:
 
   %$obj = (); # no good!
 
-This is simply because I have not yet figured out what it should do. If
+This is simply because I have not yet figured out what it should do.  If
 anyone has any ideas, please let me know.
 
 Autovivification works, so you can write
 
   $obj->{a}{b} = 3;
 
-and the 'a' element will be created if did not already exist. Note that,
+and the 'a' element will be created if did not already exist.  Note that,
 if the property C<did> exist but was undefined (from JS's point of view),
 this throws an error.
 
@@ -818,11 +821,11 @@ this throws an error.
 One potential problem with this is that, when perl autovivifies in the 
 example
 above, it first calls C<FETCH> and, when it sees that the result is not
-defined, then calls C<STORE> with C<{}> as the value. It then uses that
+defined, then calls C<STORE> with C<{}> as the value.  It then uses that
 same hash that it passed to C<STORE>, and does I<not> make a second call to
-C<FETCH>. This means that, for autovivification to work, the empty hash
+C<FETCH>.  This means that, for autovivification to work, the empty hash
 that perl automatically assigns has to be tied to the new JE::Object that
-is created. Now, the same sequence of calls to tie 
+is created.  Now, the same sequence of calls to tie 
 handlers can be triggered by the following lines:
 
   my %h;
@@ -830,8 +833,8 @@ handlers can be triggered by the following lines:
   $h{b} = 3;
 
 And, of course, you don't want your %h hash transmogrified and tied to a 
-JE::Object, do you? (Normally
-hashes and arrays are copied by STORE.) So the only feasible way (I can 
+JE::Object, do you?  (Normally
+hashes and arrays are copied by STORE.)  So the only feasible way (I can 
 think of) to
 make the distinction is to use reference counts (which is what I'm using), 
 but I don't know whether they will change
@@ -841,7 +844,7 @@ between versions of Perl.
 
 =head1 INNARDS
 
-Each C<JE::Object> instance is a blessed reference to a hash ref. The 
+Each C<JE::Object> instance is a blessed reference to a hash ref.  The 
 contents of the hash
 are as follows:
 

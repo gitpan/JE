@@ -1,6 +1,6 @@
 package JE::Object::Function;
 
-our $VERSION = '0.056';
+our $VERSION = '0.057';
 
 
 use strict;
@@ -156,6 +156,7 @@ as follows:
 
   self    the function object itself
   scope   the scope chain
+  global  the global object
   this    the invocant
   args    the arguments passed to the function (as individual
           arguments)
@@ -264,7 +265,7 @@ sub new {
 	$opts{no_proto} or $self->prop({
 		name     => 'prototype',
 		dontdel  => 1,
-		value    => JE::Object->new($scope),
+		value    => JE::Object->new($global),
 	})->prop({
 		name     => 'constructor',
 		dontenum => 1,
@@ -368,6 +369,7 @@ sub construct { # ~~~ we need to upgrade the args passed to construct, but
                 #     function *if* the function wants them downgraded
 	my $self = shift;
 	my $guts = $$self;
+	my $global = $$guts{global};
 	if(exists $$guts{constructor}
 	   and ref $$guts{constructor} eq 'CODE') {
 		my $code = $$guts{constructor};
@@ -379,6 +381,8 @@ sub construct { # ~~~ we need to upgrade the args passed to construct, but
 			: $_ eq 'scope'
 			?	_init_scope($self, $$guts{scope},
 					[], @_)
+			: $_ eq 'global'
+			?	$global
 			: $_ eq 'args'
 			?	@_ # ~~~ downgrade if wanted
 			: $_ eq '[args]'
@@ -387,7 +391,7 @@ sub construct { # ~~~ we need to upgrade the args passed to construct, but
 		}
 		# ~~~ What can we do to avoid the upgrade overhead for
 		#     JS internal functions?
-		return $$guts{global}->upgrade($code->(@args));
+		return $global->upgrade($code->(@args));
 	}
 	else {
 		# If the prototype property does not exist, then, since it
@@ -396,16 +400,16 @@ sub construct { # ~~~ we need to upgrade the args passed to construct, but
 		# to die here.
 		defined(my $proto = $self->prop('prototype'))
 			or die JE::Object::Error::TypeError->new(
-				$$guts{global}, add_line_number
+				$global, add_line_number
 				+($$guts{func_name} || 'The function').
 				    " cannot be called as a constructor");
 
-		my $obj = JE::Object->new($$guts{global},
+		my $obj = JE::Object->new($global,
 			!$proto->primitive ?
 				{ prototype => $proto }
 			: ()
 		);
-		my $return = $$guts{global}->upgrade(
+		my $return = $global->upgrade(
 			$self->apply($obj, @_)
 		);
 		return $return->can('primitive') && !$return->primitive
@@ -449,6 +453,8 @@ sub apply { # ~~~ we need to upgrade the args passed to apply, but still
 			: $_ eq 'scope'
 			?	_init_scope($self, $$guts{scope},
 					$$guts{func_argnames}, @_)
+			: $_ eq 'global'
+			?	$global
 			: $_ eq 'this'
 			?	$obj
 			: $_ eq 'args'
@@ -501,7 +507,7 @@ sub _init_scope { # initialise the new scope for the function call
 	my($self, $scope, $argnames, @args) = @_;
 
 	bless([ @$scope, JE::Object::Function::Call->new({
-		global   => $scope,
+		global   => $$$self{global},
 		argnames => $argnames,
 		args     => [@args],
 		function => $self,
@@ -698,7 +704,7 @@ are also overloaded. See L<JE::Object>, which this class inherits from.
 
 package JE::Object::Function::Call;
 
-our $VERSION = '0.056';
+our $VERSION = '0.057';
 
 sub new {
 	# See sub JE::Object::Function::_init_sub for the usage.
@@ -785,7 +791,7 @@ sub prototype{}
 
 package JE::Object::Function::Arguments;
 
-our $VERSION = '0.056';
+our $VERSION = '0.057';
 
 our @ISA = 'JE::Object';
 

@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.056';
+our $VERSION = '0.057';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.056 (alpha release)
+Version 0.057 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -232,11 +232,11 @@ sub new {
 				#scope => bless [global], JE::Scope
 				func_name => 'Object',
 				func_argnames => [],
-				func_args => ['scope','args'],
+				func_args => ['global','args'],
 				function => sub { # E 15.2.1
 					return JE::Object->new( @_ );
 				},
-				constructor_args => ['scope','args'],
+				constructor_args => ['global','args'],
 				constructor => sub {
 					return JE::Object->new( @_ );
 				},

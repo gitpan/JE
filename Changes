@@ -1,5 +1,13 @@
 Revision history for JE
 
+0.057   1 January, 2012
+        Bug fix:  The JE::Destroyer  class introduced in the previous
+        release was still leaking quite a few objects. Hopefully this
+        has now been fixed.
+        New feature:  The JE::Object::Function constructor now allows
+        Perl functions to request the global object in their lists of
+        arguments.
+
 0.056   4 December, 2011
         New feature:  An experimental JE::Destroyer class, which,  if
         loaded before any JE  objects are created,  will track all of

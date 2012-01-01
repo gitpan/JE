@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.056';
+our $VERSION = '0.057';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -220,10 +220,10 @@ sub _new_constructor {
 		name            => 'Array',
 		scope            => $global,
 		function         => $construct_cref,
-		function_args    => ['scope','args'],
+		function_args    => ['global','args'],
 		length           => 1,
 		constructor      => $construct_cref,
-		constructor_args => ['scope','args'],
+		constructor_args => ['global','args'],
 	});
 
 	my $proto = $f->prop({

@@ -7,21 +7,21 @@ This is just documentation, not a module.
 =head1 DESCRIPTION
 
 The various JavaScript types and objects are represented by Perl
-classes in JE (which are listed below). This document describes the basic 
+classes in JE (which are listed below).  This document describes the basic 
 interface implemented by
-these classes. Information specific to each class can be found on its own
+these classes.  Information specific to each class can be found on its own
 manual page.
 
 =head1 UPGRADING VALUES
 
 When a value is passed from Perl to JavaScript, it will be "upgraded" to a 
 Perl object
-representing a JavaScript value. This is done by the C<upgrade> method of
+representing a JavaScript value.  This is done by the C<upgrade> method of
 the global object.
 
 If the value to be upgraded is a blessed reference, and the class into
 which it is blessed has been bound using JE's C<bind_class> method, it is
-wrapped up in a proxy object that provides the methods JS needs. A blessed
+wrapped up in a proxy object that provides the methods JS needs.  A blessed
 reference whose class has not been bound will be
 left alone (we assume you know what you are doing). 
 Otherwise the
@@ -91,8 +91,8 @@ The last three are for internal use.
 
 =head2 Using JS Values as Scalars
 
-Every JS data type can be used as a string, boolean or number. It works
-exactly as it does in JavaScript. For example:
+Every JS data type can be used as a string, boolean or number.  It works
+exactly as it does in JavaScript.  For example:
 
   $num = $je->eval('42');
   $num2 = $je->eval('NaN');
@@ -120,7 +120,7 @@ JS environment itself (i.e., a global variable), just use it as a hash ref:
   $obj->{foo} = 'bar';
 
 C<keys> will return a list of the object's enumerable properties, including
-those inherited from its prototype. The following example prints
+those inherited from its prototype.  The following example prints
 S<'baz foo '>:
 
   $obj = $je->eval('Object.prototype.foo="bar"; ({baz:43}) ');
@@ -160,27 +160,28 @@ value, use the C<value> method.
   $array->value;  # array ref
 
 Currently the C<value> method of objects and arrays is not recursive, but
-I plan to make it so later on. The only way to get consistent behaviour
+I plan to make it so later on.  The only way to get consistent behaviour
 between this and future versions is to pass C<< recursive => 0 >> as
 arguments.
 
 =head1 DATA TYPE API (in more detail)
 
-If you are going to write you own custom data types, proxy objects, or
+If you are going to write your own custom data types, proxy objects, or
 subclasses of JE's classes, you'll need to read
-this. If not, you shouldn't need to, but you might like to anyway. :-)
+this.  If not, you shouldn't need to, but you might like to anyway. :-)
 
 Be warned that some of the methods described here can be hard
 to use, and can easily result in code that's hard to debug, if misused.
 This applies to those that expect their arguments already to be objects
-compatible with the JE::Types interface. If you are not sure that a value you have is such, run it through the global object's C<upgrade> method (or
+compatible with the JE::Types interface.  If you are not sure that a value you have is such, run it through the global object's C<upgrade> method (or
 just use the L</PUBLIC API>, above).
 
 These are the methods that the JavaScript engine itself uses (as opposed
-to those provided for convenient access from the Perl side). Each class 
-provides whichever of the following methods are applicable. If
+to those provided for convenient access from the Perl side).  Each class 
+provides whichever of the following methods are applicable.  If
 an object does not support a particular method, a TypeError will be thrown
-when JavaScript code (indirectly) tries to call that method. (For instance,
+when JavaScript code (indirectly) tries to call that method.  (For
+instance,
 C<'some_string'()> will attempt to call the C<call> method of JE::String,
 thus resulting in a TypeError).
 
@@ -190,9 +191,9 @@ thus resulting in a TypeError).
 
 =item prop($name, $new_value)
 
-Gets or sets a property. Setting a property returns the new
-value. The return value will be a Perl undef if the
-property does not exist. See also L<JE::Object>, for the
+Gets or sets a property.  Setting a property returns the new
+value.  The return value will be a Perl undef if the
+property does not exist.  See also L<JE::Object>, for the
 S<< C<prop({ ... })> >> usage.
 
 The new value is expected already to be an object compatible with the
@@ -200,26 +201,26 @@ JE::Types interface.
 
 =item keys
 
-Returns a list of the names of enumerable properties. This is a list of
+Returns a list of the names of enumerable properties.  This is a list of
 Perl strings, not JE::Strings.
 
 =item delete($name)
 
-Deletes the property named $name, if it is deletable. If the property did 
+Deletes the property named $name, if it is deletable.  If the property did 
 not exist or it was deletable, then
-true is returned. If the property exists and could not be deleted, false
+true is returned.  If the property exists and could not be deleted, false
 is returned.
 
 L<JE::Object> will also take a second argument, that allows one to
-indicate whether an undeletable property should be deleted. This is
+indicate whether an undeletable property should be deleted.  This is
 required by custom classes if the object in question is the global object.
 
 The return value is a Perl scalar, not a JE::Boolean.
 
 =item value
 
-This returns a value that is supposed to be useful in Perl. The 
-C<< value >> method of a JE::Object,
+This returns a value that is supposed to be useful in Perl.  The 
+C<< value >> method of a JE::Object::Array,
 for instance, produces an array ref.
 
 =item call(@args)
@@ -229,20 +230,21 @@ The arguments are passed as-is, and are not upgraded.
 
 =item apply($obj, @args)
 
-Runs the code associated with the object if it is a function. C<$obj> will
+Runs the code associated with the object if it is a function.  C<$obj> will
 be passed to the function as its invocant (its 'this' value).
 The arguments are passed, as-is, and are not upgraded.
 
 =item construct(@args)
 
 This is just like calling a function
-in JS with the C<new> keyword (which itself calls this method). It calls 
+in JS with the C<new> keyword (which itself calls this method).  It calls 
 the constructor, if this 
 function has one (functions written in JS
-don't have this). Otherwise, an empty object will be created and passed to 
+don't have this).  Otherwise, an empty object will be created and passed to 
 the 
-function as its invocant. The return value of the function will be
-returned if it is an object. Otherwise it will be discarded, and the object 
+function as its invocant.  The return value of the function will be
+returned if it is an object.  Otherwise it will be discarded, and the
+object 
 originally passed to the function will be returned instead (possibly 
 modified).
 
@@ -254,23 +256,25 @@ C<new> method, before I go and delete it.
 =item I<Class>->new($global_obj, @args)
 
 The C<@args> are in the same order that they are passed to the constructor
-function in JavaScript (for objects, not primitives. For primitive classes, 
+function in JavaScript (for objects, not primitives.  For primitive
+classes, 
 there should be only two
 arguments, the global object and the value).
 
-Some object classes also provide a hash ref syntax. See each object class's
+Some object classes also provide a hash ref syntax.  See each object
+class's
 respective man page.
 
 User-defined classes do not need to accept arguments in the same order as
-those that come with JE. They can do whatever they like.
+those that come with JE.  They can do whatever they like.
 
 =end comment
 
 =item exists($property_name)
 
 Returns a boolean indicating whether the property exists and is not
-inherited from a prototype. Used by 
-C<Object.prototype.hasOwnProperty>. (The C<in> operator checks to see 
+inherited from a prototype.  Used by 
+C<Object.prototype.hasOwnProperty>.  (The C<in> operator checks to see 
 whether
 the return value of C<prop> is defined.)
 
@@ -278,32 +282,33 @@ B<To do:> Implement this method in subclasses of JE::Object.
 
 =item is_readonly($property_name)
 
-Not supported by the primitive JE classes. This returns a boolean 
-indicating whether a given property is readonly. If
+Not supported by the primitive JE classes.  This returns a boolean 
+indicating whether a given property is readonly.  If
 it doesn't exist, then the C<is_readonly> method of the object's prototype
-is called with the same arguments. If there is no prototype, false is 
+is called with the same arguments.  If there is no prototype, false is 
 returned.
 This is used internally by JE::Object's C<prop> method.
 
 =item is_enum($property_name)
 
-Not supported (yet) by the primitive JE classes. This returns a boolean 
+Not supported (yet) by the primitive JE classes.  This returns a boolean 
 indicating whether a given property is enumerable.
 This is used by C<Object.prototype.propertyIsEnumerable>.
 
 =item typeof
 
-Returns a Perl string containing the type of the object. Used
+Returns a Perl string containing the type of the object.  Used
 by the JS C<typeof> operator.
 
 =item class
 
-This applies to object classes only (though is going to change, so that
-primitives can pretend to be objects). It returns 
+This applies to object classes only (though it is going to change, so that
+primitives can pretend to be objects).  It returns 
 a 
 Perl string containing
-the type of object. This is only used by the default JavaScript C<toString>
-method. If you create your own object class without subclassing JE::Object,
+the type of object.  This is only used by the default JavaScript
+C<toString> method.  If you create your own object class without
+subclassing JE::Object,
 you should I<still> provide the C<class> method, so that this
 JS code will still work:
 
@@ -314,16 +319,16 @@ JS code will still work:
 
 This returns a unique id for the object or primitive, used by 
 the JavaScript C<===>
-operator. This id is unique as a I<string,> not as a number.
+operator.  This id is unique as a I<string,> not as a number.
 
 The JE primitive classes provide a unique string beginning with the data
-type. The JE::Object and its subclasses return the memory address of the
-object itself. If you 
+type.  The JE::Object and its subclasses return the memory address of the
+object itself.  If you 
 subclass JE::Object, you should not have to
 implement this method, unless you have multiple objects that you would
 like JS to consider the same object.
 
-Note that the id 'num:nan' is treated specially. It is never
+Note that the id 'num:nan' is treated specially.  It is never
 considered equal to itself.
 
 =item primitive
@@ -334,10 +339,10 @@ Returns true or false.
 
 =item prototype ( $obj )
 
-This applies to objects only, not to primitives. This method returns the 
-prototype of the object, or undef if there is no prototype. If C<$obj> is 
+This applies to objects only, not to primitives.  This method returns the 
+prototype of the object, or undef if there is no prototype.  If C<$obj> is 
 specified,
-the prototype is set to that object first. The C<prop> method uses this
+the prototype is set to that object first.  The C<prop> method uses this
 method, as does C<< JE::Object->new >>.
 
 =item to_primitive($preferred_type)
@@ -350,7 +355,7 @@ method, as does C<< JE::Object->new >>.
 
 =item to_object
 
-These each perform the appropriate type conversion. $preferred_type, which 
+These each perform the appropriate type conversion.  $preferred_type, which 
 is 
 optional, must be either 'string' or 'number'.
 
@@ -368,14 +373,14 @@ Returns a reference to the global object.
 
 =item taint($taint_brush)
 
-This will only be called if it is implemented. Of JE's types, only 
+This will only be called if it is implemented.  Of JE's types, only 
 primitive strings and numbers implement this.
 
-C<$taint_brush> will always be a tainted empty string. If the
+C<$taint_brush> will always be a tainted empty string.  If the
 object's internal value is not tainted, this method should return a tainted 
 clone 
 of
-the object. Otherwise, it should return the object itself.
+the object.  Otherwise, it should return the object itself.
 
 =back
 
