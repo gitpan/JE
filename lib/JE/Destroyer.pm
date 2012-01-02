@@ -1,6 +1,6 @@
 package JE::Destroyer;
 
-our $VERSION = '0.057';
+our $VERSION = '0.058';
 
 use strict;
 use warnings;
@@ -30,7 +30,7 @@ $JE::Destroyer = 1;
 
 sub register {
     my $global = $_[0]->global;
-    if (ref ($global) eq 'JE::Scope') { use Carp; Carp::cluck; warn "-"x70, "\n" }
+#    if (ref ($global) eq 'JE::Scope') { use Carp; Carp::cluck; warn "-"x70, "\n" }
     my $globaddr = refaddr $global;
     if ($globaddr == refaddr $_[0]) { return }
     ($js_envs{unsafe_helem ? $globaddr : $global} ||= &fieldhash({}))
