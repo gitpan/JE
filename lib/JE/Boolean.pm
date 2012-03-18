@@ -1,6 +1,6 @@
 package JE::Boolean;
 
-our $VERSION = '0.058';
+our $VERSION = '0.059';
 
 
 use strict;
@@ -49,6 +49,7 @@ sub method {
 
 
 sub value { warn caller if !ref $_[0];shift->[0] }
+sub TO_JSON { \(0+shift->[0]) }
 
 sub exists { !1 }
 

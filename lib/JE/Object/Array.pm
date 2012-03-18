@@ -1,6 +1,6 @@
 package JE::Object::Array;
 
-our $VERSION = '0.058';
+our $VERSION = '0.059';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -191,6 +191,7 @@ object, use C<@$a>.
 =cut
 
 sub value { [@{$${+shift}{array}}] };
+*TO_JSON=*value;
 
 
 sub exists {

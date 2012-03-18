@@ -11,7 +11,7 @@ use 5.008003;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.058';
+our $VERSION = '0.059';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.058 (alpha release)
+Version 0.059 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -103,6 +103,11 @@ fewer) language features (not yet complete)
 
 All JavaScript datatypes can be manipulated directly from Perl (they all
 have overloaded operators)
+
+=item -
+
+The JavaScript datatypes provide C<TO_JSON> methods for compatibility with
+L<JSON.pm|JSON>.
 
 =back
 
@@ -2397,7 +2402,7 @@ the list of dependencies.
 
 =head1 AUTHOR, COPYRIGHT & LICENSE
 
-Copyright (C) 2007-11 Father Chrysostomos <sprout [at] cpan
+Copyright (C) 2007-12 Father Chrysostomos <sprout [at] cpan
 [dot] org>
 
 This program is free software; you may redistribute it and/or modify

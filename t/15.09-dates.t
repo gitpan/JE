@@ -2175,10 +2175,13 @@ is(d.getDate(), 13, 'setFullYear with stringy 3rd arg')
 
 // 8 tests
 d = new Date(+(e = new Date)); // two identical objects
+// This test will fail on 29th of Feb, as it checks to make sure that set-
+// ting the year does not change the date (which it does for Feb 29).
+if (d.getDate() == 29 && d.getMonth()==1) d.setDate(28), e.setDate(28)
 ok(d.setFullYear(11)===d.getTime(),'retval of setFullYear'),
 is(d.getFullYear(), 11, 'setFullYear sets the year'),
 is(d.getMonth(), d.getMonth(), 'setFullYear does not set the month'),
-is(d.getDate(), e.getDate(), 'setDate set the date'),
+is(d.getDate(), e.getDate(), 'setFullYear does not set the date'),
 is(d.getHours(), e.getHours(), 'setFullYear does not change hours'),
 is(d.getMinutes(), e.getMinutes(),'setFullYear does not change min'),
 is(d.getSeconds(), e.getSeconds(),'setFullYear does not change secs'),
@@ -2243,11 +2246,15 @@ is(d.getUTCDate(), 13, 'setUTCFullYear with stringy 3rd arg')
 
 // 8 tests
 d = new Date(+(e = new Date)); // two identical objects
+// This test will fail on 29th of Feb, as it checks to make sure that set-
+// ting the year does not change the date (which it does for Feb 29).
+if (d.getUTCDate() == 29 && d.getUTCMonth()==1)
+  d.setUTCDate(28), e.setUTCDate(28)
 ok(d.setUTCFullYear(11)===d.getTime(),'retval of setUTCFullYear'),
 is(d.getUTCFullYear(), 11, 'setUTCFullYear sets the year'),
 is(d.getUTCMonth(), d.getUTCMonth(),
   'setUTCFullYear does not set the month'),
-is(d.getUTCDate(), e.getUTCDate(), 'setDate set the date'),
+is(d.getUTCDate(), e.getUTCDate(), 'setUTCFullYear does not set the date'),
 is(d.getUTCHours(), e.getUTCHours(),
   'setUTCFullYear does not change hours'),
 is(d.getUTCMinutes(), e.getUTCMinutes(),
@@ -2264,7 +2271,8 @@ for(i = 0; i<=11; ++i)
  is(d.getUTCFullYear(), 645, 'setUTCFullYear(y,'+i+') sets the year'),
  is(d.getUTCMonth(), i==11 ? 10 : i+1,
    'setUTCFullYear(y,'+i+') set the month'),
- is(d.getUTCDate(), e.getUTCDate(), 'setDate(y,'+i+') set the date'),
+ is(d.getUTCDate(), e.getUTCDate(),
+   'setUTCFullYear(y,'+i+') set the date'),
  is(d.getUTCHours(), e.getUTCHours(),
    'setUTCFullYear(y,'+i+') does not set hrs'),
  is(d.getUTCMinutes(), e.getUTCMinutes(),

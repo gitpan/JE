@@ -1,4 +1,4 @@
-JE, version 0.058
+JE, version 0.059
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -34,6 +34,11 @@ Hopefully two weeks was short enough an interval.  If this causes prob-
 lems for anyone, please let me know and I will increase the version to
 .541 or something similar.
 
+0.059
+-----
+New feature:  JE now provides TO_JSON  methods to allow serialisation
+with JSON.pm.  Thanks to Toby Inkster for the suggestion  (RT #75369).
+
 0.058
 -----
 Bug fix: Remove some debugging code inadvertently included in the pre-
@@ -46,12 +51,6 @@ was still leaking  quite  a  few  objects.  Hopefully  this  has  now
 been fixed.
 New feature:  The  JE::Object::Function  constructor now allows  Perl
 functions to request the global object in their  lists  of  arguments.
-
-0.056
------
-New feature:  An experimental JE::Destroyer class,  which,  if loaded
-before any JE objects are created,  will track all of them,  allowing
-JE::Destroyer::destroy($je) to destroy all circular references.
 
 
 TO DO
@@ -129,7 +128,7 @@ and to the CPAN Testers for their helpful reports.
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2007-11 Father Chrysostomos
+Copyright (C) 2007-12 Father Chrysostomos
 
 This program is free software; you may redistribute it and/or modify
 it under the same terms as perl.

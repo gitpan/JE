@@ -1,6 +1,6 @@
 package JE::Null;
 
-our $VERSION = '0.058';
+our $VERSION = '0.059';
 
 
 use strict;
@@ -50,6 +50,7 @@ Null stringifies to 'null', numifies to 0, and is false as a boolean.
 #use Carp;
 sub new    { bless \do{my $thing = $_[1]}, $_[0] }
 sub value  { undef }
+*TO_JSON=*value;
 sub typeof { 'object' }
 sub id     { 'null' }
 sub primitive { 1 }

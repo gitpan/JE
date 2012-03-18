@@ -94,6 +94,7 @@ t/je-parser.t
 t/je-scope.t
 t/je-string.t
 t/je.t
+t/json.t
 t/jstest.pl
 t/misc.t
 t/non-ecma.t

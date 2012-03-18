@@ -1,6 +1,6 @@
 package JE::String;
 
-our $VERSION = '0.058';
+our $VERSION = '0.059';
 
 
 use strict;
@@ -85,6 +85,7 @@ sub method {
 sub value {
 	defined $_[0][1] ? $_[0][1] : ($_[0][1] = desurrogify($_[0][0]));
 }
+*TO_JSON=*value;
 
 sub value16 {
 	defined $_[0][0] ? $_[0][0] : ($_[0][0] = surrogify($_[0][1]));

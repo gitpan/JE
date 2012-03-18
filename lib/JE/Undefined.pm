@@ -1,6 +1,6 @@
 package JE::Undefined;
 
-our $VERSION = '0.058';
+our $VERSION = '0.059';
 
 use strict;
 use warnings;
@@ -44,6 +44,7 @@ Undefined stringifies to 'undefined', and is false as a boolean.
 
 sub new    { bless \do{my $thing = $_[1]}, $_[0] }
 sub value  { undef }
+*TO_JSON=*value;
 sub typeof { 'undefined' }
 sub id     { 'undef' }
 sub primitive { 1 }

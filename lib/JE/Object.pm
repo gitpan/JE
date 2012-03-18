@@ -4,7 +4,7 @@ package JE::Object;
 sub evall { my $global = shift; my $r = eval 'local *_;' . shift;
             $@ and die; $r }
 
-our $VERSION = '0.058';
+our $VERSION = '0.059';
 
 use strict;
 use warnings;
@@ -530,6 +530,8 @@ sub value {
 	my $self = shift;
 	+{ map +($_ => $self->prop($_)), $self->keys };
 }
+
+*TO_JSON=*value;
 
 
 
