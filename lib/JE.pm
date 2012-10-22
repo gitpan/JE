@@ -7,11 +7,11 @@ package JE;
 # Note also that comments like "# E 7.1" refer to the indicated
 # clause (7.1 in this case) in the ECMA-262 standard.
 
-use 5.008003;
+use 5.008004;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.059';
+our $VERSION = '0.060';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -35,7 +35,7 @@ JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.059 (alpha release)
+Version 0.060 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -2326,17 +2326,6 @@ Strawberry Perl works fine, which is what most people are using.
 
 =back
 
-=head2 perl Incompatibilities
-
-=over 4
-
-=item *
-
-Invalid regular expression flags cause irrepressible warnings in perl 
-5.8.3.
-
-=back
-
 =head2 Incompatibilities with ECMAScript...
 
 ...that are probably due to typos in the spec.
@@ -2373,7 +2362,7 @@ to step 4.'
 The C<setTime> method of a Date object does what one would expect (it sets
 the number of milliseconds stored in the Date object and returns that
 number).
-According the obfuscated definition in the ECMAScript specification, it 
+According to the obfuscated definition in the ECMAScript specification, it 
 should always set it to NaN and return NaN.
 
 I think I've found I<yet another> typo in the spec. In clause 15.9.5.27,
@@ -2384,7 +2373,7 @@ I think I've found I<yet another> typo in the spec. In clause 15.9.5.27,
 
 =head1 PREREQUISITES
 
-perl 5.8.3 or higher
+perl 5.8.4 or higher
 
 Scalar::Util 1.14 or higher
 
@@ -2419,8 +2408,8 @@ Thanks to Max Maischein, Kevin Cameron, Chia-liang Kao and Damyan Ivanov
 for their
 contributions,
 
-to Andy Armstrong, Yair Lenga, Alex Robinson, Christian Forster, Imre Rad
-and Craig Mackenna
+to Andy Armstrong, Yair Lenga, Alex Robinson, Christian Forster, Imre Rad,
+Craig Mackenna and Toby Inkster
 for their suggestions,
 
 and to the CPAN Testers for their helpful reports.

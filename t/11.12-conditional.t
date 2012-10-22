@@ -1,7 +1,7 @@
 #!perl -T
 do './t/jstest.pl' or die __DATA__
 
-plan('tests', 10)
+plan('tests', 11)
 
 // ===================================================
 // ?:
@@ -30,6 +30,9 @@ run1 = run2 = false
 ok((false ? test1() : test2 ()) === 2 && run1 === false,
 	'false ? expr1 : expr2 does not evaluate expr1')
 
-
-
-
+// Test 11
+// RT #79855: The run-time engine was confusing ‘term += term’ with
+//           ‘term ? this : term’.  Internally the difference is
+//            [term, '+=', term] vs [term, "this", term] and "this" was
+//            being treated as an assignop like +=.
+ok ((1 ? this : 1) === this, '... ? this : ...');

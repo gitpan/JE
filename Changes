@@ -1,5 +1,18 @@
 Revision history for JE
 
+0.060   21 October, 2012
+        Incompatible change:  We now require  perl  5.8.4  or  higher,
+        instead of  pretending  that  5.8.3  is  supported.  (It  was
+        already broken enough to spew out warnings.)
+        Bug fixes:
+        •  An escaped surrogate in a regular expression  now  matches
+           that surrogate, instead of trying to match a backslash fol-
+           lowed by a literal ‘x{d800}’ or similar.
+        • ‘... ? this : ...’  no longer confuses the run-time  engine,
+           resulting in an error (RT #79855).
+        •  The run-time  engine  now  suppresses  recursion  warnings,
+           which legitimate JavaScript code could trigger.
+
 0.059   18 March, 2012
         New feature:  JE now provides TO_JSON methods to allow serial-
         isation  with  JSON.pm  (when  the  latter’s  convert_blessed

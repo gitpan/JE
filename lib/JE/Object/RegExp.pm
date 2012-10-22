@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.059';
+our $VERSION = '0.060';
 
 
 use strict;
@@ -401,6 +401,8 @@ sub new {
 				  |
 				\\([1-9][0-9]*)
 				  |
+				\\?([\x{d800}-\x{dfff}])
+				  |
 				(\\(?:[^c]|c.))
 			/
 			  defined $1
@@ -415,7 +417,9 @@ sub new {
 			    defined $3 ? "\\x{$3}"      :
 			    defined $4 ? "(?(?{defined\$$4&&"
 			                ."!\$EraseCapture[$4]})\\$4)" :
-			    $5
+			    # work around a bug in perl:
+			    defined $5 ? sprintf '\\x{%x}', ord $5 :
+			    $6
 			/egxs;
 			$new_re .= $sub_pat;
 		}
@@ -439,6 +443,8 @@ sub new {
 				    |
 				  \\u([A-Fa-f0-9]{4})
 				    |
+				  \\?([\x{d800}-\x{dfff}])
+				    |
 				  (\\(?:[^c]|c.))
 				/
 			  	  defined $1 ? $_class_patterns{$1} :
@@ -449,7 +455,9 @@ sub new {
 				  defined $5 ? ((push @full_classes,
 					$_patterns{$5}),'') :
 				  defined $6 ? "\\x{$6}"  :
-			    	  $7
+				  # work around a bug in perl:
+				  defined $7 ? sprintf '\\x{%x}', ord $7 :
+			    	  $8
 				/egxs;
 
 				$new_re .= length $sub_pat
@@ -596,10 +604,6 @@ sub new {
 	}
 	@stack or die new JE::Object::Error::SyntaxError $global,
 		add_line_number "Unmatched ) in regexp";
-
-
-	# This substitution is a workaround for a bug in perl.
-	$new_re =~ s/([\x{d800}-\x{dfff}])/sprintf '\\x{%x}', ord $1/ge;
 
 #warn $new_re;
 	$qr = eval {

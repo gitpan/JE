@@ -1,5 +1,6 @@
 BEGIN {
-	require 5.008003; # substr + UTF8
+	require 5.008004; # spurious warnings under 5.8.3, notably those
+	                  # involving folded constants in void context
 }
 
 use ExtUtils::MakeMaker;

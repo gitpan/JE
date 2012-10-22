@@ -1,9 +1,9 @@
 package JE::Code;
 
-our $VERSION = '0.059';
+our $VERSION = '0.060';
 
 use strict;
-use warnings; no warnings 'utf8';
+use warnings; no warnings 'utf8', 'recursion';
 
 #use Data::Dumper;
 use Carp 1.01 'shortmess';
@@ -284,7 +284,7 @@ sub DDS_freeze {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.059';
+our $VERSION = '0.060';
 
 use subs qw'_eval_term';
 use List::Util 'first';
@@ -698,7 +698,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.059';
+our $VERSION = '0.060';
 
 # B::Deparse showed me how to get these values.
 use constant nan => sin 9**9**9;
@@ -1169,7 +1169,7 @@ sub eval {  # evalate (sub)expression
 		# of a ? : at the end:
 		my @qc_terms = @copy >= 3 && (
 				ref ${$copy[-2]} # avoid stringification
-				|| ${$copy[-2]} =~ /^(?:[tfu]\z|[si0-9])/
+				|| ${$copy[-2]} =~ /^(?:[tfu]|[si0-9])/
 		)
 			? (pop @copy, pop @copy) : ();
 			# @qc_terms is now in reverse order
@@ -1396,7 +1396,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.059';
+our $VERSION = '0.060';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1408,7 +1408,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.059';
+our $VERSION = '0.060';
 
 sub list {
 	my $self = shift;
