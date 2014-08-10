@@ -1,6 +1,6 @@
 package JE::Object::Boolean;
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 
 use strict;
@@ -173,6 +173,8 @@ return "a true value";
 =item JE::Object
 
 =item JE::Boolean
+
+=back
 
 =cut
 

@@ -51,7 +51,7 @@ is($@, '', 'run code');
 # Tests 10-19: Check side-effects
 
 my $f = qr/function /;
-my $b = qr/\(\) {[^}]+}/; # function body
+my $b = qr/\(\) \{[^}]+}/; # function body
 
 like( $j->prop('t10'), qr/^:1-2-${f}b$b$/              );
 like( $j->prop('t11'), qr/^:${f}f$b-undefined-${f}h$b$/ );

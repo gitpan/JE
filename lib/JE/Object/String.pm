@@ -1,6 +1,6 @@
 package JE::Object::String;
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 
 use strict;
@@ -24,6 +24,8 @@ require JE::String                 ;
 JE::String->import(qw/surrogify desurrogify/);
 JE::Code->import('add_line_number');
 sub add_line_number;
+
+=encoding UTF-8
 
 =head1 NAME
 
@@ -923,6 +925,8 @@ return "a true value";
 =item JE::String
 
 =item JE::Object
+
+=back
 
 =cut
 

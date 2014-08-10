@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 
 use strict;
@@ -8,6 +8,18 @@ use warnings; no warnings 'utf8';
 
 use overload fallback => 1,
 	'""'=> 'value';
+
+# This constant is true if we need to work around perl bug #122460 to keep
+# the ‘aardvark’ tests (in t/15.05-string-objects.t) passing.  This should
+# only apply to 5.20.0, but this comment was written before the release of
+# 5.20.1, so whether it applies to that version remains to be seen.  Basic-
+# ally,  (?=...)  can result in buggy optimisations that cause  a  faulty
+# rejection of the match at some locations, because it is assumed that it
+# cannot match in some spots.
+use constant aardvark_bug =>
+ # This test should match the empty string.  If it advances (pos returns
+ # true), then we have the bug.
+ do { my $a = "rdvark"; $a =~ /(?{})(?=.)a*?/g; pos $a };
 
 use Scalar::Util 'blessed';
 
@@ -357,7 +369,8 @@ sub new {
 	# tioned above.
 
 	use constant 1.03 # multiple
-	{ # Make any changes to these constants are also made at the end
+	{ # Make sure any changes to these constants are also
+	  # made at  the  end
 	  # of the subroutine
 		# array indices within each item on the @stack:
 		posi => 0, # position within $new_re where the current
@@ -604,6 +617,9 @@ sub new {
 	}
 	@stack or die new JE::Object::Error::SyntaxError $global,
 		add_line_number "Unmatched ) in regexp";
+
+	aardvark_bug && $new_re =~ /\(\?=/
+	 and substr $new_re,0,0, = '(??{""})';
 
 #warn $new_re;
 	$qr = eval {
@@ -921,6 +937,8 @@ sub new_constructor {
 =item JE::Types
 
 =item JE::Object
+
+=back
 
 =cut
 

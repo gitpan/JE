@@ -1,6 +1,6 @@
 package JE::Destroyer;
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 use strict;
 use warnings;

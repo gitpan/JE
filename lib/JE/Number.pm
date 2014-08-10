@@ -1,6 +1,6 @@
 package JE::Number;
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -231,6 +231,8 @@ The C<typeof> and C<class> methods produce the strings 'number' and
 =item L<JE::Types>
 
 =item L<JE::Object::Number>
+
+=back
 
 =cut
 

@@ -11,7 +11,7 @@ use 5.008004;
 use strict;
 use warnings; no warnings 'utf8';
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 use Carp 'croak';
 use JE::Code 'add_line_number';
@@ -29,13 +29,15 @@ require JE::Scope                             ;
 require JE::String                          ;
 require JE::Undefined                     ;
 
+=encoding UTF-8
+
 =head1 NAME
 
 JE - Pure-Perl ECMAScript (JavaScript) Engine
 
 =head1 VERSION
 
-Version 0.060 (alpha release)
+Version 0.061 (alpha release)
 
 The API is still subject to change. If you have the time and the interest, 
 please experiment with this module (or even lend a hand :-).
@@ -2391,7 +2393,7 @@ the list of dependencies.
 
 =head1 AUTHOR, COPYRIGHT & LICENSE
 
-Copyright (C) 2007-12 Father Chrysostomos <sprout [at] cpan
+Copyright (C) 2007-14 Father Chrysostomos <sprout [at] cpan
 [dot] org>
 
 This program is free software; you may redistribute it and/or modify

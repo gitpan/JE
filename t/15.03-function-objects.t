@@ -222,7 +222,7 @@ try { is(eval("0,"+new Function('return "foo"//').toString())(), 'foo',
 catch(e) { fail('new Function(...).toString()'); diag(e) }
 
 ok(function(){ return "bar" }.toString().match(
-	/^function anon\d+\(\) { return "bar" \n}$/
+	/^function anon\d+\(\) \{ return "bar" \n}$/
 ), 'toString() on function created by function expression')
 	|| diag(function(){ return "bar" } + ' does not match');
 

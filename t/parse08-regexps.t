@@ -73,7 +73,8 @@ is($@, '', 'execute code with surrogates in regexp literals');
 
 my $B = qr/^\(\?(?:\^u?|-\w+):\(\?/;  # begin re
 my $E = qr/\)\)/;            # end re
-my $C = qr/\(\?(?:\^u?|-\w+):\(\?\{[^}]+}\)\)/; # embedded code
+my $C = qr/\(\?(?:\^u?|-\w+):\(\?\{[^}]+}\)\)(?:\(\?\?\{""\}\))?/;
+                     # embedded code
 
 # Each regexp is embedded within (?-xism:(?<flags>: ... ))
 # $B matches everything up to <flags>. 'xism' may be expanded in future

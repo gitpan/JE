@@ -1,6 +1,6 @@
 package JE::Boolean;
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 
 use strict;
@@ -113,3 +113,5 @@ The stringification and boolean operators are overloaded.
 =item L<JE::Types>
 
 =item L<JE::Object::Boolean>
+
+=back

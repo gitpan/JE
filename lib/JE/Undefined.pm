@@ -1,6 +1,6 @@
 package JE::Undefined;
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 use strict;
 use warnings;
@@ -67,3 +67,4 @@ __END__
 
 =item JE
 
+=back

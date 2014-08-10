@@ -1,6 +1,6 @@
 package JE::Null;
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 
 use strict;
@@ -73,6 +73,8 @@ sub global { ${$_[0]} }
 =item JE::Types
 
 =item JE::Undefined
+
+=back
 
 =cut
 

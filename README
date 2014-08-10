@@ -1,4 +1,4 @@
-JE, version 0.060
+JE, version 0.061
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -33,6 +33,10 @@ future upgrades will not work from  the  CPAN  shell  without  ‘force’.
 Hopefully two weeks was short enough an interval.  If this causes prob-
 lems for anyone, please let me know and I will increase the version to
 .541 or something similar.
+
+0.061
+-----
+Fixed to work with Perl 5.20.
 
 0.060
 -----
@@ -132,7 +136,7 @@ and to the CPAN Testers for their helpful reports.
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2007-12 Father Chrysostomos
+Copyright (C) 2007-14 Father Chrysostomos
 
 This program is free software; you may redistribute it and/or modify
 it under the same terms as perl.

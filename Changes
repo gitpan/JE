@@ -1,5 +1,8 @@
 Revision history for JE
 
+0.061   10 August, 2014
+        Fixed to work with Perl 5.20.
+
 0.060   21 October, 2012
         Incompatible change:  We now require  perl  5.8.4  or  higher,
         instead of  pretending  that  5.8.3  is  supported.  (It  was

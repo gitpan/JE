@@ -1,6 +1,6 @@
 package JE::Object::Math;
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 
 use strict;
@@ -509,5 +509,7 @@ return "a true value";
 =item JE::Object
 
 =item JE::Number
+
+=back
 
 =cut

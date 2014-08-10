@@ -107,7 +107,7 @@ tcp('','empty pattern')
 tcp('^$\\b\\B','assertions')
 tcp('f*o*?o+b+?a?r??b{0}a{33}?z{32,}a{98,}?o{6,7}e{32,54}?','quantifiers')
 tcp('\nf\u0100\ud801.(foo)(?:foo)(?=foo)(?!foo)', 'atoms')
-tcp("\\0\\98732", 'decimal escapes')
+tcp("\\0\\9()()()()()()()()()", 'decimal escapes')
 tcp("\\f\\n\\r\\t\\v", 'control escapes')
 tcp('\\ca\\cb\\cc\\cd\\ce\\cf\\cg\\ch\\ci\\cj\\ck\\cl\\cm\\cn\\co\\cp\\cq'
    +'\\cr\\cs\\ct\\cu\\cv\\cw\\cx\\cy\\cz', 'lc control letter escapes')
@@ -979,25 +979,32 @@ for(k in {source:0, global:0, ignoreCase:0, multiline:0}) {
 // ===================================================
 
 is(new RegExp("fo(?#(li)o").exec('foo'), 'foo', '(?#...)');
-is(new RegExp("(?x)fo( ?#(li)o").exec('foo'), 'foo', '( ?#...)');
 is(/f(?im-sx)Oo/.exec('foo'), 'foo', '(?mod)')
-is(/(?x)f( ?im-sx)Oo/.exec('foo'), 'foo', '( ?mod)')
 is(RegExp("f(?i:(O))o").exec('foo'), 'foo,o','(?mod:)');
-is(RegExp("(?x)f( ?i:(O))o").exec('foo'), 'foo,o','( ?mod:)');
 is(/.(?<=(f)oo)/.exec('foo'), 'o,f', '(?<=)')
-is(/.( ?<=(f)oo)/x.exec('foo'), 'o,f', '( ?<=)')
 is( /(?<!f(o)o)bar./ .exec('foobarrbard')[0], 'bard', '(?<!)')
-is(/( ?<!f(o)o)bar./x.exec('foobarrbard')[0], 'bard', '( ?<!)')
 is(/(foo)(?(1)bar)(baz)?(?(2)(bonk))ers/.exec('phfoobarers'),
 	'foobarers,foo,,', '(?())')
-is(/(foo)( ?(1)bar)(baz)?( ?(2)(bonk))ers/x.exec('phfoobarers'),
-	'foobarers,foo,,', '( ?())')
 is(/(foo)(?(1)bar|(ba))(?(2)(x)|y)/.exec('foobarx foobary'),
 	'foobary,foo,,', '(?()|)')
-is(/(foo)( ?(1)bar|(ba))( ?(2)(x)|y)/x.exec('foobarx foobary'),
-	'foobary,foo,,', '( ?()|)')
 is(/(?>()a+)(?<!aaa)../.exec('aaaaa aabc'), 'aabc,', '(?>)')
-is(/( ?>()a+)(?<!aaa)../x.exec('aaaaa aabc'), 'aabc,', '( ?>)')
+
+// ( ?...) is deprecated in 5.18 and an error in 5.20
+try{peval('$]')>=5.017&&skip('Perl version >= 5.17',8)
+ // You can’t put regexp literals here because they will cause com-
+ // pilation to fail in 5.20 onwards.
+ is(new RegExp("(?x)fo( ?#(li)o").exec('foo'), 'foo', '( ?#...)');
+ is(RegExp('(?x)f( ?im-sx)Oo').exec('foo'), 'foo', '( ?mod)')
+ is(RegExp("(?x)f( ?i:(O))o").exec('foo'), 'foo,o','( ?mod:)');
+ is(RegExp('.( ?<=(f)oo)','x').exec('foo'), 'o,f', '( ?<=)')
+ is(RegExp('( ?<!f(o)o)bar.','x').exec('foobarrbard')[0], 'bard', '( ?<!)')
+ is(RegExp('(foo)( ?(1)bar)(baz)?( ?(2)(bonk))ers','x')
+	.exec('phfoobarers'),
+	'foobarers,foo,,', '( ?())')
+ is(RegExp('(foo)( ?(1)bar|(ba))( ?(2)(x)|y)','x').exec('foobarx foobary'),
+	'foobary,foo,,', '( ?()|)')
+ is(RegExp('( ?>()a+)(?<!aaa)..','x').exec('aaaaa aabc'), 'aabc,', '( ?>)')
+}catch($){}
 
 function dies(what,name,like,instance_of) {
 	try{ eval(what); fail(name); diag(name + ' doesn\'t die') }
@@ -1010,10 +1017,10 @@ function dies(what,name,like,instance_of) {
 dies('/(?{})/', '(?{})', 'mbedded', SyntaxError)
 dies('/(??{})/', '(??{})', 'mbedded', SyntaxError)
 dies('/(?p{})/', '(?p{})', 'mbedded', SyntaxError)
-dies('/( ?{})/x', '( ?{})', 'mbedded', SyntaxError)
-dies('/( ??{})/x', '( ??{})', 'mbedded', SyntaxError)
-dies('/( ?p{})/x', '( ?p{})', 'mbedded', SyntaxError)
-dies('/(?(?{}))/', '(?({}))', 'mbedded', SyntaxError)
+dies('/( ?{})/x', '( ?{})', 'mbedded|adjacent', SyntaxError)
+dies('/( ??{})/x', '( ??{})', 'mbedded|adjacent', SyntaxError)
+dies('/( ?p{})/x', '( ?p{})', 'mbedded|adjacent', SyntaxError)
+dies('/(?(?{}))/', '(?({}))', 'mbedded|adjacent', SyntaxError)
 
 // These five (ten tests) don’t actually work in Perl, but if they ever do
 // work we need to block them:
@@ -1041,44 +1048,23 @@ try{peval('$]')<5.01&&skip('Perl version < 5.10',20)
 	}catch(eoneou){}
 	is(RegExp('foo(?0)?bar').exec('phoofoofoobarbarbarr'),
 		'foofoobarbar', '(?0)')
-	is(RegExp('foo( ?0)?bar','x').exec('phoofoofoobarbarbarr'),
-		'foofoobarbar', '( ?0)')
 	is(RegExp('foo(?R)?bar').exec('phoofoofoobarbarbarr'),
 		'foofoobarbar', '(?R)')
-	is(RegExp('foo( ?R)?bar','x').exec('phoofoofoobarbarbarr'),
-		'foofoobarbar', '( ?R)')
 	is(RegExp('foo(?1)bar|(baz)(?!)').exec('phoofoobazbarbump'),
 		'foobazbar,', '(?1)')
-	is(RegExp('foo( ?1)bar|(baz)(?!)','x').exec('phoofoobazbarbump'),
-		'foobazbar,', '( ?1)')
 	is(RegExp('()foo(?+1)bar|(baz)(?!)').exec('hoofoobazbarbump'),
 		'foobazbar,,', '(?+1)')
-	is(RegExp('()foo( ?+1)bar|(baz)(?!)','x').exec('hoofoobazbarbump'),
-		'foobazbar,,', '( ?+1)')
 	is(RegExp('()(baz)(?!)()|foo(?-2)bar').exec('ofoobazbarbump'),
 		'foobazbar,,,', '(?-2)')
-	is(RegExp('()(baz)(?!)()|foo( ?-2)bar','x').exec('ofoobazbarbump'),
-		'foobazbar,,,', '( ?-2)')
 	is(RegExp('a+(*PRUNE)(?<!aaa)..').exec('aaaaa aabc'), 'aabc',
 		'(*PRUNE)')
-	is(RegExp('a+( *PRUNE)(?<!aaa)..','x').exec('aaaaa aabc'), 'aabc',
-		'( *PRUNE)')
 	is(RegExp('(.)\\1*(*:foo)(?:b(*SKIP:foo)(*FAIL)|c)')
 		.exec('aaabbbccc')[0],
 	  'bbbc', '(*:foo) (*bar:baz) (*bonk) syntax')
-	is(RegExp('(.)\\1*( *:foo)(?:b( *SKIP:foo)( *FAIL)|c)','x')
-		.exec('aaabbbccc')[0],
-	  'bbbc', '( *:foo) ( *bar:baz) ( *bonk) syntax')
 	is(RegExp(
 	     "(?'foo'f..)(?<bar>b..)(?P<baz>p..)(?&foo)(?&bar)(?&baz)"
 	   ).exec('   fgcbmwpyffgcbmwpyf.fedei'),
 	   'fgcbmwpyffgcbmwpyf,fgc,bmw,pyf', 'named captures'
-	)
-	is(RegExp(
-	    "( ?'foo'f..)( ?<bar>b..)( ?P<baz>p..)( ?&foo)( ?&bar)( ?&baz)"
-	    ,'x'
-	   ).exec('   fgcbmwpyffgcbmwpyf.fedei'),
-	   'fgcbmwpyffgcbmwpyf,fgc,bmw,pyf', '( ?...)-style named captures'
 	)
 	is(RegExp(
 	    "(?'foo'f..())(?<bar>b..())(?P<baz>p..())(?&foo)(?&bar)(?&baz)"
@@ -1086,14 +1072,38 @@ try{peval('$]')<5.01&&skip('Perl version < 5.10',20)
 	   'fgcbmwpyffgcbmwpyf,fgc,,bmw,,pyf,',
 	   'named captures with nested regular captures'
 	)
-	is(RegExp(
+	// ( ?...) is deprecated in 5.18 and an error in 5.20
+	try{peval('$]')>=5.017&&skip('Perl version >= 5.17',9)
+	 is(RegExp('foo( ?0)?bar','x').exec('phoofoofoobarbarbarr'),
+		'foofoobarbar', '( ?0)')
+	 is(RegExp('foo( ?R)?bar','x').exec('phoofoofoobarbarbarr'),
+		'foofoobarbar', '( ?R)')
+	 is(RegExp('foo( ?1)bar|(baz)(?!)','x').exec('phoofoobazbarbump'),
+		'foobazbar,', '( ?1)')
+	 is(RegExp('()foo( ?+1)bar|(baz)(?!)','x').exec('hoofoobazbarbump')
+		,'foobazbar,,', '( ?+1)')
+	 is(RegExp('()(baz)(?!)()|foo( ?-2)bar','x').exec('ofoobazbarbump')
+		,'foobazbar,,,', '( ?-2)')
+	 is(RegExp('a+( *PRUNE)(?<!aaa)..','x').exec('aaaaa aabc'), 'aabc',
+		'( *PRUNE)')
+	 is(RegExp('(.)\\1*( *:foo)(?:b( *SKIP:foo)( *FAIL)|c)','x')
+		.exec('aaabbbccc')[0],
+	  'bbbc', '( *:foo) ( *bar:baz) ( *bonk) syntax')
+	 is(RegExp(
+	    "( ?'foo'f..)( ?<bar>b..)( ?P<baz>p..)( ?&foo)( ?&bar)( ?&baz)"
+	    ,'x'
+	   ).exec('   fgcbmwpyffgcbmwpyf.fedei'),
+	   'fgcbmwpyffgcbmwpyf,fgc,bmw,pyf', '( ?...)-style named captures'
+	 )
+	 is(RegExp(
 	    "( ?'foo'f..())( ?<bar>b..())( ?P<baz>p..())" +
 	    "( ?&foo)( ?&bar)( ?&baz)"
 	    ,'x'
 	   ).exec('   fgcbmwpyffgcbmwpyf.fedei'),
 	   'fgcbmwpyffgcbmwpyf,fgc,,bmw,,pyf,',
 	   '( ?...) named captures with nested regular captures'
-	)
+	 )
+	}catch(oeuo){}
 }catch($){}
 
 

@@ -1,6 +1,6 @@
 package JE::LValue;
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 use strict;
 use warnings; no warnings 'utf8';
@@ -36,14 +36,14 @@ nomethod => sub {
 	}
 	elsif($ovl_infix =~ $sym_regexp) {
 		my $bits = (caller 0)[9];
-		$val = eval 'BEGIN{${ARNING_BITS} = $bits}'
+		$val = eval 'BEGIN{${^WARNING_BITS} = $bits}'
 		         . ( $reversed ? "\$other $symbol \$self"
 		                       : "\$self $symbol \$other" );
 	}
 	elsif($ovl_prefix =~ $sym_regexp) {
 		my $bits = (caller 0)[9];
 		$val
-		 = eval "BEGIN{\${ARNING_BITS} = \$bits}$symbol \$self";
+		 = eval "BEGIN{\${^WARNING_BITS} = \$bits}$symbol \$self";
 	}
 	elsif($symbol eq 'neg') {
 		return -$self;
@@ -223,6 +223,8 @@ list, depending on context.
 =item $lv->property
 
 Returns the property name.
+
+=back
 
 =cut
 

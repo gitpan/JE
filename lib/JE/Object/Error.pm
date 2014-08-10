@@ -1,6 +1,6 @@
 package JE::Object::Error;
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 
 use strict;
@@ -189,6 +189,8 @@ return "a true value";
 =item L<JE::Object::Error::URIError>
 
 =item L<JE::Object::Error::ReferenceError>
+
+=back
 
 =cut
 

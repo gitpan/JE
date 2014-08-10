@@ -1,6 +1,6 @@
 package JE::String;
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 
 use strict;
@@ -238,3 +238,5 @@ represent, respectively, and return the modified string. E.g.:
 =item L<JE::Types>
 
 =item L<JE::Object::String>
+
+=back

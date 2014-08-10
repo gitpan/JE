@@ -1,6 +1,6 @@
 package JE::Code;
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 use strict;
 use warnings; no warnings 'utf8', 'recursion';
@@ -13,7 +13,7 @@ use Scalar::Util 'tainted';
 our @CARP_NOT = 'JE';
 our @EXPORT_OK = 'add_line_number';
 
-use constant T => ${AINT}; # perl doesn’t optimise if(${AINT}) away
+use constant T => ${^TAINT}; # perl doesn’t optimise if(${AINT}) away
 
 require JE::Object::Error;
 require JE::Object::Error::ReferenceError;
@@ -284,7 +284,7 @@ sub DDS_freeze {
 
 package JE::Code::Statement; # This does not cover expression statements.
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 use subs qw'_eval_term';
 use List::Util 'first';
@@ -698,7 +698,7 @@ sub _create_vars {  # Process var and function declarations
 
 package JE::Code::Expression;
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 # B::Deparse showed me how to get these values.
 use constant nan => sin 9**9**9;
@@ -1396,7 +1396,7 @@ sub _eval_term {
 
 package JE::Code::Subscript;
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 sub str_val {
 	my $val = (my $self = shift)->[1];
@@ -1408,7 +1408,7 @@ sub str_val {
 
 package JE::Code::Arguments;
 
-our $VERSION = '0.060';
+our $VERSION = '0.061';
 
 sub list {
 	my $self = shift;
@@ -1543,7 +1543,9 @@ C<add_line_number> can optionally be exported.
 
 =over 4
 
-L<JE>
+=item L<JE>
+
+=back
 
 =cut
 
