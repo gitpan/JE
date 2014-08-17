@@ -1,6 +1,6 @@
 package JE::_FieldHash;
 
-our $VERSION = '0.061';
+our $VERSION = '0.062';
 
 
 use strict;

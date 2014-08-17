@@ -1,6 +1,6 @@
 package JE::Undefined;
 
-our $VERSION = '0.061';
+our $VERSION = '0.062';
 
 use strict;
 use warnings;

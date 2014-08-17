@@ -1,6 +1,6 @@
 package JE::Parser;
 
-our $VERSION = '0.061';
+our $VERSION = '0.062';
 
 use strict;  # :-(
 use warnings;# :-(
@@ -345,7 +345,8 @@ sub term() {
 	}
 	elsif(m-\G
 		/
-		( (?:[^/*\\] | \\.) (?>(?:[^/\\] | \\.)*) )
+		( (?:[^/*\\[] | \\. | \[ (?>(?:[^]\\] | \\.)*) \] )
+		  (?>(?:[^/\\[] | \\. | \[ (?>(?:[^]\\] | \\.)*) \] )*) )
 		/
 	  	($id_cont*)
 	      -cogx ) {
@@ -391,8 +392,15 @@ sub term() {
 				$tmp = ident
 				or defined($tmp = &str)&&$tmp=~s/^s// or
 					defined($tmp = &num)
-				or expected
-				 'identifier, or string or number literal';
+				or do {
+					# ECMAScript 5 allows a
+					# trailing comma
+					/\G}/cg or expected
+					 "'}', identifier, or string or ".
+					 " number literal";
+					return bless [[$pos, pos],
+					              hash => @ret], JECE;
+				};
 
 				push @ret, $tmp;
 				&skip;

@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 40;
+use Test::More tests => 42;
 use strict;
 use utf8;
 no warnings 'utf8';
@@ -15,7 +15,7 @@ BEGIN { use_ok('JE') };
 
 my $j = new JE;
 
-isa_ok( my $code = $j->parse( <<'--end--' ), 'JE::Code');
+isa_ok( my $code = $j->parse( <<'--end--' ), 'JE::Code') or diag $@;
 
 // flags:
 
@@ -56,6 +56,9 @@ t33 = /[a]/    // positive only
 t34 = /[\S]/   // negative only
 t35 = /[\D\W]/ // two negatives
 
+t36 = /[^/]/   // unescaped / in initial character class (ECMAScript 5)
+t37 = /a[^/]/  // unescaped / in character class (ECMAScript 5)
+
 --end--
 
 my $code2 = $j->parse(qq| foo = /\x{dfff}\x{d800}/ |);
@@ -69,7 +72,8 @@ $code2->execute;
 is($@, '', 'execute code with surrogates in regexp literals');
 
 #--------------------------------------------------------------------#
-# Tests 5-40: Check to see whether regexps were parse and compiled properly
+# Tests 5-39: Check to see whether regexps were parsed and com-
+#             piled properly
 
 my $B = qr/^\(\?(?:\^u?|-\w+):\(\?/;  # begin re
 my $E = qr/\)\)/;            # end re
@@ -136,11 +140,13 @@ re_ok t32 => '(?:[^\p{Zs}\s\ck]|[a])',                  '/[\Sa]/';
 re_ok t33 => '[a]',                                     '/[a]/';
 re_ok t34 => '[^\p{Zs}\s\ck]',                          '/[.]/';
 re_ok t35 => '(?:[^0-9]|[^A-Za-z0-9_])',                '/[\D\W]/';
+re_ok t36 => '[^/]',                                    '/[^/]/';
+re_ok t37 => 'a[^/]',                                   'a/[^/]/';
 
 re_ok foo => '\x{dfff}\x{d800}',                        'surrogates';
 
 #--------------------------------------------------------------------#
-# Test 38: Make sure invalid regexp modifiers do not warn
+# Test 40: Make sure invalid regexp modifiers do not warn
 
 $SIG{__WARN__} = sub {
 	warn @_;
@@ -152,7 +158,7 @@ is $j->eval(q| /uue/oeoentuUCGD |), undef,
 	'invalid regexp modifiers do not warn';
 
 #--------------------------------------------------------------------#
-# Tests 39-40: Make sure invalid regexp modifiers do not warn
+# Tests 41-2: Make sure invalid regexp modifiers do not warn
 
 $j->new_function(ok => \&ok);
 $j->eval(<<'---');

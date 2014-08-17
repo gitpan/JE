@@ -1,5 +1,12 @@
 Revision history for JE
 
+0.062   17 August, 2014
+        Bug fixes:
+        • Object literals (aka object constructors) now allow a trail-
+          ing comma, as in ‘{foo: 123,}’ (RT #83661).
+        • Regular expression literals now allow unescaped slashes  in
+          character classes (i.e., /[^/]/) (RT #83661).
+
 0.061   10 August, 2014
         Fixed to work with Perl 5.20.
 

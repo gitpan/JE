@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 14;
+use Test::More tests => 15;
 use strict;
 use utf8;
 
@@ -14,7 +14,7 @@ BEGIN { use_ok('JE') };
 
 my $j = new JE;
 
-isa_ok( my $code = $j->parse( <<'--end--' ), 'JE::Code');
+isa_ok( my $code = $j->parse( <<'--end--' ), 'JE::Code') or diag $@;
   bar = '?';
 
   var t5 = { };
@@ -28,6 +28,7 @@ isa_ok( my $code = $j->parse( <<'--end--' ), 'JE::Code');
   t12 = {1:2+2}
   t13 = {'baz':f()}
   t14 = {"baz":3,"bar":4}
+  t15 = { foo: 123, };
 --end--
 
 #--------------------------------------------------------------------#
@@ -61,3 +62,4 @@ is( joyne 't11', 'foo-?'         );
 is( joyne 't12', '1-4'           );
 is( joyne 't13', 'baz-oo'       );
 is( joyne 't14', 'baz-3-bar-4' );
+is( joyne 't15', 'foo-123'   );
