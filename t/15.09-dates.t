@@ -95,7 +95,7 @@ is(new Date(0,7.87).getMonth(), 7, 'new Date with float month')
 is(new Date(0,0,27.87).getDate(), 27, 'new Date with float mdate')
 is(new Date(0,0,32).getMonth(), 1, 'new Date\'s date overflow')
 is(new Date(0,0,32).getDate(), 1, 'new Date\'s date overflow (again)')
-is(new Date(0,85,32).valueOf(), NaN, 'new Date with month out of range')
+is(new Date(0,85,32).getMonth(), 2, 'new Date with month out of range')
 
 // 12 tests for MakeTime
 is(new Date(0,0,1,6.5,0,0).getHours(), 6, 'new Date with float hours')
@@ -144,6 +144,17 @@ is(+d, -2174770738999 + d.getTimezoneOffset()*60000,
 	'new Date(strx7)')
 is(+new Date({},{},{},{},{},{},{}), NaN,
 	'new Date(objx7)')
+
+// 3 tests for edge cases
+// We  used  to  cache  date+year-to-timevalue  calculations  keyed  on
+// pack("ll"), but that made Infinity, 4294967295 and -1 all share the
+// same entry.  So  new Date(-1,0)  would give different results after
+// new Date(Infinity,0). Also, new Date() with 2 args or more couldn’t
+// handle negative years or months.
+new Date(Infinity,0);
+is(new Date(4294967295,0).valueOf(), NaN, 'new Date(4294967295,0)')
+is(new Date(-1,0).valueOf(), -62198726400000, 'new Date(-1,0)')
+is(new Date(-1,-1).valueOf(), -62201404800000, 'new Date(-1,-1)')
 
 
 // ===================================================
@@ -278,7 +289,7 @@ is(Date.UTC(2007.87,0), 1167609600000, 'Date.UTC with float year')
 is(Date.UTC(0,7.87), -2190672000000, 'Date.UTC with float month')
 is(Date.UTC(0,0,27.87), -2206742400000, 'Date.UTC with float mdate')
 is(Date.UTC(0,0,32), -2206310400000, 'Date.UTC\'s date overflow')
-is(Date.UTC(0,85,32), NaN, 'Date.UTC with month out of range')
+is(Date.UTC(0,85,32), -1982793600000, 'Date.UTC with month out of range')
 
 // 8 tests for MakeTime
 is(Date.UTC(0,0,1,6.5,0,0), -2208967200000, 'Date.UTC with float hours')

@@ -1,6 +1,6 @@
 package JE::Object::Error::RangeError;
 
-our $VERSION = '0.062';
+our $VERSION = '0.063';
 
 
 use strict;

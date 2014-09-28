@@ -1,5 +1,12 @@
 Revision history for JE
 
+0.063   28 September, 2014
+        Bug fix: Date edge cases were not handled correctly; specific-
+        ally negative years and months out of range.  Also,  due to a
+        caching problem,  creation of dates with negative years could
+        cause creation of dates in  the  far  future  to  give  incor-
+        rect results.
+
 0.062   17 August, 2014
         Bug fixes:
         • Object literals (aka object constructors) now allow a trail-

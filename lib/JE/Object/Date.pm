@@ -1,6 +1,6 @@
 package JE::Object::Date;
 
-our $VERSION = '0.062';
+our $VERSION = '0.063';
 
 
 use strict;
@@ -165,10 +165,10 @@ use constant LOCAL_TZA => do {
 my @MonthDays = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31);
 my %Cheat;
 sub _daygm {
-    $_[3] + ($Cheat{pack("ll",@_[4,5])} ||= do {
+    $_[3] + ($Cheat{(),@_[4,5]} ||= do {
         my $month = ($_[4] + 10) % 12;
         my $year = $_[5] - int $month/10;
-        365*$year + int($year/4) - int($year/100) + int($year/400) +
+        365*$year + floor($year/4) - floor($year/100) + floor($year/400) +
             int(($month*306 + 5)/10) - 719469
     });
 }
@@ -341,7 +341,8 @@ sub _make_day($$$) {
 		$$_ + 1 == $$_ or $$_ != $$_ and return sin 9**9**9;
 		$$_ = int $$_; # ~~~ Is it sufficient?
 	}
-	$month <0 || $month > 11 and return sin 9**9**9; # ~~~ I sthis necessary? Actually, I think this is a mistake. I probably misread the spec. I need a test for this, though. (See the floor & modulo in 15.9.1.12.)
+	$year += floor($month/12);
+	$month %= 12;
 	_timegm(0,0,0,$date,$month,$year)
 		/
 	(MS_PER_DAY/1000)
