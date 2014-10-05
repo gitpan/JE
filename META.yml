@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               JE
-version:            0.063
+version:            0.064
 abstract:           Pure-Perl ECMAScript (JavaScript) Engine
 author:
     - Father Chrysostomos <sprout @ cpan . org>

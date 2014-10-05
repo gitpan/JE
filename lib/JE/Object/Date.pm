@@ -1,6 +1,6 @@
 package JE::Object::Date;
 
-our $VERSION = '0.063';
+our $VERSION = '0.064';
 
 
 use strict;
@@ -103,7 +103,9 @@ sub new {
 			: 0
 		);
 	} else {
-		$$$self{value} = (time - EPOCH_OFFSET) * 1000;
+		require Time::HiRes;
+		$$$self{value} =
+		 int +(Time::HiRes::time() - EPOCH_OFFSET) * 1000;
 	}
 	$self;
 }

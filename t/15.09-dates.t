@@ -153,8 +153,10 @@ is(+new Date({},{},{},{},{},{},{}), NaN,
 // handle negative years or months.
 new Date(Infinity,0);
 is(new Date(4294967295,0).valueOf(), NaN, 'new Date(4294967295,0)')
-is(new Date(-1,0).valueOf(), -62198726400000, 'new Date(-1,0)')
-is(new Date(-1,-1).valueOf(), -62201404800000, 'new Date(-1,-1)')
+is(new Date(-1,0).toGMTString(), 'Fri, 01 Jan -001 08:00:00 GMT',
+  'new Date(-1,0)')
+is(new Date(-1,-1).toGMTString(), 'Tue, 01 Dec -002 08:00:00 GMT',
+  'new Date(-1,-1)')
 
 
 // ===================================================

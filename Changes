@@ -1,5 +1,11 @@
 Revision history for JE
 
+0.064   4 October, 2014
+        Enhancement: ‘new Date()’ now uses Time::HiRes to get the cur-
+        rent time to the nearest millisecond.
+        Tests:  Two badly-written tests added to  t/15.09-dates.t  in
+        the previous release have been fixed.
+
 0.063   28 September, 2014
         Bug fix: Date edge cases were not handled correctly; specific-
         ally negative years and months out of range.  Also,  due to a
