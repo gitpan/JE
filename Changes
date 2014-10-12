@@ -1,6 +1,14 @@
 Revision history for JE
 
-0.064   4 October, 2014
+0.065   12 October, 2014
+        Enhancement:  Regexp stringification (and RegExp.source)  now
+        escape backslashes so that  new RegExp('/')  stringified is a
+        valid regexp literal.
+        Tests:  Two badly-written tests added to  t/15.09-dates.t  in
+        0.063 that were supposedly fixed in the previous release have
+        now actually been fixed.  (We’ll see. :-)
+
+0.064   5 October, 2014
         Enhancement: ‘new Date()’ now uses Time::HiRes to get the cur-
         rent time to the nearest millisecond.
         Tests:  Two badly-written tests added to  t/15.09-dates.t  in

@@ -712,8 +712,12 @@ name = "new RegExp(pattern with [b-a]) dies with a SyntaxError"
 try { diag(new RegExp('[b-a]')); fail(name) }
 catch(e) { ok (e instanceof SyntaxError, name)||diag(e) }
 
-// 1 test for setting source
+// 4 tests for setting source
 ok (new RegExp('a').source === 'a', 'source of new RegExp')
+ok (new RegExp('/').source === '\\/', 'source of new RegExp with /')
+ok (new RegExp('\\/').source === '\\/', 'source of new RegExp with \\/')
+ok (new RegExp('\\\\/').source === '\\\\\\/',
+   'source of new RegExp with \\\\/')
 
 // 2 tests for setting lastIndex
 ok (new RegExp('a').lastIndex === 0, 'lastIndex is initially 0')
@@ -944,6 +948,14 @@ method_boilerplate_tests(RegExp.prototype,'toString',0)
 		is(eval(re_strs[i]).toString(),re_strs[i],
 			re_strs[i]+'.toString()');
 }())
+
+// 3 tests
+ok (new RegExp('/').toString() === '/\\//',
+   'toString of new RegExp with /')
+ok (new RegExp('\\/').toString() === '/\\//',
+   'toString of new RegExp with \\/')
+ok (new RegExp('\\\\/').toString() === '/\\\\\\//',
+   'toString of new RegExp with \\\\/')
 
 // 1 test
 error = false

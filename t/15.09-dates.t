@@ -153,9 +153,9 @@ is(+new Date({},{},{},{},{},{},{}), NaN,
 // handle negative years or months.
 new Date(Infinity,0);
 is(new Date(4294967295,0).valueOf(), NaN, 'new Date(4294967295,0)')
-is(new Date(-1,0).toGMTString(), 'Fri, 01 Jan -001 08:00:00 GMT',
+like(new Date(-1,0), '/^Fri Jan  1 00:00:00 -001 /',
   'new Date(-1,0)')
-is(new Date(-1,-1).toGMTString(), 'Tue, 01 Dec -002 08:00:00 GMT',
+like(new Date(-1,-1), '/^Tue Dec  1 00:00:00 -002 /',
   'new Date(-1,-1)')
 
 

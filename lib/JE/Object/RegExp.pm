@@ -1,6 +1,6 @@
 package JE::Object::RegExp;
 
-our $VERSION = '0.064';
+our $VERSION = '0.065';
 
 
 use strict;
@@ -10,9 +10,8 @@ use overload fallback => 1,
 	'""'=> 'value';
 
 # This constant is true if we need to work around perl bug #122460 to keep
-# the ‘aardvark’ tests (in t/15.05-string-objects.t) passing.  This should
-# only apply to 5.20.0, but this comment was written before the release of
-# 5.20.1, so whether it applies to that version remains to be seen.  Basic-
+# the ‘aardvark’ tests (in t/15.05-string-objects.t) passing.  This only
+# applies  to  perl  5.20.0.  (perl  5.20.1  includes  a  fix.)  Basic-
 # ally,  (?=...)  can result in buggy optimisations that cause  a  faulty
 # rejection of the match at some locations, because it is assumed that it
 # cannot match in some spots.
@@ -325,7 +324,12 @@ sub new {
 	$self->prop({
 		name => source =>
 		# ~~~ Can we use ->_new here?
-		value  => JE::String->new($global, $re),
+		value  => JE::String->new($global, do {
+			(my $tmp = $re) =~
+				s<(\\.)|/>
+				<defined $1 ? $1 : '\/'>egg;
+			$tmp
+		}),
 		dontenum => 1,
 		readonly  => 1,
 		dontdel   => 1,

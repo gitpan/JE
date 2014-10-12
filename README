@@ -1,4 +1,4 @@
-JE, version 0.064
+JE, version 0.065
 
 JE is a pure-Perl ECMAScript (JavaScript) engine. Here are some of its
 advantages:
@@ -34,6 +34,15 @@ Hopefully two weeks was short enough an interval.  If this causes prob-
 lems for anyone, please let me know and I will increase the version to
 .541 or something similar.
 
+0.065
+-----
+Enhancement:  Regexp  stringification (and  RegExp.source) now escape
+backslashes so  that  new RegExp('/')  stringified  is  a  valid  reg-
+exp literal.
+Tests: Two badly-written tests added to t/15.09-dates.t in 0.063 that
+were supposedly fixed in the previous release have now actually  been
+fixed.  (We’ll see. :-)
+
 0.064
 -----
 Enhancement:  ‘new Date()’  now uses  Time::HiRes  to get the current
@@ -47,14 +56,6 @@ Bug fix: Date edge cases were not handled correctly; specifically neg-
 ative years and months out of range.  Also,  due to a caching problem,
 creation of dates with negative years could cause creation  of  dates
 in the far future to give incorrect results.
-
-0.062
------
-Bug fixes:
-• Object literals  (aka object constructors)  now  allow  a  trailing
-  comma, as in ‘{foo: 123,}’.
-• Regular expression literals now allow unescaped slashes  in  charac-
-  ter classes (i.e., /[^/]/).
 
 
 TO DO
