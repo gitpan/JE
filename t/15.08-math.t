@@ -521,7 +521,7 @@ is(Math.pow(-Infinity,3), -Infinity,' pow(-inf,odd)')
 is(Math.pow(-Infinity,2), Infinity,' pow(-inf,even)')
 is(Math.pow(-Infinity,2.3), Infinity,' pow(-inf,float)')
 try{skip("-0 is not supported",1);
- is(Math.pow(-Infinity,-3), -Infinity,' pow(-inf,-odd)')
+ is(1/Math.pow(-Infinity,-3),-Infinity,'pow(-inf,-odd)')
 }catch(_){}
 is(1/Math.pow(-Infinity,-2), Infinity,' pow(-inf,-even)')
 is(1/Math.pow(-Infinity,-2.3), Infinity,' pow(-inf,-float)')

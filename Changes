@@ -1,5 +1,11 @@
 Revision history for JE
 
+0.066   26 October, 2014
+        Bug fix:  Math.pow  tries harder to give correct results  for
+        Math.pow(-Infinity, whatever)  on platforms where the underly-
+        ing mathematics libraries give results  different  from  what
+        ECMAScript specifies (i.e., some Windows compilers).
+
 0.065   12 October, 2014
         Enhancement:  Regexp stringification (and RegExp.source)  now
         escape backslashes so that  new RegExp('/')  stringified is a

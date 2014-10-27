@@ -1,6 +1,6 @@
 package JE::Object::Math;
 
-our $VERSION = '0.065';
+our $VERSION = '0.066';
 
 
 use strict;
@@ -374,6 +374,13 @@ $y == 0 &&
 	return JE::Number->new($global, 1);
 
 $x == 0 && $y < 0 && return JE'Number->new($global, inf);
+
+$x == -+inf && $y < 0 &&
+	return JE'Number->new($global,
+	                      int $y != $y || !($y % 2) ? 0 : -0.0);
+
+$x == -+inf && $y > 0 && int $y != $y &&
+	return JE'Number->new($global, inf);
 
 return JE::Number->new($global, $x ** $y);
 

@@ -243,7 +243,7 @@ isa_ok $je, 'JE';
 our $lv = new JE::LValue $je, 'undefined';
 isa_ok $lv, 'JE::LValue', '(new JE::LValue $je, undefined)';
 
-is refaddr base $lv, refaddr $je;
+is refaddr +base $lv, refaddr $je;
 is property $lv, 'undefined';
 
 eval { new JE::LValue $je->undefined, 'oentoetntn' };
